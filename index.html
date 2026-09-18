@@ -6,29 +6,18 @@
     <title>NexusChat - Ultimate Gaming Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        brand: { 500: 'var(--theme-color)', 600: 'var(--theme-dark)' }
-                    }
-                }
-            }
-        }
+        tailwind.config = { darkMode: 'class' }
     </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root {
-            --theme-color: #8b5cf6;
-            --theme-dark: #7c3aed;
-        }
+        :root { --theme-color: #8b5cf6; --theme-dark: #7c3aed; }
         .theme-violet { --theme-color: #8b5cf6; --theme-dark: #7c3aed; }
         .theme-emerald { --theme-color: #10b981; --theme-dark: #059669; }
         .theme-blue { --theme-color: #3b82f6; --theme-dark: #2563eb; }
         .theme-rose { --theme-color: #f43f5e; --theme-dark: #e11d48; }
         .theme-amber { --theme-color: #f59e0b; --theme-dark: #d97706; }
         .message-row:hover .msg-actions { display: flex; }
+        .chan-row:hover .chan-edit { opacity: 1; }
         input, select, textarea { font-size: 16px !important; }
     </style>
 </head>
@@ -40,8 +29,7 @@
                 <i class="fa-solid fa-gamepad"></i>
             </div>
             <h1 class="text-2xl font-bold mt-4 mb-2">NexusChat</h1>
-            <p class="text-slate-400 text-sm mb-6">Salons, Vocaux, Salons personnalisés et Vrais MPs isolés !</p>
-
+            <p class="text-slate-400 text-sm mb-6">Salons, Vocaux réels, Groupes privés et MPs isolés !</p>
             <div class="space-y-3">
                 <button onclick="loginWithGoogle()" class="w-full bg-white hover:bg-slate-100 text-slate-900 font-medium py-3 px-4 rounded-xl transition flex items-center justify-center gap-3 shadow-md">
                     <i class="fa-brands fa-google text-red-500"></i> Continuer avec Google
@@ -77,15 +65,21 @@
                 </div>
 
                 <div>
-                    <div class="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">MESSAGES PRIVÉS</div>
-                    <div id="dm-conversations-list" class="space-y-1">
-                        <div class="px-3 py-2 text-xs text-slate-500 italic">Aucune conversation.</div>
+                    <div class="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 flex items-center justify-between">
+                        <span>GROUPES PRIVÉS</span>
+                        <button onclick="openGroupModal()" class="text-slate-400 hover:text-white transition" title="Créer un groupe"><i class="fa-solid fa-user-plus text-xs bg-slate-800 p-1 rounded"></i></button>
                     </div>
+                    <div id="groups-list" class="space-y-1"></div>
+                </div>
+
+                <div>
+                    <div class="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">MESSAGES PRIVÉS</div>
+                    <div id="dm-conversations-list" class="space-y-1"></div>
                 </div>
             </div>
 
             <div class="p-3 border-t border-slate-800 flex items-center justify-between bg-slate-950/50">
-                <div class="flex items-center gap-2 truncate cursor-pointer flex-1" onclick="openProfileModal()" title="Modifier mon profil">
+                <div class="flex items-center gap-2 truncate cursor-pointer flex-1" onclick="openProfileModal()">
                     <div id="user-avatar-container" class="w-9 h-9 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-sm font-bold overflow-hidden border border-[var(--theme-color)] shrink-0">
                         <span id="user-avatar-text">U</span>
                     </div>
@@ -105,7 +99,6 @@
                     <h2 id="current-channel-title" class="font-bold text-base md:text-lg truncate"># Général</h2>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
-                    <div class="text-xs text-slate-400 hidden lg:block">Admin : <code class="text-amber-400 bg-slate-900 px-1 py-0.5 rounded">/clean</code></div>
                     <div class="flex items-center gap-1.5 bg-slate-800/60 px-2.5 py-1 rounded-full border border-slate-700/50 text-xs" title="Utilisateurs en ligne">
                         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                         <span id="online-count" class="text-slate-300 font-medium">0</span>
@@ -113,23 +106,26 @@
                 </div>
             </div>
 
-            <div id="active-voice-panel" class="bg-emerald-950/40 border-b border-emerald-900/50 px-4 py-2 hidden flex items-center justify-between shrink-0">
+            <div id="active-voice-panel" class="bg-emerald-950/40 border-b border-emerald-900/50 px-4 py-2 hidden items-center justify-between shrink-0">
                 <div class="flex items-center gap-2 truncate">
                     <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
                     <span class="text-xs text-emerald-300 font-semibold truncate" id="active-voice-name">En vocal</span>
+                    <span class="text-[10px] text-slate-400 hidden sm:inline" id="voice-peer-count"></span>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
+                    <button onclick="toggleDeafen()" id="deafen-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-2.5 py-1.5 rounded-lg transition font-medium flex items-center gap-1.5 shadow" title="Couper le son">
+                        <i class="fa-solid fa-headphones text-emerald-400" id="deafen-icon"></i>
+                    </button>
                     <button onclick="toggleMuteMic()" id="mute-mic-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-2.5 py-1.5 rounded-lg transition font-medium flex items-center gap-1.5 shadow">
-                        <i class="fa-solid fa-microphone text-emerald-400" id="mic-icon"></i> <span id="mic-text">Micro actif</span>
+                        <i class="fa-solid fa-microphone text-emerald-400" id="mic-icon"></i> <span id="mic-text">Actif</span>
                     </button>
                     <button onclick="leaveVoiceChannel()" class="bg-rose-600 hover:bg-rose-500 text-white text-xs px-2.5 py-1.5 rounded-lg transition font-medium flex items-center gap-1 shadow">
-                        <i class="fa-solid fa-phone-slash"></i> Quitter
+                        <i class="fa-solid fa-phone-slash"></i> Raccrocher
                     </button>
                 </div>
             </div>
 
             <div id="messages-container" class="flex-1 overflow-y-auto p-3 md:p-6 space-y-4"></div>
-
             <div id="typing-indicator" class="px-4 py-0.5 text-xs text-slate-500 italic h-5 shrink-0"></div>
 
             <div class="p-2 md:p-4 border-t border-slate-800 bg-slate-900/80 backdrop-blur shrink-0">
@@ -142,56 +138,93 @@
         </div>
     </div>
 
+    <div id="remote-audios" class="hidden"></div>
+
     <div id="create-channel-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-md w-full space-y-4 shadow-2xl">
-            <h3 class="font-bold text-lg text-slate-100 flex items-center gap-2"><i class="fa-solid fa-hashtag text-[var(--theme-color)]"></i> Créer un salon textuel</h3>
+            <h3 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-hashtag text-[var(--theme-color)]"></i> Créer un salon textuel</h3>
             <div>
                 <label class="text-xs text-slate-400 block mb-1">Nom du salon</label>
-                <input type="text" id="new-channel-name" placeholder="ex: fortnite-team" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-[var(--theme-color)]">
+                <input type="text" id="new-channel-name" placeholder="ex: fortnite-team" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="text-xs text-slate-400 block mb-1">Image du salon (optionnel)</label>
+                <input type="text" id="new-channel-image" placeholder="assets/fortnite.png ou https://..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm">
             </div>
             <div class="flex justify-end gap-2 pt-2">
-                <button onclick="closeCreateChannelModal()" class="px-4 py-2 rounded-xl text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 transition">Annuler</button>
-                <button onclick="createNewChannel()" class="px-4 py-2 rounded-xl text-sm bg-[var(--theme-color)] hover:opacity-90 text-white transition font-medium">Créer</button>
+                <button onclick="closeCreateChannelModal()" class="px-4 py-2 rounded-xl text-sm bg-slate-800 hover:bg-slate-700 text-slate-300">Annuler</button>
+                <button onclick="createNewChannel()" class="px-4 py-2 rounded-xl text-sm bg-[var(--theme-color)] text-white font-medium">Créer</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="edit-channel-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4">
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-md w-full space-y-4 shadow-2xl">
+            <h3 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-image text-[var(--theme-color)]"></i> Image du salon</h3>
+            <p class="text-xs text-slate-400">Mets tes logos dans un dossier <code class="text-amber-400">assets/</code> de ton dépôt, puis écris <code class="text-amber-400">assets/brawl-stars.png</code>.</p>
+            <input type="text" id="edit-channel-image" placeholder="assets/brawl-stars.png" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm">
+            <div class="flex justify-between gap-2 pt-2">
+                <button onclick="deleteChannel()" id="delete-channel-btn" class="px-4 py-2 rounded-xl text-sm bg-rose-950/60 border border-rose-800 text-rose-300 hover:bg-rose-900/60">Supprimer</button>
+                <div class="flex gap-2">
+                    <button onclick="closeEditChannelModal()" class="px-4 py-2 rounded-xl text-sm bg-slate-800 hover:bg-slate-700 text-slate-300">Annuler</button>
+                    <button onclick="saveChannelImage()" class="px-4 py-2 rounded-xl text-sm bg-[var(--theme-color)] text-white font-medium">Enregistrer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="group-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4">
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-md w-full space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-users text-[var(--theme-color)]"></i> Nouveau groupe privé</h3>
+            <div>
+                <label class="text-xs text-slate-400 block mb-1">Nom du groupe</label>
+                <input type="text" id="group-name-input" placeholder="ex: La team du samedi" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="text-xs text-slate-400 block mb-2">Choisis les membres</label>
+                <div id="group-members-picker" class="space-y-1 max-h-60 overflow-y-auto pr-1"></div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeGroupModal()" class="px-4 py-2 rounded-xl text-sm bg-slate-800 hover:bg-slate-700 text-slate-300">Annuler</button>
+                <button onclick="createGroup()" class="px-4 py-2 rounded-xl text-sm bg-[var(--theme-color)] text-white font-medium">Créer le groupe</button>
             </div>
         </div>
     </div>
 
     <div id="media-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-lg w-full space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <h3 class="font-bold text-lg text-slate-100 flex items-center gap-2"><i class="fa-solid fa-photo-film text-[var(--theme-color)]"></i> Partager un GIF / Image</h3>
+            <h3 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-photo-film text-[var(--theme-color)]"></i> Partager un GIF / Image</h3>
             <div>
                 <label class="text-xs text-slate-400 block mb-1">URL personnalisée</label>
                 <div class="flex gap-2">
-                    <input type="text" id="media-url-input" placeholder="https://..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-[var(--theme-color)]">
-                    <button onclick="sendMediaMessage()" class="px-4 py-2 rounded-xl text-sm bg-[var(--theme-color)] hover:opacity-90 text-white transition font-medium">Envoyer</button>
+                    <input type="text" id="media-url-input" placeholder="https://..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm">
+                    <button onclick="sendMediaMessage()" class="px-4 py-2 rounded-xl text-sm bg-[var(--theme-color)] text-white font-medium">Envoyer</button>
                 </div>
             </div>
             <div class="border-t border-slate-800 pt-3">
                 <label class="text-xs font-semibold text-slate-400 block mb-2">🔥 Rechercher un GIF</label>
                 <div class="flex gap-2 mb-3">
-                    <input type="text" id="gif-search-input" placeholder="ex: victory royale, rage, gg..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-[var(--theme-color)]">
-                    <button onclick="searchGifs()" class="px-4 py-2 rounded-xl text-sm bg-slate-800 hover:bg-slate-700 text-slate-200 transition font-medium"><i class="fa-solid fa-magnifying-glass"></i></button>
+                    <input type="text" id="gif-search-input" placeholder="ex: victory, rage, gg..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm">
+                    <button onclick="searchGifs()" class="px-4 py-2 rounded-xl text-sm bg-slate-800 hover:bg-slate-700 text-slate-200"><i class="fa-solid fa-magnifying-glass"></i></button>
                 </div>
-                <div id="gif-results" class="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto pr-1">
-                    <div class="col-span-3 text-center text-xs text-slate-500 py-6">Chargement des GIFs...</div>
-                </div>
+                <div id="gif-results" class="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto pr-1"></div>
             </div>
             <div class="flex justify-end pt-2">
-                <button onclick="closeMediaModal()" class="px-4 py-2 rounded-xl text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 transition">Fermer</button>
+                <button onclick="closeMediaModal()" class="px-4 py-2 rounded-xl text-sm bg-slate-800 hover:bg-slate-700 text-slate-300">Fermer</button>
             </div>
         </div>
     </div>
 
     <div id="profile-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-md w-full space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <h3 class="font-bold text-lg text-slate-100">Mon Profil</h3>
+            <h3 class="font-bold text-lg">Mon Profil</h3>
             <div>
                 <label class="text-xs text-slate-400 block mb-1">Pseudo</label>
-                <input type="text" id="edit-username" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-[var(--theme-color)]">
+                <input type="text" id="edit-username" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm">
             </div>
             <div>
                 <label class="text-xs text-slate-400 block mb-1">URL Avatar</label>
-                <input type="text" id="edit-avatar" placeholder="https://..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-[var(--theme-color)]">
+                <input type="text" id="edit-avatar" placeholder="https://..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm">
             </div>
             <div>
                 <label class="text-xs text-slate-400 block mb-2">Thème de couleur</label>
@@ -203,9 +236,14 @@
                     <button type="button" onclick="setTheme('theme-amber')" class="w-8 h-8 rounded-full bg-amber-600 border-2 border-white/20 hover:scale-110 transition"></button>
                 </div>
             </div>
+            <div class="border-t border-slate-800 pt-3">
+                <label class="text-xs text-slate-400 block mb-1">Mon identifiant (UID)</label>
+                <code id="my-uid" class="block text-[11px] text-amber-400 bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 break-all select-all"></code>
+                <p class="text-[10px] text-slate-500 mt-1">Colle-le dans ADMIN_UIDS (dans le code) pour être admin.</p>
+            </div>
             <div class="flex justify-end gap-2 pt-2">
-                <button onclick="closeProfileModal()" class="px-4 py-2 rounded-xl text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 transition">Annuler</button>
-                <button onclick="saveProfile()" class="px-4 py-2 rounded-xl text-sm bg-[var(--theme-color)] hover:opacity-90 text-white transition font-medium">Enregistrer</button>
+                <button onclick="closeProfileModal()" class="px-4 py-2 rounded-xl text-sm bg-slate-800 hover:bg-slate-700 text-slate-300">Annuler</button>
+                <button onclick="saveProfile()" class="px-4 py-2 rounded-xl text-sm bg-[var(--theme-color)] text-white font-medium">Enregistrer</button>
             </div>
         </div>
     </div>
@@ -218,7 +256,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, where, orderBy, onSnapshot, serverTimestamp, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, writeBatch, arrayRemove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB9P5Y1ywmsbQt_PMCNsiRkryppVI1421o",
@@ -234,33 +272,39 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        const ADMIN_NAME = "Fire";
+        /* =========================================================
+           À CONFIGURER : colle ton UID ici (Profil > Mon identifiant)
+           ========================================================= */
+        const ADMIN_UIDS = ["COLLE_TON_UID_ICI"];
 
-        // Clé publique de démo Giphy. Crée la tienne sur developers.giphy.com
-        // et remplace-la ici : sinon tu partages le quota avec le monde entier.
+        // Pseudos que personne d'autre ne peut prendre.
+        const RESERVED_NAMES = ["fire", "admin", "moderateur", "nexuschat"];
+
+        // Clé publique de démo Giphy — crée la tienne sur developers.giphy.com
         const GIPHY_KEY = "GlVGYHkr3WSBnllca54iNt0yFbjz7L65";
 
         const ONLINE_WINDOW_MS = 90 * 1000;
+        const RTC_CONFIG = {
+            iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }]
+        };
 
         let currentUser = null;
         let currentTargetType = "channel";
         let currentTargetId = "général";
-        let currentDmPeerName = "";
         let activeVoiceId = null;
         let isMicMuted = false;
+        let isDeafened = false;
 
-        let unsubscribeMessages = null;
-        let unsubscribeTyping = null;
-        let unsubscribeUsers = null;
-        let unsubscribeChannels = null;
+        let unsubscribeMessages = null, unsubscribeTyping = null, unsubscribeUsers = null,
+            unsubscribeChannels = null, unsubscribeGroups = null, unsubRoomParticipants = null;
         let heartbeatTimer = null;
 
         const DEFAULT_CHANNELS = [
-            { id: "général", name: "Général", icon: "fa-solid fa-fire text-amber-500" },
-            { id: "brawl-stars", name: "Brawl Stars", icon: "fa-solid fa-skull text-purple-400" },
-            { id: "clash-of-clans", name: "Clash of Clans", icon: "fa-solid fa-shield-halved text-amber-400" },
-            { id: "clash-royale", name: "Clash Royale", icon: "fa-solid fa-crown text-yellow-400" },
-            { id: "roblox", name: "Roblox", icon: "fa-solid fa-cube text-blue-400" }
+            { id: "général", name: "Général", icon: "fa-solid fa-fire text-amber-500", image: "assets/general.png" },
+            { id: "brawl-stars", name: "Brawl Stars", icon: "fa-solid fa-skull text-purple-400", image: "assets/brawl-stars.png" },
+            { id: "clash-of-clans", name: "Clash of Clans", icon: "fa-solid fa-shield-halved text-amber-400", image: "assets/clash-of-clans.png" },
+            { id: "clash-royale", name: "Clash Royale", icon: "fa-solid fa-crown text-yellow-400", image: "assets/clash-royale.png" },
+            { id: "roblox", name: "Roblox", icon: "fa-solid fa-cube text-blue-400", image: "assets/roblox.png" }
         ];
         let textChannels = [...DEFAULT_CHANNELS];
 
@@ -271,24 +315,38 @@
 
         let userProfile = { name: "", avatar: "", theme: "theme-violet" };
         let allUsersList = [];
+        let myGroups = [];
         let voiceParticipants = {};
-        let unreadChannels = {};
+        let editingChannelId = null;
+
+        // WebRTC
+        let localStream = null;
+        let peers = {}; // uid -> { pc, unsubs[] }
 
         /* ---------- Utilitaires ---------- */
 
-        function escapeHtml(str) {
-            return String(str ?? "")
-                .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+        const escapeHtml = (s) => String(s ?? "")
+            .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
+        // Autorise les URLs http(s) ET les chemins relatifs (assets/logo.png)
+        function safeUrl(url) {
+            const s = String(url || "").trim();
+            if (!s) return "";
+            if (/^[a-z][a-z0-9+.-]*:/i.test(s)) {
+                try {
+                    const u = new URL(s);
+                    return (u.protocol === "http:" || u.protocol === "https:") ? u.href : "";
+                } catch { return ""; }
+            }
+            if (s.startsWith("//") || s.includes("..")) return "";
+            return s;
         }
 
-        // N'accepte que des URLs http(s) pour les avatars / médias.
-        function safeUrl(url) {
-            try {
-                const u = new URL(String(url));
-                return (u.protocol === "http:" || u.protocol === "https:") ? u.href : "";
-            } catch { return ""; }
-        }
+        const normalizeName = (n) => String(n || "").toLowerCase().normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+
+        const isAdmin = () => !!currentUser && ADMIN_UIDS.includes(currentUser.uid);
 
         function isOnline(u) {
             if (!u.lastSeen) return false;
@@ -308,41 +366,48 @@
             document.getElementById('sidebar-overlay').classList.toggle('hidden');
         };
 
-        /* ---------- Chemins Firestore ---------- */
+        /* ---------- Chemins ---------- */
 
-        function messagesPath() {
-            return currentTargetType === 'channel'
-                ? `channels/${currentTargetId}/messages`
-                : `dms_chats/${currentTargetId}/messages`;
+        function basePath() {
+            if (currentTargetType === 'channel') return `channels/${currentTargetId}`;
+            if (currentTargetType === 'group') return `groups/${currentTargetId}`;
+            return `dms_chats/${currentTargetId}`;
         }
-        function typingPath() {
-            return currentTargetType === 'channel'
-                ? `channels/${currentTargetId}/typing`
-                : `dms_chats/${currentTargetId}/typing`;
-        }
+        const messagesPath = () => `${basePath()}/messages`;
+        const typingPath = () => `${basePath()}/typing`;
 
-        // Identifiant de conversation privée : toujours le même pour une paire donnée.
-        function getDmId(uid1, uid2) {
-            if (!uid1 || !uid2) return null;
-            return uid1 < uid2 ? `dm_${uid1}_${uid2}` : `dm_${uid2}_${uid1}`;
+        function getDmId(a, b) {
+            if (!a || !b) return null;
+            return a < b ? `dm_${a}_${b}` : `dm_${b}_${a}`;
         }
 
-        /* ---------- Interface latérale ---------- */
+        /* ---------- Icône / logo de salon ---------- */
+
+        function channelIconHtml(c) {
+            const img = safeUrl(c.image);
+            const icon = escapeHtml(c.icon || "fa-solid fa-hashtag text-slate-400");
+            if (!img) return `<i class="${icon} w-5 text-center shrink-0"></i>`;
+            // Si le fichier image n'existe pas, on retombe sur l'icône.
+            return `<span class="w-5 h-5 shrink-0 inline-flex items-center justify-center">
+                <img src="${escapeHtml(img)}" class="w-5 h-5 rounded object-cover"
+                     onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block'">
+                <i class="${icon}" style="display:none"></i>
+            </span>`;
+        }
+
+        /* ---------- Sidebar ---------- */
 
         function initSidebarUI() {
             document.getElementById('channels-list').innerHTML = textChannels.map(c => {
                 const isActive = currentTargetType === 'channel' && currentTargetId === c.id;
-                const hasUnread = unreadChannels[c.id] && !isActive;
-                const iconClass = escapeHtml(c.icon || "fa-solid fa-hashtag text-slate-400");
                 return `
-                    <button onclick="switchTarget('channel', '${escapeHtml(c.id)}')" class="w-full text-left px-3 py-2 rounded-xl text-sm font-medium flex items-center justify-between transition ${isActive ? 'bg-[var(--theme-color)] text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
-                        <div class="flex items-center gap-2.5 truncate">
-                            <i class="${iconClass} w-4 text-center shrink-0"></i>
+                    <div class="chan-row relative group">
+                        <button onclick="switchTarget('channel', '${escapeHtml(c.id)}')" class="w-full text-left px-3 py-2 rounded-xl text-sm font-medium flex items-center gap-2.5 transition ${isActive ? 'bg-[var(--theme-color)] text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
+                            ${channelIconHtml(c)}
                             <span class="truncate">${escapeHtml(c.name)}</span>
-                        </div>
-                        ${hasUnread ? '<span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse shrink-0"></span>' : ''}
-                    </button>
-                `;
+                        </button>
+                        ${isAdmin() ? `<button onclick="openEditChannelModal('${escapeHtml(c.id)}')" class="chan-edit opacity-0 transition absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-white bg-slate-900/80 rounded p-1" title="Image du salon"><i class="fa-solid fa-pen text-[10px]"></i></button>` : ''}
+                    </div>`;
             }).join('');
 
             document.getElementById('voice-channels-list').innerHTML = voiceChannelsList.map(v => {
@@ -352,55 +417,56 @@
                     <div class="space-y-1">
                         <button onclick="joinVoiceChannel('${v.id}')" class="w-full text-left px-3 py-2 rounded-xl text-sm font-medium flex items-center justify-between transition ${isConnected ? 'bg-emerald-600/20 border border-emerald-500/40 text-emerald-300' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
                             <div class="flex items-center gap-2.5 truncate">
-                                <i class="fa-solid fa-volume-high text-slate-400 w-4 text-center shrink-0"></i>
+                                <i class="fa-solid fa-volume-high w-4 text-center shrink-0"></i>
                                 <span class="truncate">${escapeHtml(v.name)}</span>
                             </div>
-                            <span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded-full text-slate-300 shrink-0">${members.length} connecté(s)</span>
+                            <span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded-full text-slate-300 shrink-0">${members.length}</span>
                         </button>
-                        ${members.length > 0 ? `
-                            <div class="pl-6 space-y-1">
-                                ${members.map(m => {
-                                    const av = safeUrl(m.avatar);
-                                    return `
-                                    <div class="flex items-center gap-2 text-xs text-slate-400 py-0.5">
-                                        <div class="w-5 h-5 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-[10px] font-bold overflow-hidden shrink-0">
-                                            ${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((m.name || '?').charAt(0))}
-                                        </div>
-                                        <span class="truncate">${escapeHtml(m.name)}</span>
-                                        <i class="fa-solid ${m.muted ? 'fa-microphone-slash text-rose-400' : 'fa-microphone text-emerald-400'} text-[10px] ml-auto shrink-0"></i>
-                                    </div>`;
-                                }).join('')}
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
+                        ${members.length ? `<div class="pl-6 space-y-1">${members.map(m => {
+                            const av = safeUrl(m.avatar);
+                            return `<div class="flex items-center gap-2 text-xs text-slate-400 py-0.5">
+                                <div class="w-5 h-5 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-[10px] font-bold overflow-hidden shrink-0">
+                                    ${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((m.name || '?').charAt(0))}
+                                </div>
+                                <span class="truncate">${escapeHtml(m.name)}</span>
+                                <i class="fa-solid ${m.muted ? 'fa-microphone-slash text-rose-400' : 'fa-microphone text-emerald-400'} text-[10px] ml-auto shrink-0"></i>
+                            </div>`;
+                        }).join('')}</div>` : ''}
+                    </div>`;
             }).join('');
 
-            // Liste des MPs : un bouton par utilisateur réel, jamais soi-même.
+            const gBox = document.getElementById('groups-list');
+            gBox.innerHTML = myGroups.length ? myGroups.map(g => {
+                const isActive = currentTargetType === 'group' && currentTargetId === g.id;
+                const count = (g.members || []).length;
+                return `
+                    <div class="chan-row relative group">
+                        <button onclick="switchTarget('group','${escapeHtml(g.id)}','${escapeHtml(g.name)}')" class="w-full text-left px-3 py-2 rounded-xl text-sm font-medium flex items-center gap-2.5 transition ${isActive ? 'bg-[var(--theme-color)] text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
+                            <i class="fa-solid fa-users w-4 text-center shrink-0"></i>
+                            <span class="truncate">${escapeHtml(g.name)}</span>
+                            <span class="text-[10px] text-slate-500 ml-auto shrink-0">${count}</span>
+                        </button>
+                        <button onclick="leaveGroup('${escapeHtml(g.id)}')" class="chan-edit opacity-0 transition absolute right-1 top-1/2 -translate-y-1/2 text-rose-400 hover:text-rose-300 bg-slate-900/80 rounded p-1" title="Quitter"><i class="fa-solid fa-right-from-bracket text-[10px]"></i></button>
+                    </div>`;
+            }).join('') : `<div class="px-3 py-2 text-xs text-slate-500 italic">Aucun groupe.</div>`;
+
             const others = allUsersList
                 .filter(u => u.uid && currentUser && u.uid !== currentUser.uid)
                 .sort((a, b) => (isOnline(b) - isOnline(a)) || String(a.name).localeCompare(String(b.name)));
-
-            const dmContainer = document.getElementById('dm-conversations-list');
-            if (others.length === 0) {
-                dmContainer.innerHTML = `<div class="px-3 py-2 text-xs text-slate-500 italic">Aucun autre utilisateur inscrit.</div>`;
-            } else {
-                dmContainer.innerHTML = others.map(u => {
-                    const dmId = getDmId(currentUser.uid, u.uid);
-                    const isActive = currentTargetType === 'dm' && currentTargetId === dmId;
-                    const online = isOnline(u);
-                    const av = safeUrl(u.avatar);
-                    return `
-                        <button onclick="openDirectMessage('${escapeHtml(u.uid)}')" class="w-full text-left px-3 py-2 rounded-xl text-sm font-medium flex items-center gap-2.5 transition ${isActive ? 'bg-[var(--theme-color)] text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
-                            <div class="w-6 h-6 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-xs font-bold overflow-hidden border border-slate-700 shrink-0">
-                                ${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((u.name || '?').charAt(0))}
-                            </div>
-                            <span class="truncate">${escapeHtml(u.name)}</span>
-                            <span class="w-2 h-2 rounded-full ${online ? 'bg-emerald-500' : 'bg-slate-600'} ml-auto shrink-0"></span>
-                        </button>
-                    `;
-                }).join('');
-            }
+            const dmBox = document.getElementById('dm-conversations-list');
+            dmBox.innerHTML = others.length ? others.map(u => {
+                const dmId = getDmId(currentUser.uid, u.uid);
+                const isActive = currentTargetType === 'dm' && currentTargetId === dmId;
+                const av = safeUrl(u.avatar);
+                return `
+                    <button onclick="openDirectMessage('${escapeHtml(u.uid)}')" class="w-full text-left px-3 py-2 rounded-xl text-sm font-medium flex items-center gap-2.5 transition ${isActive ? 'bg-[var(--theme-color)] text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
+                        <div class="w-6 h-6 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-xs font-bold overflow-hidden shrink-0">
+                            ${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((u.name || '?').charAt(0))}
+                        </div>
+                        <span class="truncate">${escapeHtml(u.name)}</span>
+                        <span class="w-2 h-2 rounded-full ${isOnline(u) ? 'bg-emerald-500' : 'bg-slate-600'} ml-auto shrink-0"></span>
+                    </button>`;
+            }).join('') : `<div class="px-3 py-2 text-xs text-slate-500 italic">Aucun autre utilisateur.</div>`;
         }
 
         /* ---------- Salons ---------- */
@@ -410,28 +476,53 @@
 
         window.createNewChannel = async () => {
             const rawName = document.getElementById('new-channel-name').value.trim();
+            const image = document.getElementById('new-channel-image').value.trim();
             if (!rawName) return showToast("Entrez un nom de salon.");
-            const channelId = rawName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/^-+|-+$/g, '');
-            if (!channelId) return showToast("Nom invalide.");
-            if (textChannels.some(c => c.id === channelId)) return showToast("Ce salon existe déjà.");
-
-            const updated = [...textChannels, { id: channelId, name: rawName, icon: "fa-solid fa-hashtag text-slate-400" }];
+            const id = rawName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/^-+|-+$/g, '');
+            if (!id) return showToast("Nom invalide.");
+            if (textChannels.some(c => c.id === id)) return showToast("Ce salon existe déjà.");
+            const updated = [...textChannels, { id, name: rawName, icon: "fa-solid fa-hashtag text-slate-400", image: safeUrl(image) }];
             try {
                 await setDoc(doc(db, "settings", "custom_channels"), { list: updated });
                 document.getElementById('new-channel-name').value = '';
+                document.getElementById('new-channel-image').value = '';
                 closeCreateChannelModal();
-                switchTarget('channel', channelId);
-                showToast("Salon créé avec succès !");
+                switchTarget('channel', id);
             } catch (e) { showToast("Erreur : " + e.message); }
         };
 
-        // Écoute temps réel : un salon créé par quelqu'un d'autre apparaît sans refresh.
+        window.openEditChannelModal = (id) => {
+            if (!isAdmin()) return;
+            editingChannelId = id;
+            const c = textChannels.find(x => x.id === id);
+            document.getElementById('edit-channel-image').value = c?.image || "";
+            document.getElementById('delete-channel-btn').style.display = DEFAULT_CHANNELS.some(d => d.id === id) ? 'none' : 'block';
+            document.getElementById('edit-channel-modal').classList.remove('hidden');
+        };
+        window.closeEditChannelModal = () => document.getElementById('edit-channel-modal').classList.add('hidden');
+
+        window.saveChannelImage = async () => {
+            if (!isAdmin() || !editingChannelId) return;
+            const url = safeUrl(document.getElementById('edit-channel-image').value.trim());
+            const updated = textChannels.map(c => c.id === editingChannelId ? { ...c, image: url } : c);
+            await setDoc(doc(db, "settings", "custom_channels"), { list: updated });
+            closeEditChannelModal();
+            showToast("Image mise à jour !");
+        };
+
+        window.deleteChannel = async () => {
+            if (!isAdmin() || !editingChannelId) return;
+            const updated = textChannels.filter(c => c.id !== editingChannelId);
+            await setDoc(doc(db, "settings", "custom_channels"), { list: updated });
+            closeEditChannelModal();
+            if (currentTargetId === editingChannelId) switchTarget('channel', 'général');
+        };
+
         function listenChannels() {
             if (unsubscribeChannels) unsubscribeChannels();
             unsubscribeChannels = onSnapshot(doc(db, "settings", "custom_channels"), (snap) => {
-                textChannels = (snap.exists() && Array.isArray(snap.data().list) && snap.data().list.length)
-                    ? snap.data().list
-                    : [...DEFAULT_CHANNELS];
+                const list = snap.exists() && Array.isArray(snap.data().list) ? snap.data().list : [];
+                textChannels = list.length ? list : [...DEFAULT_CHANNELS];
                 initSidebarUI();
             }, () => { textChannels = [...DEFAULT_CHANNELS]; initSidebarUI(); });
         }
@@ -439,13 +530,14 @@
         window.switchTarget = function(type, id, title = "") {
             currentTargetType = type;
             currentTargetId = id;
+            const h = document.getElementById('current-channel-title');
             if (type === 'channel') {
-                unreadChannels[id] = false;
                 const chan = textChannels.find(c => c.id === id);
-                document.getElementById('current-channel-title').textContent = `# ${chan ? chan.name : id}`;
+                h.textContent = `# ${chan ? chan.name : id}`;
+            } else if (type === 'group') {
+                h.textContent = `👥 ${title}`;
             } else {
-                currentDmPeerName = title;
-                document.getElementById('current-channel-title').textContent = `💬 MP : ${title}`;
+                h.textContent = `💬 MP : ${title}`;
             }
             initSidebarUI();
             loadMessages();
@@ -460,7 +552,63 @@
             switchTarget('dm', dmId, peer ? peer.name : "Utilisateur");
         }
 
-        /* ---------- Profil / Auth / Présence ---------- */
+        /* ---------- Groupes privés ---------- */
+
+        window.openGroupModal = () => {
+            const others = allUsersList.filter(u => u.uid && u.uid !== currentUser.uid);
+            document.getElementById('group-members-picker').innerHTML = others.length ? others.map(u => {
+                const av = safeUrl(u.avatar);
+                return `
+                    <label class="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-800 cursor-pointer">
+                        <input type="checkbox" value="${escapeHtml(u.uid)}" class="group-member-cb accent-[var(--theme-color)] w-4 h-4">
+                        <div class="w-6 h-6 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-xs font-bold overflow-hidden shrink-0">
+                            ${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((u.name || '?').charAt(0))}
+                        </div>
+                        <span class="text-sm truncate">${escapeHtml(u.name)}</span>
+                        <span class="w-2 h-2 rounded-full ${isOnline(u) ? 'bg-emerald-500' : 'bg-slate-600'} ml-auto"></span>
+                    </label>`;
+            }).join('') : `<div class="text-xs text-slate-500 italic px-2">Personne d'autre n'est inscrit.</div>`;
+            document.getElementById('group-modal').classList.remove('hidden');
+        };
+        window.closeGroupModal = () => document.getElementById('group-modal').classList.add('hidden');
+
+        window.createGroup = async () => {
+            const name = document.getElementById('group-name-input').value.trim();
+            const picked = [...document.querySelectorAll('.group-member-cb:checked')].map(cb => cb.value);
+            if (!name) return showToast("Donne un nom au groupe.");
+            if (!picked.length) return showToast("Sélectionne au moins une personne.");
+            try {
+                const ref = await addDoc(collection(db, "groups"), {
+                    name,
+                    members: [currentUser.uid, ...picked],
+                    createdBy: currentUser.uid,
+                    createdAt: serverTimestamp()
+                });
+                document.getElementById('group-name-input').value = '';
+                closeGroupModal();
+                switchTarget('group', ref.id, name);
+                showToast("Groupe créé !");
+            } catch (e) { showToast("Erreur : " + e.message); }
+        };
+
+        window.leaveGroup = async (groupId) => {
+            try {
+                await updateDoc(doc(db, "groups", groupId), { members: arrayRemove(currentUser.uid) });
+                if (currentTargetType === 'group' && currentTargetId === groupId) switchTarget('channel', 'général');
+                showToast("Groupe quitté.");
+            } catch (e) { showToast("Erreur : " + e.message); }
+        };
+
+        function listenGroups() {
+            if (unsubscribeGroups) unsubscribeGroups();
+            const q = query(collection(db, "groups"), where("members", "array-contains", currentUser.uid));
+            unsubscribeGroups = onSnapshot(q, (snap) => {
+                myGroups = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                initSidebarUI();
+            });
+        }
+
+        /* ---------- Profil / Auth ---------- */
 
         window.setTheme = (themeClass) => {
             userProfile.theme = themeClass;
@@ -470,63 +618,66 @@
         window.loginAnonymously = async () => {
             try { await signInAnonymously(auth); } catch (e) { showToast("Erreur: " + e.message); }
         };
-
         window.loginWithGoogle = async () => {
             try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { showToast("Erreur: " + e.message); }
         };
 
+        // Un pseudo réservé n'est accepté que pour un UID admin.
+        const nameAllowed = (name) => !RESERVED_NAMES.includes(normalizeName(name)) || isAdmin();
+
         onAuthStateChanged(auth, async (user) => {
             currentUser = user;
-            if (user) {
-                document.getElementById('auth-screen').classList.add('hidden');
-                document.getElementById('app-screen').classList.remove('hidden');
-
-                const userRef = doc(db, "users", user.uid);
-                const userSnap = await getDoc(userRef);
-                if (userSnap.exists()) {
-                    userProfile = { ...userSnap.data() };
-                    if (userProfile.theme) setTheme(userProfile.theme);
-                } else {
-                    userProfile = {
-                        name: user.displayName || (user.isAnonymous ? "Invité_" + user.uid.slice(0, 4) : "Utilisateur"),
-                        avatar: user.photoURL || "",
-                        theme: "theme-violet"
-                    };
-                }
-                // L'uid est enregistré DANS le document : sans ça, impossible de savoir
-                // à qui on parle, et tous les MPs finissent au même endroit.
-                userProfile.uid = user.uid;
-                await setDoc(userRef, { ...userProfile, lastSeen: serverTimestamp() }, { merge: true });
-
-                updateProfileUI();
-                startHeartbeat();
-                listenUsers();
-                listenChannels();
-                loadMessages();
-                loadTypingIndicators();
-                listenVoiceChannels();
-            } else {
+            if (!user) {
                 document.getElementById('auth-screen').classList.remove('hidden');
                 document.getElementById('app-screen').classList.add('hidden');
-                [unsubscribeMessages, unsubscribeTyping, unsubscribeUsers, unsubscribeChannels]
-                    .forEach(fn => { if (fn) fn(); });
+                [unsubscribeMessages, unsubscribeTyping, unsubscribeUsers, unsubscribeChannels, unsubscribeGroups]
+                    .forEach(fn => fn && fn());
                 if (heartbeatTimer) clearInterval(heartbeatTimer);
+                return;
             }
+
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('app-screen').classList.remove('hidden');
+            document.getElementById('my-uid').textContent = user.uid;
+
+            const userRef = doc(db, "users", user.uid);
+            const snap = await getDoc(userRef);
+            if (snap.exists()) {
+                userProfile = { ...snap.data() };
+                if (userProfile.theme) setTheme(userProfile.theme);
+            } else {
+                userProfile = {
+                    name: user.displayName || (user.isAnonymous ? "Invité_" + user.uid.slice(0, 4) : "Utilisateur"),
+                    avatar: user.photoURL || "",
+                    theme: "theme-violet"
+                };
+            }
+            // Un compte qui porte déjà un pseudo réservé sans être admin est renommé.
+            if (!nameAllowed(userProfile.name)) userProfile.name = "Joueur_" + user.uid.slice(0, 4);
+            userProfile.uid = user.uid;
+            await setDoc(userRef, { ...userProfile, lastSeen: serverTimestamp() }, { merge: true });
+
+            updateProfileUI();
+            startHeartbeat();
+            listenUsers();
+            listenChannels();
+            listenGroups();
+            loadMessages();
+            loadTypingIndicators();
+            listenVoiceChannels();
         });
 
         function startHeartbeat() {
             if (heartbeatTimer) clearInterval(heartbeatTimer);
             heartbeatTimer = setInterval(() => {
-                if (!currentUser) return;
-                updateDoc(doc(db, "users", currentUser.uid), { lastSeen: serverTimestamp() }).catch(() => {});
+                if (currentUser) updateDoc(doc(db, "users", currentUser.uid), { lastSeen: serverTimestamp() }).catch(() => {});
             }, 30000);
         }
 
-        // Écoute temps réel des utilisateurs : nouveaux arrivants, pseudos, avatars, présence.
         function listenUsers() {
             if (unsubscribeUsers) unsubscribeUsers();
-            unsubscribeUsers = onSnapshot(collection(db, "users"), (snapshot) => {
-                allUsersList = snapshot.docs.map(d => ({ ...d.data(), uid: d.id }));
+            unsubscribeUsers = onSnapshot(collection(db, "users"), (snap) => {
+                allUsersList = snap.docs.map(d => ({ ...d.data(), uid: d.id }));
                 document.getElementById('online-count').textContent = allUsersList.filter(isOnline).length;
                 initSidebarUI();
             });
@@ -534,11 +685,11 @@
 
         function updateProfileUI() {
             document.getElementById('user-name').textContent = userProfile.name;
-            const container = document.getElementById('user-avatar-container');
+            const box = document.getElementById('user-avatar-container');
             const av = safeUrl(userProfile.avatar);
-            container.innerHTML = av
+            box.innerHTML = av
                 ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">`
-                : `<span id="user-avatar-text">${escapeHtml(String(userProfile.name || 'U').charAt(0).toUpperCase())}</span>`;
+                : `<span>${escapeHtml(String(userProfile.name || 'U').charAt(0).toUpperCase())}</span>`;
         }
 
         window.openProfileModal = () => {
@@ -552,12 +703,14 @@
             const newName = document.getElementById('edit-username').value.trim();
             const newAvatar = document.getElementById('edit-avatar').value.trim();
             if (!newName) return showToast("Le pseudo ne peut pas être vide.");
+            if (!nameAllowed(newName)) return showToast("⛔ Ce pseudo est réservé.");
+            const taken = allUsersList.some(u => u.uid !== currentUser.uid && normalizeName(u.name) === normalizeName(newName));
+            if (taken) return showToast("Ce pseudo est déjà pris.");
 
             userProfile.name = newName;
             userProfile.avatar = newAvatar;
             userProfile.uid = currentUser.uid;
             await setDoc(doc(db, "users", currentUser.uid), { ...userProfile, lastSeen: serverTimestamp() }, { merge: true });
-
             updateProfileUI();
             closeProfileModal();
             showToast("Profil mis à jour !");
@@ -574,10 +727,7 @@
         function renderGifs(items) {
             const box = document.getElementById('gif-results');
             box.dataset.loaded = "1";
-            if (!items.length) {
-                box.innerHTML = `<div class="col-span-3 text-center text-xs text-slate-500 py-6">Aucun GIF trouvé.</div>`;
-                return;
-            }
+            if (!items.length) { box.innerHTML = `<div class="col-span-3 text-center text-xs text-slate-500 py-6">Aucun GIF trouvé.</div>`; return; }
             box.innerHTML = items.map(g => {
                 const preview = g.images?.fixed_height_small?.url || g.images?.fixed_height?.url;
                 const full = g.images?.original?.url || preview;
@@ -591,86 +741,224 @@
             box.innerHTML = `<div class="col-span-3 text-center text-xs text-slate-500 py-6">Chargement...</div>`;
             try {
                 const res = await fetch(url);
-                const data = await res.json();
-                renderGifs(data.data || []);
-            } catch (e) {
+                renderGifs((await res.json()).data || []);
+            } catch {
                 box.innerHTML = `<div class="col-span-3 text-center text-xs text-rose-400 py-6">GIFs indisponibles. Colle une URL à la main.</div>`;
             }
         }
-
-        function loadTrendingGifs() {
-            fetchGiphy(`https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_KEY}&limit=24&rating=pg-13`);
-        }
-
+        const loadTrendingGifs = () => fetchGiphy(`https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_KEY}&limit=24&rating=pg-13`);
         window.searchGifs = () => {
             const q = document.getElementById('gif-search-input').value.trim();
             if (!q) return loadTrendingGifs();
             fetchGiphy(`https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(q)}&limit=24&rating=pg-13`);
         };
-
-        document.getElementById('gif-search-input').addEventListener('keydown', (e) => {
+        document.getElementById('gif-search-input').addEventListener('keydown', e => {
             if (e.key === 'Enter') { e.preventDefault(); searchGifs(); }
         });
 
         window.sendMediaMessage = async () => {
             const url = document.getElementById('media-url-input').value.trim();
-            if (!url) return;
-            await postMedia(url);
+            if (url) await postMedia(url);
         }
-
-        window.sendPresetGif = async (url) => { await postMedia(url); }
+        window.sendPresetGif = async (url) => postMedia(url);
 
         async function postMedia(url) {
             const clean = safeUrl(url);
             if (!clean) return showToast("URL invalide.");
             try {
                 await addDoc(collection(db, messagesPath()), {
-                    mediaUrl: clean,
-                    uid: currentUser.uid,
-                    displayName: userProfile.name,
-                    avatar: userProfile.avatar || "",
-                    createdAt: serverTimestamp(),
-                    reactions: {}
+                    mediaUrl: clean, uid: currentUser.uid, displayName: userProfile.name,
+                    avatar: userProfile.avatar || "", createdAt: serverTimestamp(), reactions: {}
                 });
                 document.getElementById('media-url-input').value = '';
                 closeMediaModal();
             } catch (e) { showToast("Erreur: " + e.message); }
         }
 
-        /* ---------- Vocaux ---------- */
+        /* =========================================================
+           VOCAUX WEBRTC — audio réel entre tous les participants
+           ========================================================= */
+
+        const pairId = (a, b) => a < b ? `${a}__${b}` : `${b}__${a}`;
+
+        async function clearPairDoc(pairRef) {
+            for (const sub of ["callerCandidates", "calleeCandidates"]) {
+                try {
+                    const s = await getDocs(collection(pairRef, sub));
+                    if (s.docs.length) {
+                        const batch = writeBatch(db);
+                        s.docs.forEach(d => batch.delete(d.ref));
+                        await batch.commit();
+                    }
+                } catch {}
+            }
+            await deleteDoc(pairRef).catch(() => {});
+        }
+
+        function attachRemoteAudio(uid, stream) {
+            let el = document.getElementById(`audio-${uid}`);
+            if (!el) {
+                el = document.createElement('audio');
+                el.id = `audio-${uid}`;
+                el.autoplay = true;
+                el.playsInline = true;
+                document.getElementById('remote-audios').appendChild(el);
+            }
+            el.srcObject = stream;
+            el.muted = isDeafened;
+            el.play().catch(() => {});
+        }
+
+        async function connectToPeer(roomId, otherUid) {
+            if (peers[otherUid] || !localStream) return;
+            // Un seul des deux lance l'appel, sinon deux connexions se créent en parallèle.
+            const isCaller = currentUser.uid < otherUid;
+            const pairRef = doc(db, "voice_rooms", roomId, "connections", pairId(currentUser.uid, otherUid));
+            const callerCands = collection(pairRef, "callerCandidates");
+            const calleeCands = collection(pairRef, "calleeCandidates");
+
+            const pc = new RTCPeerConnection(RTC_CONFIG);
+            const entry = { pc, unsubs: [] };
+            peers[otherUid] = entry;
+
+            localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+            pc.ontrack = (ev) => attachRemoteAudio(otherUid, ev.streams[0]);
+            pc.onconnectionstatechange = () => {
+                if (["failed", "closed"].includes(pc.connectionState)) closePeer(otherUid);
+                updateVoicePanel();
+            };
+
+            const myCands = isCaller ? callerCands : calleeCands;
+            const theirCands = isCaller ? calleeCands : callerCands;
+
+            pc.onicecandidate = (e) => {
+                if (e.candidate) addDoc(myCands, e.candidate.toJSON()).catch(() => {});
+            };
+            entry.unsubs.push(onSnapshot(theirCands, (s) => {
+                s.docChanges().forEach(c => {
+                    if (c.type === 'added') pc.addIceCandidate(new RTCIceCandidate(c.doc.data())).catch(() => {});
+                });
+            }));
+
+            if (isCaller) {
+                await clearPairDoc(pairRef);
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                await setDoc(pairRef, { offer: { type: offer.type, sdp: offer.sdp }, caller: currentUser.uid });
+                entry.unsubs.push(onSnapshot(pairRef, async (s) => {
+                    const d = s.data();
+                    if (d?.answer && !pc.currentRemoteDescription) {
+                        await pc.setRemoteDescription(new RTCSessionDescription(d.answer)).catch(() => {});
+                    }
+                }));
+            } else {
+                entry.unsubs.push(onSnapshot(pairRef, async (s) => {
+                    const d = s.data();
+                    if (d?.offer && !pc.currentRemoteDescription) {
+                        await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
+                        const answer = await pc.createAnswer();
+                        await pc.setLocalDescription(answer);
+                        await updateDoc(pairRef, { answer: { type: answer.type, sdp: answer.sdp } }).catch(() => {});
+                    }
+                }));
+            }
+        }
+
+        function closePeer(uid) {
+            const p = peers[uid];
+            if (!p) return;
+            p.unsubs.forEach(fn => { try { fn(); } catch {} });
+            try { p.pc.close(); } catch {}
+            document.getElementById(`audio-${uid}`)?.remove();
+            delete peers[uid];
+            updateVoicePanel();
+        }
+
+        function updateVoicePanel() {
+            const n = Object.keys(peers).length;
+            document.getElementById('voice-peer-count').textContent = n ? `· ${n} connexion(s)` : "· en attente...";
+        }
 
         window.joinVoiceChannel = async (voiceId) => {
-            if (activeVoiceId && activeVoiceId !== voiceId) await leaveVoiceChannel();
+            if (activeVoiceId === voiceId) return;
+            if (activeVoiceId) await leaveVoiceChannel();
+
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+                });
+            } catch (e) {
+                return showToast("🎤 Micro refusé ou indisponible.");
+            }
+
             activeVoiceId = voiceId;
             isMicMuted = false;
+            isDeafened = false;
             updateMicUI();
 
             await setDoc(doc(db, "voice_rooms", voiceId, "participants", currentUser.uid), {
-                name: userProfile.name, avatar: userProfile.avatar || "", muted: false
+                name: userProfile.name, avatar: userProfile.avatar || "", muted: false, joinedAt: serverTimestamp()
             });
 
-            document.getElementById('active-voice-panel').classList.remove('hidden');
+            const panel = document.getElementById('active-voice-panel');
+            panel.classList.remove('hidden');
+            panel.classList.add('flex');
             const vObj = voiceChannelsList.find(v => v.id === voiceId);
-            document.getElementById('active-voice-name').textContent = `Connecté à ${vObj ? vObj.name : voiceId}`;
-            showToast("🔊 Salon vocal rejoint !");
+            document.getElementById('active-voice-name').textContent = `🔊 ${vObj ? vObj.name : voiceId}`;
+            updateVoicePanel();
+            showToast("Connecté au vocal !");
+
+            // Qui entre, qui sort : les connexions s'ouvrent et se ferment toutes seules.
+            if (unsubRoomParticipants) unsubRoomParticipants();
+            unsubRoomParticipants = onSnapshot(collection(db, "voice_rooms", voiceId, "participants"), (snap) => {
+                const ids = snap.docs.map(d => d.id).filter(id => id !== currentUser.uid);
+                ids.forEach(id => { if (!peers[id]) connectToPeer(voiceId, id); });
+                Object.keys(peers).forEach(id => { if (!ids.includes(id)) closePeer(id); });
+            });
+
             initSidebarUI();
         };
 
         window.leaveVoiceChannel = async () => {
             if (!activeVoiceId) return;
-            await deleteDoc(doc(db, "voice_rooms", activeVoiceId, "participants", currentUser.uid));
+            const room = activeVoiceId;
             activeVoiceId = null;
-            document.getElementById('active-voice-panel').classList.add('hidden');
-            showToast("🔇 Déconnecté du vocal.");
+
+            if (unsubRoomParticipants) { unsubRoomParticipants(); unsubRoomParticipants = null; }
+            for (const uid of Object.keys(peers)) {
+                if (currentUser.uid < uid) {
+                    clearPairDoc(doc(db, "voice_rooms", room, "connections", pairId(currentUser.uid, uid)));
+                }
+                closePeer(uid);
+            }
+            if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+            await deleteDoc(doc(db, "voice_rooms", room, "participants", currentUser.uid)).catch(() => {});
+
+            const panel = document.getElementById('active-voice-panel');
+            panel.classList.add('hidden');
+            panel.classList.remove('flex');
+            showToast("Appel terminé.");
             initSidebarUI();
         };
 
         window.toggleMuteMic = async () => {
-            if (!activeVoiceId) return;
+            if (!activeVoiceId || !localStream) return;
             isMicMuted = !isMicMuted;
+            localStream.getAudioTracks().forEach(t => t.enabled = !isMicMuted);
             updateMicUI();
-            await updateDoc(doc(db, "voice_rooms", activeVoiceId, "participants", currentUser.uid), { muted: isMicMuted });
-            showToast(isMicMuted ? "🎤 Micro coupé" : "🎤 Micro actif");
+            updateDoc(doc(db, "voice_rooms", activeVoiceId, "participants", currentUser.uid), { muted: isMicMuted }).catch(() => {});
+        };
+
+        window.toggleDeafen = () => {
+            if (!activeVoiceId) return;
+            isDeafened = !isDeafened;
+            document.querySelectorAll('#remote-audios audio').forEach(a => a.muted = isDeafened);
+            document.getElementById('deafen-icon').className = isDeafened
+                ? "fa-solid fa-headphones-simple text-rose-400"
+                : "fa-solid fa-headphones text-emerald-400";
+            // Se rendre sourd coupe aussi le micro, comme sur Discord.
+            if (isDeafened && !isMicMuted) toggleMuteMic();
+            showToast(isDeafened ? "🔇 Son coupé" : "🔊 Son rétabli");
         };
 
         function updateMicUI() {
@@ -690,8 +978,8 @@
 
         function listenVoiceChannels() {
             voiceChannelsList.forEach(v => {
-                onSnapshot(collection(db, "voice_rooms", v.id, "participants"), (snapshot) => {
-                    voiceParticipants[v.id] = snapshot.docs.map(d => d.data());
+                onSnapshot(collection(db, "voice_rooms", v.id, "participants"), (snap) => {
+                    voiceParticipants[v.id] = snap.docs.map(d => d.data());
                     initSidebarUI();
                 });
             });
@@ -703,22 +991,22 @@
             }
         });
 
-        /* ---------- Saisie en cours ---------- */
+        /* ---------- Saisie ---------- */
 
         let typingTimeout;
         const msgInput = document.getElementById('message-input');
         msgInput.addEventListener('input', async () => {
             if (!currentUser) return;
-            const typingRef = doc(db, typingPath(), currentUser.uid);
-            try { await setDoc(typingRef, { name: userProfile.name }); } catch {}
+            const ref = doc(db, typingPath(), currentUser.uid);
+            try { await setDoc(ref, { name: userProfile.name }); } catch {}
             clearTimeout(typingTimeout);
-            typingTimeout = setTimeout(() => { deleteDoc(typingRef).catch(() => {}); }, 2000);
+            typingTimeout = setTimeout(() => deleteDoc(ref).catch(() => {}), 2000);
         });
 
         function loadTypingIndicators() {
             if (unsubscribeTyping) unsubscribeTyping();
-            unsubscribeTyping = onSnapshot(collection(db, typingPath()), (snapshot) => {
-                const typers = snapshot.docs.filter(d => d.id !== currentUser?.uid).map(d => d.data().name);
+            unsubscribeTyping = onSnapshot(collection(db, typingPath()), (snap) => {
+                const typers = snap.docs.filter(d => d.id !== currentUser?.uid).map(d => d.data().name);
                 document.getElementById('typing-indicator').textContent = typers.length ? `${typers.join(', ')} écrit...` : "";
             });
         }
@@ -731,64 +1019,47 @@
             if (!text || !currentUser) return;
 
             if (text === "/clean") {
-                if (userProfile.name === ADMIN_NAME) {
-                    try {
-                        const snapshot = await getDocs(collection(db, messagesPath()));
-                        // Firestore limite un batch à 500 opérations.
-                        const docs = snapshot.docs;
-                        for (let i = 0; i < docs.length; i += 450) {
-                            const batch = writeBatch(db);
-                            docs.slice(i, i + 450).forEach(d => batch.delete(d.ref));
-                            await batch.commit();
-                        }
-                        showToast("🧹 Salon nettoyé !");
-                    } catch (err) {
-                        showToast("Erreur lors du nettoyage : " + err.message);
+                if (!isAdmin()) { showToast("⛔ Réservé à l'administrateur."); msgInput.value = ''; return; }
+                try {
+                    const snap = await getDocs(collection(db, messagesPath()));
+                    for (let i = 0; i < snap.docs.length; i += 450) {
+                        const batch = writeBatch(db);
+                        snap.docs.slice(i, i + 450).forEach(d => batch.delete(d.ref));
+                        await batch.commit();
                     }
-                } else {
-                    showToast("❌ Réservé à l'administrateur (" + ADMIN_NAME + ").");
-                }
+                    showToast("🧹 Salon nettoyé !");
+                } catch (err) { showToast("Erreur : " + err.message); }
                 msgInput.value = '';
                 return;
             }
 
             try {
                 await addDoc(collection(db, messagesPath()), {
-                    text: text,
-                    uid: currentUser.uid,
-                    displayName: userProfile.name,
-                    avatar: userProfile.avatar || "",
-                    createdAt: serverTimestamp(),
-                    reactions: {}
+                    text, uid: currentUser.uid, displayName: userProfile.name,
+                    avatar: userProfile.avatar || "", createdAt: serverTimestamp(), reactions: {}
                 });
                 msgInput.value = '';
                 deleteDoc(doc(db, typingPath(), currentUser.uid)).catch(() => {});
             } catch (error) { showToast("Erreur: " + error.message); }
         };
 
-        window.deleteMessage = async (messageId) => {
-            if (!currentUser) return;
-            try {
-                await deleteDoc(doc(db, messagesPath(), messageId));
-            } catch (e) { showToast("Suppression impossible : " + e.message); }
+        window.deleteMessage = async (id) => {
+            try { await deleteDoc(doc(db, messagesPath(), id)); }
+            catch (e) { showToast("Suppression impossible : " + e.message); }
         };
 
-        window.addReaction = async (messageId, emoji) => {
+        window.addReaction = async (id, emoji) => {
             if (!currentUser) return;
-            const msgRef = doc(db, messagesPath(), messageId);
-            const msgSnap = await getDoc(msgRef);
-            if (!msgSnap.exists()) return;
-
-            let reactions = msgSnap.data().reactions || {};
+            const ref = doc(db, messagesPath(), id);
+            const snap = await getDoc(ref);
+            if (!snap.exists()) return;
+            let reactions = snap.data().reactions || {};
             if (!reactions[emoji]) reactions[emoji] = [];
-
             if (reactions[emoji].includes(currentUser.uid)) {
-                reactions[emoji] = reactions[emoji].filter(id => id !== currentUser.uid);
-                if (reactions[emoji].length === 0) delete reactions[emoji];
-            } else {
-                reactions[emoji].push(currentUser.uid);
-            }
-            await updateDoc(msgRef, { reactions });
+                reactions[emoji] = reactions[emoji].filter(u => u !== currentUser.uid);
+                if (!reactions[emoji].length) delete reactions[emoji];
+            } else reactions[emoji].push(currentUser.uid);
+            await updateDoc(ref, { reactions });
         }
 
         const EMOJIS = ['👍', '❤️', '😂', '🔥', '💀', '👑', '🚀', '🎮', '😎'];
@@ -799,36 +1070,29 @@
             const targetAtLoad = currentTargetId;
 
             unsubscribeMessages = onSnapshot(q, (snapshot) => {
-                if (targetAtLoad !== currentTargetId) return; // écouteur périmé
+                if (targetAtLoad !== currentTargetId) return;
                 const container = document.getElementById('messages-container');
                 const stick = container.scrollHeight - container.scrollTop - container.clientHeight < 120;
 
                 container.innerHTML = snapshot.docs.map(docSnap => {
-                    const msgId = docSnap.id;
-                    const msg = docSnap.data();
+                    const id = docSnap.id, msg = docSnap.data();
                     const isMe = currentUser && msg.uid === currentUser.uid;
-                    const canDelete = isMe || userProfile.name === ADMIN_NAME;
+                    const canDelete = isMe || isAdmin();
                     const av = safeUrl(msg.avatar);
                     const avatarHtml = av
-                        ? `<img src="${escapeHtml(av)}" class="w-8 h-8 rounded-full object-cover" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'w-8 h-8 rounded-full bg-slate-800'}))">`
+                        ? `<img src="${escapeHtml(av)}" class="w-8 h-8 rounded-full object-cover" onerror="this.remove()">`
                         : `<div class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-xs font-bold">${escapeHtml(String(msg.displayName || 'A').charAt(0).toUpperCase())}</div>`;
-
                     const media = safeUrl(msg.mediaUrl);
-                    const contentHtml = media
+                    const content = media
                         ? `<img src="${escapeHtml(media)}" class="rounded-xl max-h-60 object-cover mt-1" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'text-xs italic opacity-70',textContent:'[GIF indisponible]'}))">`
                         : escapeHtml(msg.text || '');
 
                     let reactionsHtml = '';
-                    if (msg.reactions && Object.keys(msg.reactions).length > 0) {
-                        reactionsHtml = `<div class="flex flex-wrap gap-1 mt-1.5">`;
-                        for (const [emoji, userList] of Object.entries(msg.reactions)) {
-                            const hasReacted = userList.includes(currentUser?.uid);
-                            reactionsHtml += `
-                                <button onclick="addReaction('${msgId}', '${emoji}')" class="text-xs px-2 py-0.5 rounded-lg border flex items-center gap-1 transition ${hasReacted ? 'bg-[var(--theme-color)]/20 border-[var(--theme-color)] text-white' : 'bg-slate-900 border-slate-800 text-slate-400'}">
-                                    <span>${emoji}</span><span class="font-medium">${userList.length}</span>
-                                </button>`;
-                        }
-                        reactionsHtml += `</div>`;
+                    if (msg.reactions && Object.keys(msg.reactions).length) {
+                        reactionsHtml = `<div class="flex flex-wrap gap-1 mt-1.5">` + Object.entries(msg.reactions).map(([em, list]) => {
+                            const mine = list.includes(currentUser?.uid);
+                            return `<button onclick="addReaction('${id}','${em}')" class="text-xs px-2 py-0.5 rounded-lg border flex items-center gap-1 ${mine ? 'bg-[var(--theme-color)]/20 border-[var(--theme-color)] text-white' : 'bg-slate-900 border-slate-800 text-slate-400'}"><span>${em}</span><span class="font-medium">${list.length}</span></button>`;
+                        }).join('') + `</div>`;
                     }
 
                     return `
@@ -836,17 +1100,14 @@
                             <div class="shrink-0">${avatarHtml}</div>
                             <div class="max-w-[75%] md:max-w-[70%] relative">
                                 <div class="text-[11px] text-slate-500 mb-0.5 px-1 ${isMe ? 'text-right' : 'text-left'}">${escapeHtml(msg.displayName || 'Anonyme')}</div>
-                                <div class="p-3 rounded-2xl text-sm ${isMe ? 'bg-[var(--theme-color)] text-white rounded-br-none shadow-md' : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none'}">
-                                    ${contentHtml}
-                                </div>
+                                <div class="p-3 rounded-2xl text-sm ${isMe ? 'bg-[var(--theme-color)] text-white rounded-br-none shadow-md' : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none'}">${content}</div>
                                 ${reactionsHtml}
                             </div>
                             <div class="msg-actions hidden absolute ${isMe ? 'left-0' : 'right-0'} -top-3 bg-slate-900 border border-slate-800 rounded-lg p-1 shadow-lg items-center gap-1 z-10">
-                                ${EMOJIS.map(e => `<button onclick="addReaction('${msgId}', '${e}')" class="hover:bg-slate-800 px-1 py-0.5 rounded text-xs">${e}</button>`).join('')}
-                                ${canDelete ? `<button onclick="deleteMessage('${msgId}')" class="hover:bg-rose-900/60 px-1.5 py-0.5 rounded text-xs text-rose-400" title="Supprimer"><i class="fa-solid fa-trash"></i></button>` : ''}
+                                ${EMOJIS.map(e => `<button onclick="addReaction('${id}','${e}')" class="hover:bg-slate-800 px-1 py-0.5 rounded text-xs">${e}</button>`).join('')}
+                                ${canDelete ? `<button onclick="deleteMessage('${id}')" class="hover:bg-rose-900/60 px-1.5 py-0.5 rounded text-xs text-rose-400"><i class="fa-solid fa-trash"></i></button>` : ''}
                             </div>
-                        </div>
-                    `;
+                        </div>`;
                 }).join('');
 
                 if (stick) container.scrollTop = container.scrollHeight;
