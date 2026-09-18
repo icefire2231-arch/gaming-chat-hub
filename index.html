@@ -2,7 +2,7 @@
 <html lang="fr" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>NexusChat - Ultimate Gaming Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -29,9 +29,11 @@
         .theme-rose { --theme-color: #f43f5e; --theme-dark: #e11d48; }
         .theme-amber { --theme-color: #f59e0b; --theme-dark: #d97706; }
         .message-row:hover .msg-actions { display: flex; }
+        /* Empêcher le zoom sur iOS lors du focus */
+        input, select, textarea { font-size: 16px !important; }
     </style>
 </head>
-<body id="body-theme" class="bg-slate-950 text-slate-100 h-screen flex flex-col overflow-hidden font-sans theme-violet">
+<body id="body-theme" class="bg-slate-950 text-slate-100 h-[100dvh] flex flex-col overflow-hidden font-sans theme-violet">
 
     <!-- Écran d'authentification -->
     <div id="auth-screen" class="fixed inset-0 bg-slate-950 flex items-center justify-center z-50 p-4">
@@ -40,7 +42,7 @@
                 <i class="fa-solid fa-gamepad"></i>
             </div>
             <h1 class="text-2xl font-bold mt-4 mb-2">NexusChat</h1>
-            <p class="text-slate-400 text-sm mb-6">Salons textuels & vocaux, GIFs, réactions et messages privés !</p>
+            <p class="text-slate-400 text-sm mb-6">Salons, Vocaux avec mute, Vrais MPs et confort mobile optimisé !</p>
             
             <div class="space-y-3">
                 <button onclick="loginWithGoogle()" class="w-full bg-white hover:bg-slate-100 text-slate-900 font-medium py-3 px-4 rounded-xl transition flex items-center justify-center gap-3 shadow-md">
@@ -54,14 +56,14 @@
     </div>
 
     <!-- Application principale -->
-    <div id="app-screen" class="flex h-full w-full hidden relative">
-        <div id="sidebar-overlay" onclick="toggleMobileSidebar()" class="fixed inset-0 bg-black/50 z-20 md:hidden hidden"></div>
+    <div id="app-screen" class="flex h-full w-full hidden relative overflow-hidden">
+        <div id="sidebar-overlay" onclick="toggleMobileSidebar()" class="fixed inset-0 bg-black/60 z-20 md:hidden hidden backdrop-blur-sm"></div>
 
         <!-- Sidebar -->
         <div id="sidebar" class="absolute md:relative inset-y-0 left-0 w-80 bg-slate-900 border-r border-slate-800 flex flex-col z-30 transform -translate-x-full md:translate-x-0 transition-transform duration-200">
             <div class="p-4 border-b border-slate-800 flex items-center justify-between">
                 <span class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-gamepad text-[var(--theme-color)]"></i> NexusChat</span>
-                <button onclick="toggleMobileSidebar()" class="md:hidden text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+                <button onclick="toggleMobileSidebar()" class="md:hidden text-slate-400 hover:text-white p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
             
             <div class="flex-1 overflow-y-auto px-2 py-3 space-y-4">
@@ -79,21 +81,23 @@
 
                 <!-- Messages Privés (MPs) -->
                 <div>
-                    <div class="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Messages Privés (MPs)</div>
-                    <div id="dm-list" class="space-y-1"></div>
+                    <div class="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Messages Privés Récents</div>
+                    <div id="dm-conversations-list" class="space-y-1">
+                        <div class="px-3 py-2 text-xs text-slate-500 italic">Aucune conversation. Cliquez sur un membre ci-dessous pour lui parler.</div>
+                    </div>
                 </div>
 
-                <!-- Membres en ligne (cliquables pour MP) -->
+                <!-- Membres -->
                 <div>
-                    <div class="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Membres</div>
+                    <div class="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Membres (Cliquer pour MP)</div>
                     <div id="members-list" class="space-y-1"></div>
                 </div>
             </div>
             
             <!-- Profil & Paramètres -->
             <div class="p-3 border-t border-slate-800 flex items-center justify-between bg-slate-950/50">
-                <div class="flex items-center gap-2 truncate cursor-pointer" onclick="openProfileModal()" title="Modifier mon profil">
-                    <div id="user-avatar-container" class="w-9 h-9 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-sm font-bold overflow-hidden border border-[var(--theme-color)]">
+                <div class="flex items-center gap-2 truncate cursor-pointer flex-1" onclick="openProfileModal()" title="Modifier mon profil">
+                    <div id="user-avatar-container" class="w-9 h-9 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-sm font-bold overflow-hidden border border-[var(--theme-color)] shrink-0">
                         <span id="user-avatar-text">U</span>
                     </div>
                     <div class="truncate">
@@ -101,57 +105,62 @@
                         <span class="text-xs text-[var(--theme-color)]">Paramètres</span>
                     </div>
                 </div>
-                <button onclick="openProfileModal()" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-gear"></i></button>
+                <button onclick="openProfileModal()" class="text-slate-400 hover:text-white p-2 transition"><i class="fa-solid fa-gear"></i></button>
             </div>
         </div>
 
         <!-- Zone de discussion -->
-        <div class="flex-1 flex flex-col bg-slate-950 w-full">
-            <div class="h-16 border-b border-slate-800 px-4 md:px-6 flex items-center justify-between bg-slate-900/50 backdrop-blur">
-                <div class="flex items-center gap-3">
-                    <button onclick="toggleMobileSidebar()" class="md:hidden text-slate-300 hover:text-white text-lg"><i class="fa-solid fa-bars"></i></button>
-                    <h2 id="current-channel-title" class="font-bold text-lg"># général</h2>
+        <div class="flex-1 flex flex-col bg-slate-950 w-full h-full overflow-hidden">
+            <div class="h-14 md:h-16 border-b border-slate-800 px-4 flex items-center justify-between bg-slate-900/50 backdrop-blur shrink-0">
+                <div class="flex items-center gap-3 truncate">
+                    <button onclick="toggleMobileSidebar()" class="md:hidden text-slate-300 hover:text-white text-lg p-1"><i class="fa-solid fa-bars"></i></button>
+                    <h2 id="current-channel-title" class="font-bold text-base md:text-lg truncate"># général</h2>
                 </div>
-                <div class="flex items-center gap-3">
-                    <div class="text-xs text-slate-400 hidden sm:block">💡 Admin : <code class="text-amber-400 bg-slate-900 px-1 py-0.5 rounded">/clean</code></div>
-                    <div class="flex items-center gap-2 bg-slate-800/60 px-3 py-1.5 rounded-full border border-slate-700/50 text-xs">
+                <div class="flex items-center gap-2 shrink-0">
+                    <div class="text-xs text-slate-400 hidden lg:block">Admin : <code class="text-amber-400 bg-slate-900 px-1 py-0.5 rounded">/clean</code></div>
+                    <div class="flex items-center gap-1.5 bg-slate-800/60 px-2.5 py-1 rounded-full border border-slate-700/50 text-xs">
                         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <span id="online-count" class="text-slate-300 font-medium">0 en ligne</span>
+                        <span id="online-count" class="text-slate-300 font-medium">0</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Panel Actif Vocal (Si connecté en vocal) -->
-            <div id="active-voice-panel" class="bg-emerald-950/30 border-b border-emerald-900/50 px-6 py-2 hidden flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <span class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span class="text-xs text-emerald-300 font-semibold" id="active-voice-name">Connecté au salon vocal</span>
+            <!-- Panel Actif Vocal (Amélioré avec Mute Micro) -->
+            <div id="active-voice-panel" class="bg-emerald-950/40 border-b border-emerald-900/50 px-4 py-2 hidden flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-2 truncate">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                    <span class="text-xs text-emerald-300 font-semibold truncate" id="active-voice-name">En vocal</span>
                 </div>
-                <button onclick="leaveVoiceChannel()" class="bg-rose-600 hover:bg-rose-500 text-white text-xs px-3 py-1.5 rounded-xl transition font-medium flex items-center gap-1 shadow">
-                    <i class="fa-solid fa-phone-slash"></i> Quitter le vocal
-                </button>
+                <div class="flex items-center gap-2 shrink-0">
+                    <button onclick="toggleMuteMic()" id="mute-mic-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-2.5 py-1.5 rounded-lg transition font-medium flex items-center gap-1.5 shadow">
+                        <i class="fa-solid fa-microphone text-emerald-400" id="mic-icon"></i> <span id="mic-text">Micro actif</span>
+                    </button>
+                    <button onclick="leaveVoiceChannel()" class="bg-rose-600 hover:bg-rose-500 text-white text-xs px-2.5 py-1.5 rounded-lg transition font-medium flex items-center gap-1 shadow">
+                        <i class="fa-solid fa-phone-slash"></i> Quitter
+                    </button>
+                </div>
             </div>
 
-            <div id="messages-container" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4"></div>
+            <!-- Messages Container -->
+            <div id="messages-container" class="flex-1 overflow-y-auto p-3 md:p-6 space-y-4"></div>
 
-            <div id="typing-indicator" class="px-6 py-1 text-xs text-slate-500 italic h-6"></div>
+            <div id="typing-indicator" class="px-4 py-0.5 text-xs text-slate-500 italic h-5 shrink-0"></div>
 
-            <!-- Input & Formulaire -->
-            <div class="p-4 border-t border-slate-800 bg-slate-900/50 relative">
+            <!-- Input & Formulaire (Optimisé Mobile / Clavier virtuel) -->
+            <div class="p-2 md:p-4 border-t border-slate-800 bg-slate-900/80 backdrop-blur shrink-0">
                 <form id="message-form" onsubmit="sendMessage(event)" class="flex gap-2 items-center">
-                    <button type="button" onclick="openMediaModal()" class="text-slate-400 hover:text-slate-200 px-3 py-2 transition text-lg" title="GIF / Image"><i class="fa-regular fa-image"></i></button>
-                    <input type="text" id="message-input" placeholder="Envoyer un message (ou /clean)..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[var(--theme-color)] text-slate-100">
-                    <button type="submit" class="bg-[var(--theme-color)] hover:opacity-90 text-white px-5 rounded-xl transition font-medium text-sm flex items-center justify-center shadow-lg"><i class="fa-solid fa-paper-plane"></i></button>
+                    <button type="button" onclick="openMediaModal()" class="text-slate-400 hover:text-slate-200 p-2 transition text-lg shrink-0" title="GIF / Image"><i class="fa-regular fa-image"></i></button>
+                    <input type="text" id="message-input" placeholder="Envoyer un message..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 md:py-3 text-sm focus:outline-none focus:border-[var(--theme-color)] text-slate-100 min-w-0">
+                    <button type="submit" class="bg-[var(--theme-color)] hover:opacity-90 text-white px-4 md:px-5 py-2.5 md:py-3 rounded-xl transition font-medium text-sm flex items-center justify-center shadow-lg shrink-0"><i class="fa-solid fa-paper-plane"></i></button>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Modale d'envoi d'image / GIF -->
+    <!-- Modale Media / GIFs -->
     <div id="media-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-md w-full space-y-4 shadow-2xl">
             <h3 class="font-bold text-lg text-slate-100 flex items-center gap-2"><i class="fa-solid fa-photo-film text-[var(--theme-color)]"></i> Partager un GIF / Image</h3>
-            
             <div>
                 <label class="text-xs text-slate-400 block mb-1">URL personnalisée</label>
                 <div class="flex gap-2">
@@ -159,7 +168,6 @@
                     <button onclick="sendMediaMessage()" class="px-4 py-2 rounded-xl text-sm bg-[var(--theme-color)] hover:opacity-90 text-white transition font-medium">Envoyer</button>
                 </div>
             </div>
-
             <div class="border-t border-slate-800 pt-3">
                 <label class="text-xs font-semibold text-slate-400 block mb-2">Ou GIFs gaming de base :</label>
                 <div class="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
@@ -171,14 +179,13 @@
                     <img src="https://media.giphy.com/media/xT5LMGfRsLUsmNDFG8/giphy.gif" onclick="sendPresetGif(this.src)" class="w-full h-20 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-slate-800">
                 </div>
             </div>
-
             <div class="flex justify-end pt-2">
                 <button onclick="closeMediaModal()" class="px-4 py-2 rounded-xl text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 transition">Fermer</button>
             </div>
         </div>
     </div>
 
-    <!-- Modale de profil & thèmes & paramètres admin -->
+    <!-- Modale Profil & Admin -->
     <div id="profile-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-md w-full space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <h3 class="font-bold text-lg text-slate-100">Mon Profil</h3>
@@ -190,7 +197,6 @@
                 <label class="text-xs text-slate-400 block mb-1">URL Avatar</label>
                 <input type="text" id="edit-avatar" placeholder="https://..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-[var(--theme-color)]">
             </div>
-
             <div id="admin-salons-section" class="border-t border-slate-800 pt-3 space-y-2 hidden">
                 <label class="text-xs font-semibold text-amber-400 block">⚙️ Logos des salons (Admin Fire)</label>
                 <div class="grid grid-cols-1 gap-2 text-xs">
@@ -201,7 +207,6 @@
                     <div><span class="text-slate-400">Roblox :</span><input type="text" id="img-roblox" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-100 mt-1"></div>
                 </div>
             </div>
-
             <div>
                 <label class="text-xs text-slate-400 block mb-2">Thème de couleur</label>
                 <div class="flex gap-3">
@@ -229,7 +234,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, arrayUnion, arrayRemove, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB9P5Y1ywmsbQt_PMCNsiRkryppVI1421o",
@@ -248,13 +253,13 @@
         const ADMIN_NAME = "Fire"; 
 
         let currentUser = null;
-        let currentTargetType = "channel"; // "channel", "voice", "dm"
+        let currentTargetType = "channel"; // "channel" ou "dm"
         let currentTargetId = "général";
         let activeVoiceId = null;
+        let isMicMuted = false;
         
         let unsubscribeMessages = null;
         let unsubscribeTyping = null;
-        let unsubscribeVoice = null;
         
         let globalChannelImages = {
             "général": "https://cdn-icons-png.flaticon.com/512/426/426833.png",
@@ -267,6 +272,7 @@
         let allUsersList = [];
         let voiceParticipants = {};
         let unreadChannels = {};
+        let dmConversations = []; // Liste des utilisateurs avec qui on a un historique ou contact
 
         const textChannels = [
             { id: "général", name: "Général" }, 
@@ -305,10 +311,10 @@
                 return `
                     <button onclick="switchTarget('channel', '${c.id}')" class="w-full text-left px-3 py-2 rounded-xl text-sm font-medium flex items-center justify-between transition ${isActive ? 'bg-[var(--theme-color)] text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
                         <div class="flex items-center gap-2.5 truncate">
-                            <img src="${imgUrl}" class="w-5 h-5 rounded-md object-cover border border-slate-700 bg-slate-950">
+                            <img src="${imgUrl}" class="w-5 h-5 rounded-md object-cover border border-slate-700 bg-slate-950 shrink-0">
                             <span class="truncate">${c.name}</span>
                         </div>
-                        ${hasUnread ? '<span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>' : ''}
+                        ${hasUnread ? '<span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse shrink-0"></span>' : ''}
                     </button>
                 `;
             }).join('');
@@ -323,17 +329,17 @@
                             <div class="flex items-center gap-2 truncate">
                                 <span class="truncate">${v.name}</span>
                             </div>
-                            <span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded-full text-slate-300">${members.length} connecté(s)</span>
+                            <span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded-full text-slate-300 shrink-0">${members.length} connecté(s)</span>
                         </button>
                         ${members.length > 0 ? `
                             <div class="pl-6 space-y-1">
                                 ${members.map(m => `
                                     <div class="flex items-center gap-2 text-xs text-slate-400 py-0.5">
-                                        <div class="w-5 h-5 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-[10px] font-bold overflow-hidden">
+                                        <div class="w-5 h-5 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-[10px] font-bold overflow-hidden shrink-0">
                                             ${m.avatar ? `<img src="${m.avatar}" class="w-full h-full object-cover">` : m.name.charAt(0)}
                                         </div>
                                         <span class="truncate">${m.name}</span>
-                                        <i class="fa-solid fa-microphone text-emerald-400 text-[10px] ml-auto"></i>
+                                        <i class="fa-solid ${m.muted ? 'fa-microphone-slash text-rose-400' : 'fa-microphone text-emerald-400'} text-[10px] ml-auto shrink-0"></i>
                                     </div>
                                 `).join('')}
                             </div>
@@ -342,20 +348,29 @@
                 `;
             }).join('');
 
-            // Membres (Cliquables pour MP)
-            document.getElementById('members-list').innerHTML = allUsersList.filter(u => u.uid !== currentUser?.uid).map(u => {
-                const dmId = getDmId(currentUser.uid, u.uid);
-                const isActive = currentTargetType === 'dm' && currentTargetId === dmId;
-                return `
-                    <button onclick="openDirectMessage('${u.uid}', '${u.name}')" class="w-full text-left px-3 py-2 rounded-xl text-sm font-medium flex items-center gap-2.5 transition ${isActive ? 'bg-[var(--theme-color)] text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
-                        <div class="w-6 h-6 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-xs font-bold overflow-hidden border border-slate-700">
-                            ${u.avatar ? `<img src="${u.avatar}" class="w-full h-full object-cover">` : u.name.charAt(0)}
-                        </div>
-                        <span class="truncate">${u.name}</span>
-                        <span class="w-2 h-2 rounded-full bg-emerald-500 ml-auto"></span>
-                    </button>
-                `;
-            }).join('');
+            // Liste des MPs récents / disponibles
+            const otherUsers = allUsersList.filter(u => u.uid !== currentUser?.uid);
+            const dmContainer = document.getElementById('dm-conversations-list');
+            if(otherUsers.length === 0) {
+                dmContainer.innerHTML = `<div class="px-3 py-2 text-xs text-slate-500 italic">Aucun autre utilisateur en ligne.</div>`;
+            } else {
+                dmContainer.innerHTML = otherUsers.map(u => {
+                    const dmId = getDmId(currentUser.uid, u.uid);
+                    const isActive = currentTargetType === 'dm' && currentTargetId === dmId;
+                    return `
+                        <button onclick="openDirectMessage('${u.uid}', '${u.name}')" class="w-full text-left px-3 py-2 rounded-xl text-sm font-medium flex items-center gap-2.5 transition ${isActive ? 'bg-[var(--theme-color)] text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
+                            <div class="w-6 h-6 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-xs font-bold overflow-hidden border border-slate-700 shrink-0">
+                                ${u.avatar ? `<img src="${u.avatar}" class="w-full h-full object-cover">` : u.name.charAt(0)}
+                            </div>
+                            <span class="truncate">${u.name}</span>
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 ml-auto shrink-0"></span>
+                        </button>
+                    `;
+                }).join('');
+            }
+
+            // Cache la liste des membres séparée puisqu'on met tout dans les MPs
+            document.getElementById('members-list').innerHTML = `<div class="px-3 py-1 text-xs text-slate-500 italic">Utilisez les MPs ci-dessus pour discuter en privé.</div>`;
         }
 
         window.switchTarget = function(type, id, title = "") {
@@ -366,7 +381,7 @@
                 const chan = textChannels.find(c => c.id === id);
                 document.getElementById('current-channel-title').textContent = `# ${chan ? chan.name : id}`;
             } else if(type === 'dm') {
-                document.getElementById('current-channel-title').textContent = `💬 MP avec ${title}`;
+                document.getElementById('current-channel-title').textContent = `💬 MP : ${title}`;
             }
             initSidebarUI();
             loadMessages();
@@ -385,7 +400,7 @@
 
         window.setTheme = (themeClass) => {
             userProfile.theme = themeClass;
-            document.getElementById('body-theme').className = `bg-slate-950 text-slate-100 h-screen flex flex-col overflow-hidden font-sans ${themeClass}`;
+            document.getElementById('body-theme').className = `bg-slate-950 text-slate-100 h-[100dvh] flex flex-col overflow-hidden font-sans ${themeClass}`;
         }
 
         window.loginAnonymously = async () => {
@@ -426,7 +441,6 @@
                 document.getElementById('app-screen').classList.add('hidden');
                 if (unsubscribeMessages) unsubscribeMessages();
                 if (unsubscribeTyping) unsubscribeTyping();
-                if (unsubscribeVoice) unsubscribeVoice();
             }
         });
 
@@ -445,7 +459,7 @@
             const querySnapshot = await getDocs(collection(db, "users"));
             allUsersList = [];
             querySnapshot.forEach((doc) => allUsersList.push(doc.data()));
-            document.getElementById('online-count').textContent = `${allUsersList.length} en ligne`;
+            document.getElementById('online-count').textContent = allUsersList.length;
             initSidebarUI();
         }
 
@@ -462,7 +476,6 @@
         window.openProfileModal = () => {
             document.getElementById('edit-username').value = userProfile.name;
             document.getElementById('edit-avatar').value = userProfile.avatar;
-            
             const adminSection = document.getElementById('admin-salons-section');
             if (userProfile.name === ADMIN_NAME) {
                 adminSection.classList.remove('hidden');
@@ -534,14 +547,17 @@
             } catch(e) { showToast("Erreur: " + e.message); }
         }
 
-        // --- GESTION VOCALE ---
+        // --- GESTION VOCALE & MUTE MICRO ---
         window.joinVoiceChannel = async (voiceId) => {
             if (activeVoiceId && activeVoiceId !== voiceId) {
                 await leaveVoiceChannel();
             }
             activeVoiceId = voiceId;
+            isMicMuted = false;
+            updateMicUI();
+            
             const vocalRef = doc(db, "voice_rooms", voiceId, "participants", currentUser.uid);
-            await setDoc(vocalRef, { name: userProfile.name, avatar: userProfile.avatar });
+            await setDoc(vocalRef, { name: userProfile.name, avatar: userProfile.avatar, muted: false });
             
             document.getElementById('active-voice-panel').classList.remove('hidden');
             const vObj = voiceChannelsList.find(v => v.id === voiceId);
@@ -559,6 +575,30 @@
             showToast("🔇 Déconnecté du vocal.");
             initSidebarUI();
         };
+
+        window.toggleMuteMic = async () => {
+            if (!activeVoiceId) return;
+            isMicMuted = !isMicMuted;
+            updateMicUI();
+            const vocalRef = doc(db, "voice_rooms", activeVoiceId, "participants", currentUser.uid);
+            await updateDoc(vocalRef, { muted: isMicMuted });
+            showToast(isMicMuted ? "🎤 Micro coupé" : "🎤 Micro actif");
+        };
+
+        function updateMicUI() {
+            const icon = document.getElementById('mic-icon');
+            const text = document.getElementById('mic-text');
+            const btn = document.getElementById('mute-mic-btn');
+            if (isMicMuted) {
+                icon.className = "fa-solid fa-microphone-slash text-rose-400";
+                text.textContent = "Coupé";
+                btn.className = "bg-rose-950/60 border border-rose-800 text-rose-200 text-xs px-2.5 py-1.5 rounded-lg transition font-medium flex items-center gap-1.5 shadow";
+            } else {
+                icon.className = "fa-solid fa-microphone text-emerald-400";
+                text.textContent = "Actif";
+                btn.className = "bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-2.5 py-1.5 rounded-lg transition font-medium flex items-center gap-1.5 shadow";
+            }
+        }
 
         function listenVoiceChannels() {
             voiceChannelsList.forEach(v => {
@@ -596,7 +636,6 @@
             const text = msgInput.value.trim();
             if (!text || !currentUser) return;
 
-            // Commande sécurisée /clean (Admin Fire uniquement)
             if (text === "/clean" && currentTargetType === 'channel') {
                 if (userProfile.name === ADMIN_NAME) {
                     try {
@@ -647,7 +686,6 @@
             } else {
                 reactions[emoji].push(currentUser.uid);
             }
-
             await updateDoc(msgRef, { reactions });
         }
 
@@ -668,14 +706,13 @@
 
                     let contentHtml = msg.mediaUrl ? `<img src="${msg.mediaUrl}" class="rounded-xl max-h-60 object-cover mt-1">` : escapeHtml(msg.text || '');
 
-                    // Rendu des réactions emojis
                     let reactionsHtml = '';
                     if (msg.reactions && Object.keys(msg.reactions).length > 0) {
                         reactionsHtml = `<div class="flex flex-wrap gap-1 mt-1.5">`;
                         for (let [emoji, userList] of Object.entries(msg.reactions)) {
                             const hasReacted = userList.includes(currentUser?.uid);
                             reactionsHtml += `
-                                <button onclick="addReaction('${msgId}', '${emoji}')" class="text-xs px-2 py-0.5 rounded-lg border flex items-center gap-1 transition ${hasReacted ? 'bg-[var(--theme-color)]/20 border-[var(--theme-color)] text-white' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'}">
+                                <button onclick="addReaction('${msgId}', '${emoji}')" class="text-xs px-2 py-0.5 rounded-lg border flex items-center gap-1 transition ${hasReacted ? 'bg-[var(--theme-color)]/20 border-[var(--theme-color)] text-white' : 'bg-slate-900 border-slate-800 text-slate-400'}">
                                     <span>${emoji}</span>
                                     <span class="font-medium">${userList.length}</span>
                                 </button>
@@ -685,21 +722,20 @@
                     }
 
                     return `
-                        <div class="message-row flex gap-3 ${isMe ? 'flex-row-reverse' : 'flex-row'} items-end relative group">
-                            <div>${avatarHtml}</div>
-                            <div class="max-w-[70%] relative">
-                                <div class="text-xs text-slate-500 mb-1 px-1 ${isMe ? 'text-right' : 'text-left'}">${escapeHtml(msg.displayName || 'Anonyme')}</div>
-                                <div class="p-3.5 rounded-2xl text-sm ${isMe ? 'bg-[var(--theme-color)] text-white rounded-br-none shadow-md' : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none'}">
+                        <div class="message-row flex gap-2.5 ${isMe ? 'flex-row-reverse' : 'flex-row'} items-end relative group">
+                            <div class="shrink-0">${avatarHtml}</div>
+                            <div class="max-w-[75%] md:max-w-[70%] relative">
+                                <div class="text-[11px] text-slate-500 mb-0.5 px-1 ${isMe ? 'text-right' : 'text-left'}">${escapeHtml(msg.displayName || 'Anonyme')}</div>
+                                <div class="p-3 rounded-2xl text-sm ${isMe ? 'bg-[var(--theme-color)] text-white rounded-br-none shadow-md' : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none'}">
                                     ${contentHtml}
                                 </div>
                                 ${reactionsHtml}
                             </div>
-                            <!-- Boutons d'actions rapides / Emojis au survol -->
                             <div class="msg-actions hidden absolute ${isMe ? 'left-0' : 'right-0'} -top-3 bg-slate-900 border border-slate-800 rounded-lg p-1 shadow-lg items-center gap-1 z-10">
-                                <button onclick="addReaction('${msgId}', '👍')" class="hover:bg-slate-800 px-1.5 py-0.5 rounded text-xs">👍</button>
-                                <button onclick="addReaction('${msgId}', '❤️')" class="hover:bg-slate-800 px-1.5 py-0.5 rounded text-xs">❤️</button>
-                                <button onclick="addReaction('${msgId}', '😂')" class="hover:bg-slate-800 px-1.5 py-0.5 rounded text-xs">😂</button>
-                                <button onclick="addReaction('${msgId}', '🔥')" class="hover:bg-slate-800 px-1.5 py-0.5 rounded text-xs">🔥</button>
+                                <button onclick="addReaction('${msgId}', '👍')" class="hover:bg-slate-800 px-1 py-0.5 rounded text-xs">👍</button>
+                                <button onclick="addReaction('${msgId}', '❤️')" class="hover:bg-slate-800 px-1 py-0.5 rounded text-xs">❤️</button>
+                                <button onclick="addReaction('${msgId}', '😂')" class="hover:bg-slate-800 px-1 py-0.5 rounded text-xs">😂</button>
+                                <button onclick="addReaction('${msgId}', '🔥')" class="hover:bg-slate-800 px-1 py-0.5 rounded text-xs">🔥</button>
                             </div>
                         </div>
                     `;
@@ -716,7 +752,7 @@
             const t = document.getElementById('toast');
             document.getElementById('toast-message').textContent = msg;
             t.classList.remove('hidden');
-            setTimeout(() => t.classList.add('hidden'), 4000);
+            setTimeout(() => t.classList.add('hidden'), 3000);
         }
     </script>
 </body>
