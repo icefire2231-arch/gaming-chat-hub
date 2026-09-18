@@ -11,24 +11,35 @@
             theme: {
                 extend: {
                     colors: {
-                        brand: { 500: '#8b5cf6', 600: '#7c3aed' }
+                        brand: { 500: 'var(--theme-color)', 600: 'var(--theme-dark)' }
                     }
                 }
             }
         }
     </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --theme-color: #8b5cf6;
+            --theme-dark: #7c3aed;
+        }
+        .theme-violet { --theme-color: #8b5cf6; --theme-dark: #7c3aed; }
+        .theme-emerald { --theme-color: #10b981; --theme-dark: #059669; }
+        .theme-blue { --theme-color: #3b82f6; --theme-dark: #2563eb; }
+        .theme-rose { --theme-color: #f43f5e; --theme-dark: #e11d48; }
+        .theme-amber { --theme-color: #f59e0b; --theme-dark: #d97706; }
+    </style>
 </head>
-<body class="bg-slate-950 text-slate-100 h-screen flex flex-col overflow-hidden font-sans">
+<body id="body-theme" class="bg-slate-950 text-slate-100 h-screen flex flex-col overflow-hidden font-sans theme-violet">
 
     <!-- Écran d'authentification -->
     <div id="auth-screen" class="fixed inset-0 bg-slate-950 flex items-center justify-center z-50 p-4">
         <div class="bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-2xl max-w-md w-full text-center relative">
-            <div class="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-violet-600 text-white w-16 h-16 rounded-2xl flex items-center justify-center text-2xl shadow-lg border-4 border-slate-950">
+            <div class="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-[var(--theme-color)] text-white w-16 h-16 rounded-2xl flex items-center justify-center text-2xl shadow-lg border-4 border-slate-950">
                 <i class="fa-solid fa-gamepad"></i>
             </div>
             <h1 class="text-2xl font-bold mt-4 mb-2">NexusChat</h1>
-            <p class="text-slate-400 text-sm mb-6">Rejoins les salons de discussion gaming en temps réel, discute Brawl Stars, Clash of Clans, Clash Royale & Roblox avec la communauté.</p>
+            <p class="text-slate-400 text-sm mb-6">Rejoins les salons de discussion gaming, partage des GIFs/images, discute en vocal et personnalise ton expérience !</p>
             
             <div class="space-y-3">
                 <button onclick="loginWithGoogle()" class="w-full bg-white hover:bg-slate-100 text-slate-900 font-medium py-3 px-4 rounded-xl transition flex items-center justify-center gap-3 shadow-md">
@@ -43,27 +54,41 @@
 
     <!-- Application principale de Chat -->
     <div id="app-screen" class="flex h-full w-full hidden relative">
-        <!-- Overlay mobile pour fermer la sidebar -->
         <div id="sidebar-overlay" onclick="toggleMobileSidebar()" class="fixed inset-0 bg-black/50 z-20 md:hidden hidden"></div>
 
-        <!-- Sidebar des salons -->
+        <!-- Sidebar -->
         <div id="sidebar" class="absolute md:relative inset-y-0 left-0 w-72 bg-slate-900 border-r border-slate-800 flex flex-col z-30 transform -translate-x-full md:translate-x-0 transition-transform duration-200">
             <div class="p-4 border-b border-slate-800 flex items-center justify-between">
-                <span class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-gamepad text-violet-500"></i> NexusChat</span>
+                <span class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-gamepad text-[var(--theme-color)]"></i> NexusChat</span>
                 <button onclick="toggleMobileSidebar()" class="md:hidden text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
+            
             <div class="p-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Salons de jeux</div>
             <div id="channels-list" class="flex-1 overflow-y-auto px-2 space-y-1"></div>
+
+            <!-- Espace Vocal Rapide -->
+            <div class="p-3 border-t border-slate-800 bg-slate-950/40">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-bold text-slate-400 flex items-center gap-1.5"><i class="fa-solid fa-headphones text-[var(--theme-color)]"></i> Salon Vocal</span>
+                    <span id="vocal-status" class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full">Déconnecté</span>
+                </div>
+                <div id="vocal-controls" class="flex gap-2">
+                    <button onclick="toggleVocal()" id="vocal-btn" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs py-2 rounded-xl transition font-medium flex items-center justify-center gap-1.5 shadow-md">
+                        <i class="fa-solid fa-microphone"></i> Rejoindre
+                    </button>
+                </div>
+                <div id="vocal-users" class="mt-2 flex flex-wrap gap-1"></div>
+            </div>
             
-            <!-- Profil utilisateur & Paramètres -->
+            <!-- Profil & Paramètres -->
             <div class="p-3 border-t border-slate-800 flex items-center justify-between bg-slate-950/50">
                 <div class="flex items-center gap-2 truncate cursor-pointer" onclick="openProfileModal()" title="Modifier mon profil">
-                    <div id="user-avatar-container" class="w-9 h-9 rounded-full bg-violet-600 flex items-center justify-center text-sm font-bold overflow-hidden border border-violet-500">
+                    <div id="user-avatar-container" class="w-9 h-9 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-sm font-bold overflow-hidden border border-[var(--theme-color)]">
                         <span id="user-avatar-text">U</span>
                     </div>
                     <div class="truncate">
                         <span class="text-sm font-medium truncate block" id="user-name">Utilisateur</span>
-                        <span class="text-xs text-violet-400">Modifier profil</span>
+                        <span class="text-xs text-[var(--theme-color)]">Modifier profil</span>
                     </div>
                 </div>
                 <button onclick="openProfileModal()" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-gear"></i></button>
@@ -77,7 +102,6 @@
                     <button onclick="toggleMobileSidebar()" class="md:hidden text-slate-300 hover:text-white text-lg"><i class="fa-solid fa-bars"></i></button>
                     <h2 id="current-channel-title" class="font-bold text-lg"># général</h2>
                 </div>
-                <!-- Indicateur des connectés -->
                 <div class="flex items-center gap-2 bg-slate-800/60 px-3 py-1.5 rounded-full border border-slate-700/50 text-xs">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     <span id="online-count" class="text-slate-300 font-medium">0 en ligne</span>
@@ -86,50 +110,79 @@
 
             <div id="messages-container" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4"></div>
 
-            <!-- Input & Suggestions de Mentions (@) -->
+            <!-- Indicateur En train d'écrire -->
+            <div id="typing-indicator" class="px-6 py-1 text-xs text-slate-500 italic h-6"></div>
+
+            <!-- Input & Formulaire -->
             <div class="p-4 border-t border-slate-800 bg-slate-900/50 relative">
                 <div id="mention-suggestions" class="absolute bottom-20 left-4 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-h-40 overflow-y-auto w-64 hidden z-40"></div>
                 
-                <form id="message-form" onsubmit="sendMessage(event)" class="flex gap-2">
-                    <input type="text" id="message-input" placeholder="Envoyer un message (tapez @ pour mentionner)..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-violet-500 text-slate-100">
-                    <button type="submit" class="bg-violet-600 hover:bg-violet-500 text-white px-5 rounded-xl transition font-medium text-sm flex items-center justify-center shadow-lg"><i class="fa-solid fa-paper-plane"></i></button>
+                <form id="message-form" onsubmit="sendMessage(event)" class="flex gap-2 items-center">
+                    <button type="button" onclick="openMediaModal()" class="text-slate-400 hover:text-slate-200 px-3 py-2 transition text-lg" title="Envoyer une image ou un GIF"><i class="fa-regular fa-image"></i></button>
+                    <input type="text" id="message-input" placeholder="Envoyer un message (tapez @ pour mentionner)..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[var(--theme-color)] text-slate-100">
+                    <button type="submit" class="bg-[var(--theme-color)] hover:opacity-90 text-white px-5 rounded-xl transition font-medium text-sm flex items-center justify-center shadow-lg"><i class="fa-solid fa-paper-plane"></i></button>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Modale de profil -->
-    <div id="profile-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4">
+    <!-- Modale d'envoi d'image / GIF -->
+    <div id="media-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full space-y-4 shadow-2xl">
-            <h3 class="font-bold text-lg text-slate-100">Modifier mon profil</h3>
+            <h3 class="font-bold text-lg text-slate-100">Partager une image ou un GIF</h3>
             <div>
-                <label class="text-xs text-slate-400 block mb-1">Votre pseudo personnalisé</label>
-                <input type="text" id="edit-username" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-violet-500">
-            </div>
-            <div>
-                <label class="text-xs text-slate-400 block mb-1">URL de votre avatar (Lien d'image)</label>
-                <input type="text" id="edit-avatar" placeholder="https://exemple.com/image.png" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-violet-500">
+                <label class="text-xs text-slate-400 block mb-1">Collez l'URL directe de l'image ou du GIF</label>
+                <input type="text" id="media-url-input" placeholder="https://exemple.com/image.gif" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-[var(--theme-color)]">
             </div>
             <div class="flex justify-end gap-2 pt-2">
-                <button onclick="closeProfileModal()" class="px-4 py-2 rounded-xl text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 transition">Annuler</button>
-                <button onclick="saveProfile()" class="px-4 py-2 rounded-xl text-sm bg-violet-600 hover:bg-violet-500 text-white transition font-medium">Enregistrer</button>
+                <button onclick="closeMediaModal()" class="px-4 py-2 rounded-xl text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 transition">Annuler</button>
+                <button onclick="sendMediaMessage()" class="px-4 py-2 rounded-xl text-sm bg-[var(--theme-color)] hover:opacity-90 text-white transition font-medium">Envoyer</button>
             </div>
         </div>
     </div>
 
-    <!-- Modale d'inspection de profil au clic sur un pseudo -->
+    <!-- Modale de profil & thèmes -->
+    <div id="profile-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4">
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full space-y-4 shadow-2xl">
+            <h3 class="font-bold text-lg text-slate-100">Modifier mon profil</h3>
+            <div>
+                <label class="text-xs text-slate-400 block mb-1">Votre pseudo</label>
+                <input type="text" id="edit-username" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-[var(--theme-color)]">
+            </div>
+            <div>
+                <label class="text-xs text-slate-400 block mb-1">URL de votre avatar</label>
+                <input type="text" id="edit-avatar" placeholder="https://exemple.com/avatar.png" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-[var(--theme-color)]">
+            </div>
+            <div>
+                <label class="text-xs text-slate-400 block mb-2">Thème de couleur</label>
+                <div class="flex gap-3">
+                    <button type="button" onclick="setTheme('theme-violet')" class="w-8 h-8 rounded-full bg-violet-600 border-2 border-white/20 hover:scale-110 transition"></button>
+                    <button type="button" onclick="setTheme('theme-emerald')" class="w-8 h-8 rounded-full bg-emerald-600 border-2 border-white/20 hover:scale-110 transition"></button>
+                    <button type="button" onclick="setTheme('theme-blue')" class="w-8 h-8 rounded-full bg-blue-600 border-2 border-white/20 hover:scale-110 transition"></button>
+                    <button type="button" onclick="setTheme('theme-rose')" class="w-8 h-8 rounded-full bg-rose-600 border-2 border-white/20 hover:scale-110 transition"></button>
+                    <button type="button" onclick="setTheme('theme-amber')" class="w-8 h-8 rounded-full bg-amber-600 border-2 border-white/20 hover:scale-110 transition"></button>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeProfileModal()" class="px-4 py-2 rounded-xl text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 transition">Annuler</button>
+                <button onclick="saveProfile()" class="px-4 py-2 rounded-xl text-sm bg-[var(--theme-color)] hover:opacity-90 text-white transition font-medium">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale d'inspection de profil -->
     <div id="user-card-modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 hidden p-4">
         <div class="bg-slate-900 border border-slate-700 p-6 rounded-2xl max-w-xs w-full text-center space-y-3 shadow-2xl relative">
             <button onclick="closeUserCard()" class="absolute top-3 right-3 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-            <div id="card-avatar" class="w-20 h-20 rounded-full mx-auto bg-violet-600 flex items-center justify-center text-2xl font-bold overflow-hidden border-2 border-violet-500"></div>
+            <div id="card-avatar" class="w-20 h-20 rounded-full mx-auto bg-[var(--theme-color)] flex items-center justify-center text-2xl font-bold overflow-hidden border-2 border-[var(--theme-color)]"></div>
             <h3 id="card-username" class="font-bold text-lg text-slate-100">Nom</h3>
             <span class="inline-block px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs rounded-full">En ligne</span>
         </div>
     </div>
 
-    <!-- Notifications Toast -->
-    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 border border-violet-500/50 text-slate-200 px-4 py-3 rounded-xl shadow-2xl hidden z-50 text-sm flex items-center gap-3">
-        <i class="fa-solid fa-bell text-violet-500 animate-bounce"></i>
+    <!-- Toast Notifications -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 border border-[var(--theme-color)] text-slate-200 px-4 py-3 rounded-xl shadow-2xl hidden z-50 text-sm flex items-center gap-3">
+        <i class="fa-solid fa-bell text-[var(--theme-color)] animate-bounce"></i>
         <span id="toast-message">Message</span>
     </div>
 
@@ -137,7 +190,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc, getDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc, getDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB9P5Y1ywmsbQt_PMCNsiRkryppVI1421o",
@@ -156,10 +209,11 @@
         let currentUser = null;
         let currentChannel = "général";
         let unsubscribeMessages = null;
-        let userProfile = { name: "", avatar: "" };
+        let unsubscribeTyping = null;
+        let userProfile = { name: "", avatar: "", theme: "theme-violet" };
         let allUsersList = [];
+        let isVocalActive = false;
 
-        // Salons équipés des vraies images officielles des jeux (via CDN stables)
         const channels = [
             { id: "général", name: "Général", img: "https://cdn-icons-png.flaticon.com/512/426/426833.png" }, 
             { id: "brawl-stars", name: "Brawl Stars", img: "https://play-lh.googleusercontent.com/w9q245oZ-8QvG10uL90J1V20z5j0q5V0U9Y6z6Z5j0Q5V0U9Y6z6Z5j0Q5V0U9Y6=w240-h480-rw" },
@@ -169,16 +223,13 @@
         ];
 
         window.toggleMobileSidebar = () => {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebar-overlay');
-            sidebar.classList.toggle('-translate-x-full');
-            overlay.classList.toggle('hidden');
+            document.getElementById('sidebar').classList.toggle('-translate-x-full');
+            document.getElementById('sidebar-overlay').classList.toggle('hidden');
         };
 
         function initChannels() {
-            const list = document.getElementById('channels-list');
-            list.innerHTML = channels.map(c => `
-                <button onclick="switchChannel('${c.id}')" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition ${currentChannel === c.id ? 'bg-violet-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
+            document.getElementById('channels-list').innerHTML = channels.map(c => `
+                <button onclick="switchChannel('${c.id}')" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition ${currentChannel === c.id ? 'bg-[var(--theme-color)] text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
                     <img src="${c.img}" class="w-6 h-6 rounded-lg object-cover border border-slate-700 bg-slate-950" onerror="this.src='https://cdn-icons-png.flaticon.com/512/808/808439.png'">
                     <span class="truncate">${c.name}</span>
                 </button>
@@ -191,21 +242,22 @@
             document.getElementById('current-channel-title').textContent = `# ${chan ? chan.name : channelId}`;
             initChannels();
             loadMessages();
+            loadTypingIndicators();
             if(window.innerWidth < 768) toggleMobileSidebar();
         }
 
+        window.setTheme = (themeClass) => {
+            userProfile.theme = themeClass;
+            document.getElementById('body-theme').className = `bg-slate-950 text-slate-100 h-screen flex flex-col overflow-hidden font-sans ${themeClass}`;
+        }
+
         window.loginAnonymously = async () => {
-            try { await signInAnonymously(auth); } catch (error) { showToast("Erreur: " + error.message); }
+            try { await signInAnonymously(auth); } catch (e) { showToast("Erreur: " + e.message); }
         };
 
         window.loginWithGoogle = async () => {
-            try {
-                const provider = new GoogleAuthProvider();
-                await signInWithPopup(auth, provider);
-            } catch (error) { showToast("Erreur: " + error.message); }
+            try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { showToast("Erreur: " + e.message); }
         };
-
-        window.logout = () => signOut(auth);
 
         onAuthStateChanged(auth, async (user) => {
             currentUser = user;
@@ -213,36 +265,35 @@
                 document.getElementById('auth-screen').classList.add('hidden');
                 document.getElementById('app-screen').classList.remove('hidden');
                 
-                const userRef = doc(db, "users", user.uid);
-                const userSnap = await getDoc(userRef);
-                
+                const userSnap = await getDoc(doc(db, "users", user.uid));
                 if (userSnap.exists()) {
                     userProfile = userSnap.data();
+                    if(userProfile.theme) setTheme(userProfile.theme);
                 } else {
                     userProfile = {
                         name: user.displayName || (user.isAnonymous ? "Invité_" + user.uid.slice(0,4) : "Utilisateur"),
-                        avatar: user.photoURL || ""
+                        avatar: user.photoURL || "",
+                        theme: "theme-violet"
                     };
-                    await setDoc(userRef, userProfile);
+                    await setDoc(doc(db, "users", user.uid), userProfile);
                 }
-                
                 updateUIRating();
                 fetchUsersList();
                 initChannels();
                 loadMessages();
+                loadTypingIndicators();
             } else {
                 document.getElementById('auth-screen').classList.remove('hidden');
                 document.getElementById('app-screen').classList.add('hidden');
                 if (unsubscribeMessages) unsubscribeMessages();
+                if (unsubscribeTyping) unsubscribeTyping();
             }
         });
 
         async function fetchUsersList() {
             const querySnapshot = await getDocs(collection(db, "users"));
             allUsersList = [];
-            querySnapshot.forEach((doc) => {
-                allUsersList.push(doc.data());
-            });
+            querySnapshot.forEach((doc) => allUsersList.push(doc.data()));
             document.getElementById('online-count').textContent = `${allUsersList.length} en ligne`;
         }
 
@@ -261,10 +312,7 @@
             document.getElementById('edit-avatar').value = userProfile.avatar;
             document.getElementById('profile-modal').classList.remove('hidden');
         }
-
-        window.closeProfileModal = () => {
-            document.getElementById('profile-modal').classList.add('hidden');
-        }
+        window.closeProfileModal = () => document.getElementById('profile-modal').classList.add('hidden');
 
         window.saveProfile = async () => {
             const newName = document.getElementById('edit-username').value.trim();
@@ -278,71 +326,83 @@
             updateUIRating();
             fetchUsersList();
             closeProfileModal();
-            showToast("Profil mis à jour avec succès !");
+            showToast("Profil mis à jour !");
         }
 
-        window.inspectUser = (name, avatar) => {
-            document.getElementById('card-username').textContent = name;
-            const cardAvatar = document.getElementById('card-avatar');
-            if (avatar) {
-                cardAvatar.innerHTML = `<img src="${avatar}" class="w-full h-full object-cover">`;
+        window.openMediaModal = () => document.getElementById('media-modal').classList.remove('hidden');
+        window.closeMediaModal = () => document.getElementById('media-modal').classList.add('hidden');
+
+        window.sendMediaMessage = async () => {
+            const url = document.getElementById('media-url-input').value.trim();
+            if(!url) return;
+            try {
+                await addDoc(collection(db, "channels", currentChannel, "messages"), {
+                    mediaUrl: url,
+                    uid: currentUser.uid,
+                    displayName: userProfile.name,
+                    avatar: userProfile.avatar,
+                    createdAt: serverTimestamp()
+                });
+                document.getElementById('media-url-input').value = '';
+                closeMediaModal();
+            } catch(e) { showToast("Erreur: " + e.message); }
+        };
+
+        // Gestion du Salon Vocal Rapide
+        window.toggleVocal = async () => {
+            const vocalRef = doc(db, "channels", currentChannel, "vocal", currentUser.uid);
+            if(!isVocalActive) {
+                await setDoc(vocalRef, { name: userProfile.name, avatar: userProfile.avatar });
+                isVocalActive = true;
+                document.getElementById('vocal-btn').className = "flex-1 bg-rose-600 hover:bg-rose-500 text-white text-xs py-2 rounded-xl transition font-medium flex items-center justify-center gap-1.5 shadow-md";
+                document.getElementById('vocal-btn').innerHTML = `<i class="fa-solid fa-phone-slash"></i> Quitter`;
+                document.getElementById('vocal-status').textContent = "Connecté";
+                document.getElementById('vocal-status').className = "text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30";
+                showToast("🔊 Salon vocal rejoint !");
             } else {
-                cardAvatar.innerHTML = `<span>${name.charAt(0).toUpperCase()}</span>`;
+                await deleteDoc(vocalRef);
+                isVocalActive = false;
+                document.getElementById('vocal-btn').className = "flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs py-2 rounded-xl transition font-medium flex items-center justify-center gap-1.5 shadow-md";
+                document.getElementById('vocal-btn').innerHTML = `<i class="fa-solid fa-microphone"></i> Rejoindre`;
+                document.getElementById('vocal-status').textContent = "Déconnecté";
+                document.getElementById('vocal-status').className = "text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full";
+                document.getElementById('vocal-users').innerHTML = "";
             }
-            document.getElementById('user-card-modal').classList.remove('hidden');
-        }
+        };
 
-        window.closeUserCard = () => {
-            document.getElementById('user-card-modal').classList.add('hidden');
-        }
-
+        // Indicateur En train d'écrire
+        let typingTimeout;
         const msgInput = document.getElementById('message-input');
-        msgInput.addEventListener('input', (e) => {
-            const val = msgInput.value;
-            const cursorPos = msgInput.selectionStart;
-            const textBeforeCursor = val.slice(0, cursorPos);
-            const match = textBeforeCursor.match(/@(\w*)$/);
-
-            const suggestionsBox = document.getElementById('mention-suggestions');
-            if (match) {
-                const queryStr = match[1].toLowerCase();
-                const filtered = allUsersList.filter(u => u.name.toLowerCase().startsWith(queryStr));
-                
-                if (filtered.length > 0) {
-                    suggestionsBox.innerHTML = filtered.map(u => `
-                        <div onclick="selectMention('${u.name}')" class="px-3 py-2 hover:bg-slate-800 text-xs text-slate-200 cursor-pointer flex items-center gap-2">
-                            <div class="w-5 h-5 rounded-full bg-violet-600 flex items-center justify-center overflow-hidden font-bold text-[10px]">
-                                ${u.avatar ? `<img src="${u.avatar}" class="w-full h-full object-cover">` : u.name.charAt(0)}
-                            </div>
-                            <span>${u.name}</span>
-                        </div>
-                    `).join('');
-                    suggestionsBox.classList.remove('hidden');
-                } else {
-                    suggestionsBox.classList.add('hidden');
-                }
-            } else {
-                suggestionsBox.classList.add('hidden');
-            }
+        msgInput.addEventListener('input', async () => {
+            if(!currentUser) return;
+            const typingRef = doc(db, "channels", currentChannel, "typing", currentUser.uid);
+            await setDoc(typingRef, { name: userProfile.name });
+            
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(async () => {
+                await deleteDoc(typingRef);
+            }, 2000);
         });
 
-        window.selectMention = (name) => {
-            const msgInput = document.getElementById('message-input');
-            const val = msgInput.value;
-            const cursorPos = msgInput.selectionStart;
-            const textBeforeCursor = val.slice(0, cursorPos);
-            const textAfterCursor = val.slice(cursorPos);
-            
-            const updatedBefore = textBeforeCursor.replace(/@\w*$/, `@${name} `);
-            msgInput.value = updatedBefore + textAfterCursor;
-            document.getElementById('mention-suggestions').classList.add('hidden');
-            msgInput.focus();
-        };
+        function loadTypingIndicators() {
+            if(unsubscribeTyping) unsubscribeTyping();
+            unsubscribeTyping = onSnapshot(collection(db, "channels", currentChannel, "typing"), (snapshot) => {
+                let typers = [];
+                snapshot.forEach(d => {
+                    if(d.id !== currentUser?.uid) typers.push(d.data().name);
+                });
+                const indicator = document.getElementById('typing-indicator');
+                if(typers.length > 0) {
+                    indicator.textContent = `${typers.join(', ')} ${typers.length > 1 ? 'sont' : 'est'} en train d'écrire...`;
+                } else {
+                    indicator.textContent = "";
+                }
+            });
+        }
 
         window.sendMessage = async (e) => {
             e.preventDefault();
-            const input = document.getElementById('message-input');
-            const text = input.value.trim();
+            const text = msgInput.value.trim();
             if (!text || !currentUser) return;
 
             try {
@@ -353,11 +413,10 @@
                     avatar: userProfile.avatar,
                     createdAt: serverTimestamp()
                 });
-                input.value = '';
+                msgInput.value = '';
                 document.getElementById('mention-suggestions').classList.add('hidden');
-            } catch (error) {
-                showToast("Erreur d'envoi: " + error.message);
-            }
+                await deleteDoc(doc(db, "channels", currentChannel, "typing", currentUser.uid));
+            } catch (error) { showToast("Erreur: " + error.message); }
         };
 
         function loadMessages() {
@@ -369,22 +428,24 @@
                 container.innerHTML = snapshot.docs.map(doc => {
                     const msg = doc.data();
                     const isMe = currentUser && msg.uid === currentUser.uid;
-                    
-                    if (currentUser && !isMe && msg.text.includes(`@${userProfile.name}`)) {
-                        showToast(`🔔 Vous avez été mentionné par ${msg.displayName} !`);
-                    }
-
                     const avatarHtml = msg.avatar 
                         ? `<img src="${msg.avatar}" class="w-8 h-8 rounded-full object-cover">`
                         : `<div class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-xs font-bold">${(msg.displayName || 'A').charAt(0).toUpperCase()}</div>`;
 
+                    let contentHtml = "";
+                    if(msg.mediaUrl) {
+                        contentHtml = `<img src="${msg.mediaUrl}" class="rounded-xl max-h-60 object-cover mt-1">`;
+                    } else {
+                        contentHtml = escapeHtml(msg.text || '');
+                    }
+
                     return `
                         <div class="flex gap-3 ${isMe ? 'flex-row-reverse' : 'flex-row'} items-end">
-                            <div class="cursor-pointer" onclick="inspectUser('${escapeHtml(msg.displayName || 'Anonyme')}', '${msg.avatar || ''}')">${avatarHtml}</div>
+                            <div>${avatarHtml}</div>
                             <div class="max-w-[70%]">
-                                <div class="text-xs text-slate-500 mb-1 px-1 ${isMe ? 'text-right' : 'text-left'} cursor-pointer hover:underline" onclick="inspectUser('${escapeHtml(msg.displayName || 'Anonyme')}', '${msg.avatar || ''}')">${escapeHtml(msg.displayName || 'Anonyme')}</div>
-                                <div class="p-3.5 rounded-2xl text-sm ${isMe ? 'bg-violet-600 text-white rounded-br-none shadow-md' : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none'}">
-                                    ${escapeHtml(msg.text)}
+                                <div class="text-xs text-slate-500 mb-1 px-1 ${isMe ? 'text-right' : 'text-left'}">${escapeHtml(msg.displayName || 'Anonyme')}</div>
+                                <div class="p-3.5 rounded-2xl text-sm ${isMe ? 'bg-[var(--theme-color)] text-white rounded-br-none shadow-md' : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none'}">
+                                    ${contentHtml}
                                 </div>
                             </div>
                         </div>
