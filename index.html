@@ -39,7 +39,7 @@
                 <i class="fa-solid fa-gamepad"></i>
             </div>
             <h1 class="text-2xl font-bold mt-4 mb-2">NexusChat</h1>
-            <p class="text-slate-400 text-sm mb-6">Rejoins les salons de discussion gaming, partage des GIFs/images, discute en vocal et personnalise ton expérience !</p>
+            <p class="text-slate-400 text-sm mb-6">Rejoins les salons gaming, partage des GIFs, discute en vocal et personnalise ton expérience !</p>
             
             <div class="space-y-3">
                 <button onclick="loginWithGoogle()" class="w-full bg-white hover:bg-slate-100 text-slate-900 font-medium py-3 px-4 rounded-xl transition flex items-center justify-center gap-3 shadow-md">
@@ -52,7 +52,7 @@
         </div>
     </div>
 
-    <!-- Application principale de Chat -->
+    <!-- Application principale -->
     <div id="app-screen" class="flex h-full w-full hidden relative">
         <div id="sidebar-overlay" onclick="toggleMobileSidebar()" class="fixed inset-0 bg-black/50 z-20 md:hidden hidden"></div>
 
@@ -66,7 +66,7 @@
             <div class="p-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Salons de jeux</div>
             <div id="channels-list" class="flex-1 overflow-y-auto px-2 space-y-1"></div>
 
-            <!-- Espace Vocal Rapide -->
+            <!-- Espace Vocal -->
             <div class="p-3 border-t border-slate-800 bg-slate-950/40">
                 <div class="flex items-center justify-between mb-2">
                     <span class="text-xs font-bold text-slate-400 flex items-center gap-1.5"><i class="fa-solid fa-headphones text-[var(--theme-color)]"></i> Salon Vocal</span>
@@ -102,41 +102,57 @@
                     <button onclick="toggleMobileSidebar()" class="md:hidden text-slate-300 hover:text-white text-lg"><i class="fa-solid fa-bars"></i></button>
                     <h2 id="current-channel-title" class="font-bold text-lg"># général</h2>
                 </div>
-                <div class="flex items-center gap-2 bg-slate-800/60 px-3 py-1.5 rounded-full border border-slate-700/50 text-xs">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span id="online-count" class="text-slate-300 font-medium">0 en ligne</span>
+                <div class="flex items-center gap-3">
+                    <div class="text-xs text-slate-400 hidden sm:block">💡 Astuce Admin : Tapez <code class="text-amber-400 bg-slate-900 px-1 py-0.5 rounded">/clean</code> pour vider le salon</div>
+                    <div class="flex items-center gap-2 bg-slate-800/60 px-3 py-1.5 rounded-full border border-slate-700/50 text-xs">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span id="online-count" class="text-slate-300 font-medium">0 en ligne</span>
+                    </div>
                 </div>
             </div>
 
             <div id="messages-container" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4"></div>
 
-            <!-- Indicateur En train d'écrire -->
             <div id="typing-indicator" class="px-6 py-1 text-xs text-slate-500 italic h-6"></div>
 
             <!-- Input & Formulaire -->
             <div class="p-4 border-t border-slate-800 bg-slate-900/50 relative">
-                <div id="mention-suggestions" class="absolute bottom-20 left-4 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-h-40 overflow-y-auto w-64 hidden z-40"></div>
-                
                 <form id="message-form" onsubmit="sendMessage(event)" class="flex gap-2 items-center">
                     <button type="button" onclick="openMediaModal()" class="text-slate-400 hover:text-slate-200 px-3 py-2 transition text-lg" title="Envoyer une image ou un GIF"><i class="fa-regular fa-image"></i></button>
-                    <input type="text" id="message-input" placeholder="Envoyer un message (tapez @ pour mentionner)..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[var(--theme-color)] text-slate-100">
+                    <input type="text" id="message-input" placeholder="Envoyer un message (tapez /clean pour tout effacer si vous êtes admin)..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[var(--theme-color)] text-slate-100">
                     <button type="submit" class="bg-[var(--theme-color)] hover:opacity-90 text-white px-5 rounded-xl transition font-medium text-sm flex items-center justify-center shadow-lg"><i class="fa-solid fa-paper-plane"></i></button>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Modale d'envoi d'image / GIF -->
+    <!-- Modale d'envoi d'image / GIF (Avec GIFs de base + URL perso) -->
     <div id="media-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4">
-        <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full space-y-4 shadow-2xl">
-            <h3 class="font-bold text-lg text-slate-100">Partager une image ou un GIF</h3>
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-md w-full space-y-4 shadow-2xl">
+            <h3 class="font-bold text-lg text-slate-100 flex items-center gap-2"><i class="fa-solid fa-photo-film text-[var(--theme-color)]"></i> Partager un Média ou GIF</h3>
+            
             <div>
-                <label class="text-xs text-slate-400 block mb-1">Collez l'URL directe de l'image ou du GIF</label>
-                <input type="text" id="media-url-input" placeholder="https://exemple.com/image.gif" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-[var(--theme-color)]">
+                <label class="text-xs text-slate-400 block mb-1">Collez l'URL de votre choix (Image / GIF)</label>
+                <div class="flex gap-2">
+                    <input type="text" id="media-url-input" placeholder="https://exemple.com/image.gif" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-[var(--theme-color)]">
+                    <button onclick="sendMediaMessage()" class="px-4 py-2 rounded-xl text-sm bg-[var(--theme-color)] hover:opacity-90 text-white transition font-medium">Envoyer</button>
+                </div>
             </div>
-            <div class="flex justify-end gap-2 pt-2">
-                <button onclick="closeMediaModal()" class="px-4 py-2 rounded-xl text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 transition">Annuler</button>
-                <button onclick="sendMediaMessage()" class="px-4 py-2 rounded-xl text-sm bg-[var(--theme-color)] hover:opacity-90 text-white transition font-medium">Envoyer</button>
+
+            <div class="border-t border-slate-800 pt-3">
+                <label class="text-xs font-semibold text-slate-400 block mb-2">Ou choisissez un GIF gaming de base :</label>
+                <div class="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
+                    <img src="https://media.giphy.com/media/LmNwrBhejkK9EFP504/giphy.gif" onclick="sendPresetGif(this.src)" class="w-full h-20 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-slate-800">
+                    <img src="https://media.giphy.com/media/3oKIPnAiaMCws8nOsE/giphy.gif" onclick="sendPresetGif(this.src)" class="w-full h-20 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-slate-800">
+                    <img src="https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif" onclick="sendPresetGif(this.src)" class="w-full h-20 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-slate-800">
+                    <img src="https://media.giphy.com/media/11zTEl7fbQDMr6/giphy.gif" onclick="sendPresetGif(this.src)" class="w-full h-20 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-slate-800">
+                    <img src="https://media.giphy.com/media/26u4lOMA8JKSnL9Uk/giphy.gif" onclick="sendPresetGif(this.src)" class="w-full h-20 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-slate-800">
+                    <img src="https://media.giphy.com/media/xT5LMGfRsLUsmNDFG8/giphy.gif" onclick="sendPresetGif(this.src)" class="w-full h-20 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-slate-800">
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-2">
+                <button onclick="closeMediaModal()" class="px-4 py-2 rounded-xl text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 transition">Fermer</button>
             </div>
         </div>
     </div>
@@ -154,33 +170,18 @@
                 <input type="text" id="edit-avatar" placeholder="https://exemple.com/avatar.png" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-[var(--theme-color)]">
             </div>
 
-            <!-- Section exclusive Admin (Salons de jeux) -->
+            <!-- Section Admin : Logos des salons -->
             <div id="admin-salons-section" class="border-t border-slate-800 pt-3 space-y-2 hidden">
                 <div class="flex items-center justify-between">
                     <label class="text-xs font-semibold text-amber-400 block">⚙️ Espace Admin : Logos des salons</label>
-                    <span class="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded">Réservé au créateur</span>
+                    <span class="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded">Réservé à Fire</span>
                 </div>
                 <div class="grid grid-cols-1 gap-2 text-xs">
-                    <div>
-                        <span class="text-slate-400">Général :</span>
-                        <input type="text" id="img-general" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-100 mt-1">
-                    </div>
-                    <div>
-                        <span class="text-slate-400">Brawl Stars :</span>
-                        <input type="text" id="img-brawl-stars" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-100 mt-1">
-                    </div>
-                    <div>
-                        <span class="text-slate-400">Clash of Clans :</span>
-                        <input type="text" id="img-clash-of-clans" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-100 mt-1">
-                    </div>
-                    <div>
-                        <span class="text-slate-400">Clash Royale :</span>
-                        <input type="text" id="img-clash-royale" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-100 mt-1">
-                    </div>
-                    <div>
-                        <span class="text-slate-400">Roblox :</span>
-                        <input type="text" id="img-roblox" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-100 mt-1">
-                    </div>
+                    <div><span class="text-slate-400">Général :</span><input type="text" id="img-general" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-100 mt-1"></div>
+                    <div><span class="text-slate-400">Brawl Stars :</span><input type="text" id="img-brawl-stars" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-100 mt-1"></div>
+                    <div><span class="text-slate-400">Clash of Clans :</span><input type="text" id="img-clash-of-clans" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-100 mt-1"></div>
+                    <div><span class="text-slate-400">Clash Royale :</span><input type="text" id="img-clash-royale" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-100 mt-1"></div>
+                    <div><span class="text-slate-400">Roblox :</span><input type="text" id="img-roblox" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-100 mt-1"></div>
                 </div>
             </div>
 
@@ -201,27 +202,17 @@
         </div>
     </div>
 
-    <!-- Modale d'inspection de profil -->
-    <div id="user-card-modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 hidden p-4">
-        <div class="bg-slate-900 border border-slate-700 p-6 rounded-2xl max-w-xs w-full text-center space-y-3 shadow-2xl relative">
-            <button onclick="closeUserCard()" class="absolute top-3 right-3 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-            <div id="card-avatar" class="w-20 h-20 rounded-full mx-auto bg-[var(--theme-color)] flex items-center justify-center text-2xl font-bold overflow-hidden border-2 border-[var(--theme-color)]"></div>
-            <h3 id="card-username" class="font-bold text-lg text-slate-100">Nom</h3>
-            <span class="inline-block px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs rounded-full">En ligne</span>
-        </div>
-    </div>
-
     <!-- Toast Notifications -->
     <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 border border-[var(--theme-color)] text-slate-200 px-4 py-3 rounded-xl shadow-2xl hidden z-50 text-sm flex items-center gap-3">
         <i class="fa-solid fa-bell text-[var(--theme-color)] animate-bounce"></i>
         <span id="toast-message">Message</span>
     </div>
 
-    <!-- Scripts Firebase SDK v10 -->
+    <!-- Scripts Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc, getDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB9P5Y1ywmsbQt_PMCNsiRkryppVI1421o",
@@ -237,9 +228,6 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // ==========================================
-        // 🔐 VOTRE PSEUDO ADMIN DIRECT (Actuellement "Fire")
-        // ==========================================
         const ADMIN_NAME = "Fire"; 
 
         let currentUser = null;
@@ -256,6 +244,7 @@
         let userProfile = { name: "", avatar: "", theme: "theme-violet" };
         let allUsersList = [];
         let isVocalActive = false;
+        let unreadChannels = {};
 
         const channels = [
             { id: "général", name: "Général" }, 
@@ -271,7 +260,7 @@
                 if (configSnap.exists() && configSnap.data().channelImages) {
                     globalChannelImages = configSnap.data().channelImages;
                 }
-            } catch(e) { console.log("Config par défaut utilisée"); }
+            } catch(e) {}
             initChannels();
         }
 
@@ -283,10 +272,14 @@
         function initChannels() {
             document.getElementById('channels-list').innerHTML = channels.map(c => {
                 const imgUrl = globalChannelImages[c.id] || 'https://cdn-icons-png.flaticon.com/512/808/808439.png';
+                const hasUnread = unreadChannels[c.id] && c.id !== currentChannel;
                 return `
-                    <button onclick="switchChannel('${c.id}')" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition ${currentChannel === c.id ? 'bg-[var(--theme-color)] text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
-                        <img src="${imgUrl}" class="w-6 h-6 rounded-lg object-cover border border-slate-700 bg-slate-950" onerror="this.src='https://cdn-icons-png.flaticon.com/512/808/808439.png'">
-                        <span class="truncate">${c.name}</span>
+                    <button onclick="switchChannel('${c.id}')" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center justify-between transition ${currentChannel === c.id ? 'bg-[var(--theme-color)] text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
+                        <div class="flex items-center gap-3 truncate">
+                            <img src="${imgUrl}" class="w-6 h-6 rounded-lg object-cover border border-slate-700 bg-slate-950">
+                            <span class="truncate">${c.name}</span>
+                        </div>
+                        ${hasUnread ? '<span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse"></span>' : ''}
                     </button>
                 `;
             }).join('');
@@ -294,6 +287,7 @@
 
         window.switchChannel = function(channelId) {
             currentChannel = channelId;
+            unreadChannels[channelId] = false;
             const chan = channels.find(c => c.id === channelId);
             document.getElementById('current-channel-title').textContent = `# ${chan ? chan.name : channelId}`;
             initChannels();
@@ -338,6 +332,7 @@
                 await loadGlobalConfig();
                 loadMessages();
                 loadTypingIndicators();
+                listenAllChannelsUnread();
             } else {
                 document.getElementById('auth-screen').classList.remove('hidden');
                 document.getElementById('app-screen').classList.add('hidden');
@@ -345,6 +340,17 @@
                 if (unsubscribeTyping) unsubscribeTyping();
             }
         });
+
+        function listenAllChannelsUnread() {
+            channels.forEach(c => {
+                onSnapshot(collection(db, "channels", c.id, "messages"), (snapshot) => {
+                    if (!snapshot.empty && c.id !== currentChannel) {
+                        unreadChannels[c.id] = true;
+                        initChannels();
+                    }
+                });
+            });
+        }
 
         async function fetchUsersList() {
             const querySnapshot = await getDocs(collection(db, "users"));
@@ -367,7 +373,6 @@
             document.getElementById('edit-username').value = userProfile.name;
             document.getElementById('edit-avatar').value = userProfile.avatar;
             
-            // Vérification si le pseudo actuel correspond à "Fire"
             const adminSection = document.getElementById('admin-salons-section');
             if (userProfile.name === ADMIN_NAME) {
                 adminSection.classList.remove('hidden');
@@ -393,7 +398,6 @@
             userProfile.avatar = newAvatar;
             await setDoc(doc(db, "users", currentUser.uid), userProfile);
 
-            // Si c'est l'admin ("Fire"), on sauvegarde aussi les images globales
             if (userProfile.name === ADMIN_NAME) {
                 globalChannelImages = {
                     "général": document.getElementById('img-general').value.trim(),
@@ -418,6 +422,14 @@
         window.sendMediaMessage = async () => {
             const url = document.getElementById('media-url-input').value.trim();
             if(!url) return;
+            await postMedia(url);
+        }
+
+        window.sendPresetGif = async (url) => {
+            await postMedia(url);
+        }
+
+        async function postMedia(url) {
             try {
                 await addDoc(collection(db, "channels", currentChannel, "messages"), {
                     mediaUrl: url,
@@ -429,7 +441,7 @@
                 document.getElementById('media-url-input').value = '';
                 closeMediaModal();
             } catch(e) { showToast("Erreur: " + e.message); }
-        };
+        }
 
         window.toggleVocal = async () => {
             const vocalRef = doc(db, "channels", currentChannel, "vocal", currentUser.uid);
@@ -439,7 +451,6 @@
                 document.getElementById('vocal-btn').className = "flex-1 bg-rose-600 hover:bg-rose-500 text-white text-xs py-2 rounded-xl transition font-medium flex items-center justify-center gap-1.5 shadow-md";
                 document.getElementById('vocal-btn').innerHTML = `<i class="fa-solid fa-phone-slash"></i> Quitter`;
                 document.getElementById('vocal-status').textContent = "Connecté";
-                document.getElementById('vocal-status').className = "text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30";
                 showToast("🔊 Salon vocal rejoint !");
             } else {
                 await deleteDoc(vocalRef);
@@ -447,7 +458,6 @@
                 document.getElementById('vocal-btn').className = "flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs py-2 rounded-xl transition font-medium flex items-center justify-center gap-1.5 shadow-md";
                 document.getElementById('vocal-btn').innerHTML = `<i class="fa-solid fa-microphone"></i> Rejoindre`;
                 document.getElementById('vocal-status').textContent = "Déconnecté";
-                document.getElementById('vocal-status').className = "text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full";
             }
         };
 
@@ -466,8 +476,7 @@
             unsubscribeTyping = onSnapshot(collection(db, "channels", currentChannel, "typing"), (snapshot) => {
                 let typers = [];
                 snapshot.forEach(d => { if(d.id !== currentUser?.uid) typers.push(d.data().name); });
-                const indicator = document.getElementById('typing-indicator');
-                indicator.textContent = typers.length > 0 ? `${typers.join(', ')} ${typers.length > 1 ? 'sont' : 'est'} en train d'écrire...` : "";
+                document.getElementById('typing-indicator').textContent = typers.length > 0 ? `${typers.join(', ')} écrit...` : "";
             });
         }
 
@@ -475,6 +484,26 @@
             e.preventDefault();
             const text = msgInput.value.trim();
             if (!text || !currentUser) return;
+
+            // Commande sécurisée /clean (Seul l'admin Fire peut l'exécuter)
+            if (text === "/clean") {
+                if (userProfile.name === ADMIN_NAME) {
+                    try {
+                        const snapshot = await getDocs(collection(db, "channels", currentChannel, "messages"));
+                        const batch = writeBatch(db);
+                        snapshot.docs.forEach((d) => batch.delete(d.ref));
+                        await batch.commit();
+                        showToast("🧹 Salon nettoyé avec succès !");
+                    } catch (err) {
+                        showToast("Erreur lors du nettoyage.");
+                    }
+                } else {
+                    showToast("❌ Commande réservée à l'administrateur (Fire).");
+                }
+                msgInput.value = '';
+                return;
+            }
+
             try {
                 await addDoc(collection(db, "channels", currentChannel, "messages"), {
                     text: text,
