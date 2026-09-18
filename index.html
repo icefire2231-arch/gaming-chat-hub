@@ -42,17 +42,18 @@
     </div>
 
     <!-- Application principale de Chat -->
-    <div id="app-screen" class="flex h-full w-full hidden">
+    <div id="app-screen" class="flex h-full w-full hidden relative">
+        <!-- Overlay mobile pour fermer la sidebar -->
+        <div id="sidebar-overlay" onclick="toggleMobileSidebar()" class="fixed inset-0 bg-black/50 z-20 md:hidden hidden"></div>
+
         <!-- Sidebar des salons -->
-        <div class="w-72 bg-slate-900 border-r border-slate-800 flex flex-col">
+        <div id="sidebar" class="absolute md:relative inset-y-0 left-0 w-72 bg-slate-900 border-r border-slate-800 flex flex-col z-30 transform -translate-x-full md:translate-x-0 transition-transform duration-200">
             <div class="p-4 border-b border-slate-800 flex items-center justify-between">
                 <span class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-gamepad text-violet-500"></i> NexusChat</span>
-                <button onclick="logout()" title="Se déconnecter" class="text-slate-400 hover:text-red-400 transition"><i class="fa-solid fa-right-from-bracket"></i></button>
+                <button onclick="toggleMobileSidebar()" class="md:hidden text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
             <div class="p-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Salons de jeux</div>
-            <div id="channels-list" class="flex-1 overflow-y-auto px-2 space-y-1">
-                <!-- Salons injectés dynamiquement -->
-            </div>
+            <div id="channels-list" class="flex-1 overflow-y-auto px-2 space-y-1"></div>
             
             <!-- Profil utilisateur & Paramètres -->
             <div class="p-3 border-t border-slate-800 flex items-center justify-between bg-slate-950/50">
@@ -70,23 +71,34 @@
         </div>
 
         <!-- Zone de discussion -->
-        <div class="flex-1 flex flex-col bg-slate-950">
-            <div class="h-16 border-b border-slate-800 px-6 flex items-center justify-between bg-slate-900/50 backdrop-blur">
-                <h2 id="current-channel-title" class="font-bold text-lg"># général</h2>
+        <div class="flex-1 flex flex-col bg-slate-950 w-full">
+            <div class="h-16 border-b border-slate-800 px-4 md:px-6 flex items-center justify-between bg-slate-900/50 backdrop-blur">
+                <div class="flex items-center gap-3">
+                    <button onclick="toggleMobileSidebar()" class="md:hidden text-slate-300 hover:text-white text-lg"><i class="fa-solid fa-bars"></i></button>
+                    <h2 id="current-channel-title" class="font-bold text-lg"># général</h2>
+                </div>
+                <!-- Indicateur des connectés -->
+                <div class="flex items-center gap-2 bg-slate-800/60 px-3 py-1.5 rounded-full border border-slate-700/50 text-xs">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span id="online-count" class="text-slate-300 font-medium">0 en ligne</span>
+                </div>
             </div>
-            <div id="messages-container" class="flex-1 overflow-y-auto p-6 space-y-4">
-                <!-- Messages injectés dynamiquement -->
-            </div>
-            <div class="p-4 border-t border-slate-800 bg-slate-900/50">
+
+            <div id="messages-container" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4"></div>
+
+            <!-- Input & Suggestions de Mentions (@) -->
+            <div class="p-4 border-t border-slate-800 bg-slate-900/50 relative">
+                <div id="mention-suggestions" class="absolute bottom-20 left-4 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-h-40 overflow-y-auto w-64 hidden z-40"></div>
+                
                 <form id="message-form" onsubmit="sendMessage(event)" class="flex gap-2">
-                    <input type="text" id="message-input" placeholder="Envoyer un message (ex: @pseudo)..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-violet-500 text-slate-100">
+                    <input type="text" id="message-input" placeholder="Envoyer un message (tapez @ pour mentionner)..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-violet-500 text-slate-100">
                     <button type="submit" class="bg-violet-600 hover:bg-violet-500 text-white px-5 rounded-xl transition font-medium text-sm flex items-center justify-center shadow-lg"><i class="fa-solid fa-paper-plane"></i></button>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Modale de modification de profil -->
+    <!-- Modale de profil -->
     <div id="profile-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full space-y-4 shadow-2xl">
             <h3 class="font-bold text-lg text-slate-100">Modifier mon profil</h3>
@@ -105,6 +117,16 @@
         </div>
     </div>
 
+    <!-- Modale d'inspection de profil au clic sur un pseudo -->
+    <div id="user-card-modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 hidden p-4">
+        <div class="bg-slate-900 border border-slate-700 p-6 rounded-2xl max-w-xs w-full text-center space-y-3 shadow-2xl relative">
+            <button onclick="closeUserCard()" class="absolute top-3 right-3 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            <div id="card-avatar" class="w-20 h-20 rounded-full mx-auto bg-violet-600 flex items-center justify-center text-2xl font-bold overflow-hidden border-2 border-violet-500"></div>
+            <h3 id="card-username" class="font-bold text-lg text-slate-100">Nom</h3>
+            <span class="inline-block px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs rounded-full">En ligne</span>
+        </div>
+    </div>
+
     <!-- Notifications Toast -->
     <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 border border-violet-500/50 text-slate-200 px-4 py-3 rounded-xl shadow-2xl hidden z-50 text-sm flex items-center gap-3">
         <i class="fa-solid fa-bell text-violet-500 animate-bounce"></i>
@@ -115,7 +137,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc, getDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB9P5Y1ywmsbQt_PMCNsiRkryppVI1421o",
@@ -135,21 +157,29 @@
         let currentChannel = "général";
         let unsubscribeMessages = null;
         let userProfile = { name: "", avatar: "" };
+        let allUsersList = [];
 
-        // Tableaux des salons mis à jour avec vos images de jeux
+        // Salons équipés d'icônes propres et stylées
         const channels = [
-            { id: "général", name: "Général", img: "https://i.imgur.com/8364qZ9.png" }, 
-            { id: "brawl-stars", name: "Brawl Stars", img: "https://i.imgur.com/Z4w2u6n.png" },
-            { id: "clash-of-clans", name: "Clash of Clans", img: "https://i.imgur.com/G5g2m5g.png" },
-            { id: "clash-royale", name: "Clash Royale", img: "https://i.imgur.com/vHqL3P2.png" },
-            { id: "roblox", name: "Roblox", img: "https://i.imgur.com/x3C31vL.png" }
+            { id: "général", name: "Général", icon: "fa-fire text-orange-500" }, 
+            { id: "brawl-stars", name: "Brawl Stars", icon: "fa-skull text-yellow-400" },
+            { id: "clash-of-clans", name: "Clash of Clans", icon: "fa-shield-halved text-amber-500" },
+            { id: "clash-royale", name: "Clash Royale", icon: "fa-crown text-blue-400" },
+            { id: "roblox", name: "Roblox", icon: "fa-cube text-red-400" }
         ];
+
+        window.toggleMobileSidebar = () => {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            sidebar.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+        };
 
         function initChannels() {
             const list = document.getElementById('channels-list');
             list.innerHTML = channels.map(c => `
                 <button onclick="switchChannel('${c.id}')" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition ${currentChannel === c.id ? 'bg-violet-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
-                    <img src="${c.img}" class="w-6 h-6 rounded-lg object-cover border border-slate-700"> 
+                    <i class="fa-solid ${c.icon} w-5 text-center text-base"></i> 
                     <span class="truncate">${c.name}</span>
                 </button>
             `).join('');
@@ -161,6 +191,7 @@
             document.getElementById('current-channel-title').textContent = `# ${chan ? chan.name : channelId}`;
             initChannels();
             loadMessages();
+            if(window.innerWidth < 768) toggleMobileSidebar();
         }
 
         window.loginAnonymously = async () => {
@@ -196,6 +227,7 @@
                 }
                 
                 updateUIRating();
+                fetchUsersList();
                 initChannels();
                 loadMessages();
             } else {
@@ -204,6 +236,15 @@
                 if (unsubscribeMessages) unsubscribeMessages();
             }
         });
+
+        async function fetchUsersList() {
+            const querySnapshot = await getDocs(collection(db, "users"));
+            allUsersList = [];
+            querySnapshot.forEach((doc) => {
+                allUsersList.push(doc.data());
+            });
+            document.getElementById('online-count').textContent = `${allUsersList.length} en ligne`;
+        }
 
         function updateUIRating() {
             document.getElementById('user-name').textContent = userProfile.name;
@@ -235,9 +276,68 @@
 
             await setDoc(doc(db, "users", currentUser.uid), userProfile);
             updateUIRating();
+            fetchUsersList();
             closeProfileModal();
             showToast("Profil mis à jour avec succès !");
         }
+
+        window.inspectUser = (name, avatar) => {
+            document.getElementById('card-username').textContent = name;
+            const cardAvatar = document.getElementById('card-avatar');
+            if (avatar) {
+                cardAvatar.innerHTML = `<img src="${avatar}" class="w-full h-full object-cover">`;
+            } else {
+                cardAvatar.innerHTML = `<span>${name.charAt(0).toUpperCase()}</span>`;
+            }
+            document.getElementById('user-card-modal').classList.remove('hidden');
+        }
+
+        window.closeUserCard = () => {
+            document.getElementById('user-card-modal').classList.add('hidden');
+        }
+
+        const msgInput = document.getElementById('message-input');
+        msgInput.addEventListener('input', (e) => {
+            const val = msgInput.value;
+            const cursorPos = msgInput.selectionStart;
+            const textBeforeCursor = val.slice(0, cursorPos);
+            const match = textBeforeCursor.match(/@(\w*)$/);
+
+            const suggestionsBox = document.getElementById('mention-suggestions');
+            if (match) {
+                const queryStr = match[1].toLowerCase();
+                const filtered = allUsersList.filter(u => u.name.toLowerCase().startsWith(queryStr));
+                
+                if (filtered.length > 0) {
+                    suggestionsBox.innerHTML = filtered.map(u => `
+                        <div onclick="selectMention('${u.name}')" class="px-3 py-2 hover:bg-slate-800 text-xs text-slate-200 cursor-pointer flex items-center gap-2">
+                            <div class="w-5 h-5 rounded-full bg-violet-600 flex items-center justify-center overflow-hidden font-bold text-[10px]">
+                                ${u.avatar ? `<img src="${u.avatar}" class="w-full h-full object-cover">` : u.name.charAt(0)}
+                            </div>
+                            <span>${u.name}</span>
+                        </div>
+                    `).join('');
+                    suggestionsBox.classList.remove('hidden');
+                } else {
+                    suggestionsBox.classList.add('hidden');
+                }
+            } else {
+                suggestionsBox.classList.add('hidden');
+            }
+        });
+
+        window.selectMention = (name) => {
+            const msgInput = document.getElementById('message-input');
+            const val = msgInput.value;
+            const cursorPos = msgInput.selectionStart;
+            const textBeforeCursor = val.slice(0, cursorPos);
+            const textAfterCursor = val.slice(cursorPos);
+            
+            const updatedBefore = textBeforeCursor.replace(/@\w*$/, `@${name} `);
+            msgInput.value = updatedBefore + textAfterCursor;
+            document.getElementById('mention-suggestions').classList.add('hidden');
+            msgInput.focus();
+        };
 
         window.sendMessage = async (e) => {
             e.preventDefault();
@@ -254,6 +354,7 @@
                     createdAt: serverTimestamp()
                 });
                 input.value = '';
+                document.getElementById('mention-suggestions').classList.add('hidden');
             } catch (error) {
                 showToast("Erreur d'envoi: " + error.message);
             }
@@ -279,9 +380,9 @@
 
                     return `
                         <div class="flex gap-3 ${isMe ? 'flex-row-reverse' : 'flex-row'} items-end">
-                            ${avatarHtml}
+                            <div class="cursor-pointer" onclick="inspectUser('${escapeHtml(msg.displayName || 'Anonyme')}', '${msg.avatar || ''}')">${avatarHtml}</div>
                             <div class="max-w-[70%]">
-                                <div class="text-xs text-slate-500 mb-1 px-1 ${isMe ? 'text-right' : 'text-left'}">${escapeHtml(msg.displayName || 'Anonyme')}</div>
+                                <div class="text-xs text-slate-500 mb-1 px-1 ${isMe ? 'text-right' : 'text-left'} cursor-pointer hover:underline" onclick="inspectUser('${escapeHtml(msg.displayName || 'Anonyme')}', '${msg.avatar || ''}')">${escapeHtml(msg.displayName || 'Anonyme')}</div>
                                 <div class="p-3.5 rounded-2xl text-sm ${isMe ? 'bg-violet-600 text-white rounded-br-none shadow-md' : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none'}">
                                     ${escapeHtml(msg.text)}
                                 </div>
