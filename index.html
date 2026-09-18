@@ -41,7 +41,7 @@
             </div>
             <h1 class="text-2xl font-bold mt-4 mb-2">NexusChat</h1>
             <p class="text-slate-400 text-sm mb-6">Salons, Vocaux, Salons personnalisés et Vrais MPs isolés !</p>
-            
+
             <div class="space-y-3">
                 <button onclick="loginWithGoogle()" class="w-full bg-white hover:bg-slate-100 text-slate-900 font-medium py-3 px-4 rounded-xl transition flex items-center justify-center gap-3 shadow-md">
                     <i class="fa-brands fa-google text-red-500"></i> Continuer avec Google
@@ -61,7 +61,7 @@
                 <span class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-gamepad text-[var(--theme-color)]"></i> NexusChat</span>
                 <button onclick="toggleMobileSidebar()" class="md:hidden text-slate-400 hover:text-white p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
-            
+
             <div class="flex-1 overflow-y-auto px-2 py-3 space-y-4">
                 <div>
                     <div class="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 flex items-center justify-between">
@@ -77,13 +77,13 @@
                 </div>
 
                 <div>
-                    <div class="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">MESSAGES PRIVÉS RÉCENTS</div>
+                    <div class="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">MESSAGES PRIVÉS</div>
                     <div id="dm-conversations-list" class="space-y-1">
                         <div class="px-3 py-2 text-xs text-slate-500 italic">Aucune conversation.</div>
                     </div>
                 </div>
             </div>
-            
+
             <div class="p-3 border-t border-slate-800 flex items-center justify-between bg-slate-950/50">
                 <div class="flex items-center gap-2 truncate cursor-pointer flex-1" onclick="openProfileModal()" title="Modifier mon profil">
                     <div id="user-avatar-container" class="w-9 h-9 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-sm font-bold overflow-hidden border border-[var(--theme-color)] shrink-0">
@@ -106,7 +106,7 @@
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
                     <div class="text-xs text-slate-400 hidden lg:block">Admin : <code class="text-amber-400 bg-slate-900 px-1 py-0.5 rounded">/clean</code></div>
-                    <div class="flex items-center gap-1.5 bg-slate-800/60 px-2.5 py-1 rounded-full border border-slate-700/50 text-xs">
+                    <div class="flex items-center gap-1.5 bg-slate-800/60 px-2.5 py-1 rounded-full border border-slate-700/50 text-xs" title="Utilisateurs en ligne">
                         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                         <span id="online-count" class="text-slate-300 font-medium">0</span>
                     </div>
@@ -167,17 +167,13 @@
                 </div>
             </div>
             <div class="border-t border-slate-800 pt-3">
-                <label class="text-xs font-semibold text-slate-400 block mb-2">🔥 Galerie GIFs Gaming & Fun :</label>
-                <div class="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto pr-1">
-                    <img src="https://media.giphy.com/media/LmNwrBhejkK9EFP504/giphy.gif" onclick="sendPresetGif(this.src)" class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-slate-800">
-                    <img src="https://media.giphy.com/media/3oKIPnAiaMCws8nOsE/giphy.gif" onclick="sendPresetGif(this.src)" class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-slate-800">
-                    <img src="https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif" onclick="sendPresetGif(this.src)" class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-slate-800">
-                    <img src="https://media.giphy.com/media/11zTEl7fbQDMr6/giphy.gif" onclick="sendPresetGif(this.src)" class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-slate-800">
-                    <img src="https://media.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.gif" onclick="sendPresetGif(this.src)" class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-slate-800">
-                    <img src="https://media.giphy.com/media/26u4v38Q1Nl6yLlcI/giphy.gif" onclick="sendPresetGif(this.src)" class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-slate-800">
-                    <img src="https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif" onclick="sendPresetGif(this.src)" class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-slate-800">
-                    <img src="https://media.giphy.com/media/Lp71UXHRCX8fS/giphy.gif" onclick="sendPresetGif(this.src)" class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-slate-800">
-                    <img src="https://media.giphy.com/media/9u1J84ZtCSl9K/giphy.gif" onclick="sendPresetGif(this.src)" class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-slate-800">
+                <label class="text-xs font-semibold text-slate-400 block mb-2">🔥 Rechercher un GIF</label>
+                <div class="flex gap-2 mb-3">
+                    <input type="text" id="gif-search-input" placeholder="ex: victory royale, rage, gg..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-[var(--theme-color)]">
+                    <button onclick="searchGifs()" class="px-4 py-2 rounded-xl text-sm bg-slate-800 hover:bg-slate-700 text-slate-200 transition font-medium"><i class="fa-solid fa-magnifying-glass"></i></button>
+                </div>
+                <div id="gif-results" class="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto pr-1">
+                    <div class="col-span-3 text-center text-xs text-slate-500 py-6">Chargement des GIFs...</div>
                 </div>
             </div>
             <div class="flex justify-end pt-2">
@@ -238,24 +234,35 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        const ADMIN_NAME = "Fire"; 
+        const ADMIN_NAME = "Fire";
+
+        // Clé publique de démo Giphy. Crée la tienne sur developers.giphy.com
+        // et remplace-la ici : sinon tu partages le quota avec le monde entier.
+        const GIPHY_KEY = "GlVGYHkr3WSBnllca54iNt0yFbjz7L65";
+
+        const ONLINE_WINDOW_MS = 90 * 1000;
 
         let currentUser = null;
-        let currentTargetType = "channel"; 
+        let currentTargetType = "channel";
         let currentTargetId = "général";
+        let currentDmPeerName = "";
         let activeVoiceId = null;
         let isMicMuted = false;
-        
+
         let unsubscribeMessages = null;
         let unsubscribeTyping = null;
-        
-        let textChannels = [
-            { id: "général", name: "Général", icon: "fa-solid fa-fire text-amber-500" }, 
+        let unsubscribeUsers = null;
+        let unsubscribeChannels = null;
+        let heartbeatTimer = null;
+
+        const DEFAULT_CHANNELS = [
+            { id: "général", name: "Général", icon: "fa-solid fa-fire text-amber-500" },
             { id: "brawl-stars", name: "Brawl Stars", icon: "fa-solid fa-skull text-purple-400" },
             { id: "clash-of-clans", name: "Clash of Clans", icon: "fa-solid fa-shield-halved text-amber-400" },
             { id: "clash-royale", name: "Clash Royale", icon: "fa-solid fa-crown text-yellow-400" },
             { id: "roblox", name: "Roblox", icon: "fa-solid fa-cube text-blue-400" }
         ];
+        let textChannels = [...DEFAULT_CHANNELS];
 
         const voiceChannelsList = [
             { id: "vocal-general", name: "Salon Vocal Général" },
@@ -267,14 +274,33 @@
         let voiceParticipants = {};
         let unreadChannels = {};
 
-        async function loadChannelsFromDB() {
+        /* ---------- Utilitaires ---------- */
+
+        function escapeHtml(str) {
+            return String(str ?? "")
+                .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+        }
+
+        // N'accepte que des URLs http(s) pour les avatars / médias.
+        function safeUrl(url) {
             try {
-                const snap = await getDoc(doc(db, "settings", "custom_channels"));
-                if (snap.exists() && snap.data().list) {
-                    textChannels = snap.data().list;
-                }
-            } catch(e) {}
-            initSidebarUI();
+                const u = new URL(String(url));
+                return (u.protocol === "http:" || u.protocol === "https:") ? u.href : "";
+            } catch { return ""; }
+        }
+
+        function isOnline(u) {
+            if (!u.lastSeen) return false;
+            const ms = typeof u.lastSeen.toMillis === "function" ? u.lastSeen.toMillis() : 0;
+            return Date.now() - ms < ONLINE_WINDOW_MS;
+        }
+
+        window.showToast = function(msg) {
+            const t = document.getElementById('toast');
+            document.getElementById('toast-message').textContent = msg;
+            t.classList.remove('hidden');
+            setTimeout(() => t.classList.add('hidden'), 3000);
         }
 
         window.toggleMobileSidebar = () => {
@@ -282,24 +308,43 @@
             document.getElementById('sidebar-overlay').classList.toggle('hidden');
         };
 
+        /* ---------- Chemins Firestore ---------- */
+
+        function messagesPath() {
+            return currentTargetType === 'channel'
+                ? `channels/${currentTargetId}/messages`
+                : `dms_chats/${currentTargetId}/messages`;
+        }
+        function typingPath() {
+            return currentTargetType === 'channel'
+                ? `channels/${currentTargetId}/typing`
+                : `dms_chats/${currentTargetId}/typing`;
+        }
+
+        // Identifiant de conversation privée : toujours le même pour une paire donnée.
+        function getDmId(uid1, uid2) {
+            if (!uid1 || !uid2) return null;
+            return uid1 < uid2 ? `dm_${uid1}_${uid2}` : `dm_${uid2}_${uid1}`;
+        }
+
+        /* ---------- Interface latérale ---------- */
+
         function initSidebarUI() {
-            // Salons Textuels
             document.getElementById('channels-list').innerHTML = textChannels.map(c => {
                 const isActive = currentTargetType === 'channel' && currentTargetId === c.id;
                 const hasUnread = unreadChannels[c.id] && !isActive;
-                const iconClass = c.icon || "fa-solid fa-hashtag text-slate-400";
+                const iconClass = escapeHtml(c.icon || "fa-solid fa-hashtag text-slate-400");
                 return `
-                    <button onclick="switchTarget('channel', '${c.id}')" class="w-full text-left px-3 py-2 rounded-xl text-sm font-medium flex items-center justify-between transition ${isActive ? 'bg-[var(--theme-color)] text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
+                    <button onclick="switchTarget('channel', '${escapeHtml(c.id)}')" class="w-full text-left px-3 py-2 rounded-xl text-sm font-medium flex items-center justify-between transition ${isActive ? 'bg-[var(--theme-color)] text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
                         <div class="flex items-center gap-2.5 truncate">
                             <i class="${iconClass} w-4 text-center shrink-0"></i>
-                            <span class="truncate">${c.name}</span>
+                            <span class="truncate">${escapeHtml(c.name)}</span>
                         </div>
                         ${hasUnread ? '<span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse shrink-0"></span>' : ''}
                     </button>
                 `;
             }).join('');
 
-            // Salons Vocaux
             document.getElementById('voice-channels-list').innerHTML = voiceChannelsList.map(v => {
                 const isConnected = activeVoiceId === v.id;
                 const members = voiceParticipants[v.id] || [];
@@ -308,91 +353,114 @@
                         <button onclick="joinVoiceChannel('${v.id}')" class="w-full text-left px-3 py-2 rounded-xl text-sm font-medium flex items-center justify-between transition ${isConnected ? 'bg-emerald-600/20 border border-emerald-500/40 text-emerald-300' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
                             <div class="flex items-center gap-2.5 truncate">
                                 <i class="fa-solid fa-volume-high text-slate-400 w-4 text-center shrink-0"></i>
-                                <span class="truncate">${v.name}</span>
+                                <span class="truncate">${escapeHtml(v.name)}</span>
                             </div>
                             <span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded-full text-slate-300 shrink-0">${members.length} connecté(s)</span>
                         </button>
                         ${members.length > 0 ? `
                             <div class="pl-6 space-y-1">
-                                ${members.map(m => `
+                                ${members.map(m => {
+                                    const av = safeUrl(m.avatar);
+                                    return `
                                     <div class="flex items-center gap-2 text-xs text-slate-400 py-0.5">
                                         <div class="w-5 h-5 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-[10px] font-bold overflow-hidden shrink-0">
-                                            ${m.avatar ? `<img src="${m.avatar}" class="w-full h-full object-cover">` : m.name.charAt(0)}
+                                            ${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((m.name || '?').charAt(0))}
                                         </div>
-                                        <span class="truncate">${m.name}</span>
+                                        <span class="truncate">${escapeHtml(m.name)}</span>
                                         <i class="fa-solid ${m.muted ? 'fa-microphone-slash text-rose-400' : 'fa-microphone text-emerald-400'} text-[10px] ml-auto shrink-0"></i>
-                                    </div>
-                                `).join('')}
+                                    </div>`;
+                                }).join('')}
                             </div>
                         ` : ''}
                     </div>
                 `;
             }).join('');
 
-            // Liste des MPs
-            const otherUsers = allUsersList.filter(u => u.uid !== currentUser?.uid);
+            // Liste des MPs : un bouton par utilisateur réel, jamais soi-même.
+            const others = allUsersList
+                .filter(u => u.uid && currentUser && u.uid !== currentUser.uid)
+                .sort((a, b) => (isOnline(b) - isOnline(a)) || String(a.name).localeCompare(String(b.name)));
+
             const dmContainer = document.getElementById('dm-conversations-list');
-            if(otherUsers.length === 0) {
-                dmContainer.innerHTML = `<div class="px-3 py-2 text-xs text-slate-500 italic">Aucun autre utilisateur en ligne.</div>`;
+            if (others.length === 0) {
+                dmContainer.innerHTML = `<div class="px-3 py-2 text-xs text-slate-500 italic">Aucun autre utilisateur inscrit.</div>`;
             } else {
-                dmContainer.innerHTML = otherUsers.map(u => {
+                dmContainer.innerHTML = others.map(u => {
                     const dmId = getDmId(currentUser.uid, u.uid);
                     const isActive = currentTargetType === 'dm' && currentTargetId === dmId;
+                    const online = isOnline(u);
+                    const av = safeUrl(u.avatar);
                     return `
-                        <button onclick="openDirectMessage('${u.uid}', '${u.name}')" class="w-full text-left px-3 py-2 rounded-xl text-sm font-medium flex items-center gap-2.5 transition ${isActive ? 'bg-[var(--theme-color)] text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
+                        <button onclick="openDirectMessage('${escapeHtml(u.uid)}')" class="w-full text-left px-3 py-2 rounded-xl text-sm font-medium flex items-center gap-2.5 transition ${isActive ? 'bg-[var(--theme-color)] text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
                             <div class="w-6 h-6 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-xs font-bold overflow-hidden border border-slate-700 shrink-0">
-                                ${u.avatar ? `<img src="${u.avatar}" class="w-full h-full object-cover">` : u.name.charAt(0)}
+                                ${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((u.name || '?').charAt(0))}
                             </div>
-                            <span class="truncate">${u.name}</span>
-                            <span class="w-2 h-2 rounded-full bg-emerald-500 ml-auto shrink-0"></span>
+                            <span class="truncate">${escapeHtml(u.name)}</span>
+                            <span class="w-2 h-2 rounded-full ${online ? 'bg-emerald-500' : 'bg-slate-600'} ml-auto shrink-0"></span>
                         </button>
                     `;
                 }).join('');
             }
         }
 
+        /* ---------- Salons ---------- */
+
         window.openCreateChannelModal = () => document.getElementById('create-channel-modal').classList.remove('hidden');
         window.closeCreateChannelModal = () => document.getElementById('create-channel-modal').classList.add('hidden');
 
         window.createNewChannel = async () => {
             const rawName = document.getElementById('new-channel-name').value.trim();
-            if(!rawName) return showToast("Entrez un nom de salon.");
-            const channelId = rawName.toLowerCase().replace(/[^a-z0-9]/g, '-');
-            if(textChannels.some(c => c.id === channelId)) return showToast("Ce salon existe déjà.");
+            if (!rawName) return showToast("Entrez un nom de salon.");
+            const channelId = rawName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/^-+|-+$/g, '');
+            if (!channelId) return showToast("Nom invalide.");
+            if (textChannels.some(c => c.id === channelId)) return showToast("Ce salon existe déjà.");
 
-            textChannels.push({ id: channelId, name: rawName, icon: "fa-solid fa-hashtag text-slate-400" });
-            await setDoc(doc(db, "settings", "custom_channels"), { list: textChannels });
-            document.getElementById('new-channel-name').value = '';
-            closeCreateChannelModal();
-            initSidebarUI();
-            switchTarget('channel', channelId);
-            showToast("Salon créé avec succès !");
+            const updated = [...textChannels, { id: channelId, name: rawName, icon: "fa-solid fa-hashtag text-slate-400" }];
+            try {
+                await setDoc(doc(db, "settings", "custom_channels"), { list: updated });
+                document.getElementById('new-channel-name').value = '';
+                closeCreateChannelModal();
+                switchTarget('channel', channelId);
+                showToast("Salon créé avec succès !");
+            } catch (e) { showToast("Erreur : " + e.message); }
         };
+
+        // Écoute temps réel : un salon créé par quelqu'un d'autre apparaît sans refresh.
+        function listenChannels() {
+            if (unsubscribeChannels) unsubscribeChannels();
+            unsubscribeChannels = onSnapshot(doc(db, "settings", "custom_channels"), (snap) => {
+                textChannels = (snap.exists() && Array.isArray(snap.data().list) && snap.data().list.length)
+                    ? snap.data().list
+                    : [...DEFAULT_CHANNELS];
+                initSidebarUI();
+            }, () => { textChannels = [...DEFAULT_CHANNELS]; initSidebarUI(); });
+        }
 
         window.switchTarget = function(type, id, title = "") {
             currentTargetType = type;
             currentTargetId = id;
-            if(type === 'channel') {
+            if (type === 'channel') {
                 unreadChannels[id] = false;
                 const chan = textChannels.find(c => c.id === id);
                 document.getElementById('current-channel-title').textContent = `# ${chan ? chan.name : id}`;
-            } else if(type === 'dm') {
+            } else {
+                currentDmPeerName = title;
                 document.getElementById('current-channel-title').textContent = `💬 MP : ${title}`;
             }
             initSidebarUI();
             loadMessages();
             loadTypingIndicators();
-            if(window.innerWidth < 768) toggleMobileSidebar();
+            if (window.innerWidth < 768) toggleMobileSidebar();
         }
 
-        function getDmId(uid1, uid2) {
-            return uid1 < uid2 ? `dm_${uid1}_${uid2}` : `dm_${uid2}_${uid1}`;
-        }
-
-        window.openDirectMessage = (otherUid, otherName) => {
+        window.openDirectMessage = (otherUid) => {
+            const peer = allUsersList.find(u => u.uid === otherUid);
             const dmId = getDmId(currentUser.uid, otherUid);
-            switchTarget('dm', dmId, otherName);
+            if (!dmId) return showToast("Utilisateur introuvable.");
+            switchTarget('dm', dmId, peer ? peer.name : "Utilisateur");
         }
+
+        /* ---------- Profil / Auth / Présence ---------- */
 
         window.setTheme = (themeClass) => {
             userProfile.theme = themeClass;
@@ -413,53 +481,69 @@
                 document.getElementById('auth-screen').classList.add('hidden');
                 document.getElementById('app-screen').classList.remove('hidden');
 
-                const userSnap = await getDoc(doc(db, "users", user.uid));
+                const userRef = doc(db, "users", user.uid);
+                const userSnap = await getDoc(userRef);
                 if (userSnap.exists()) {
-                    userProfile = userSnap.data();
-                    if(userProfile.theme) setTheme(userProfile.theme);
+                    userProfile = { ...userSnap.data() };
+                    if (userProfile.theme) setTheme(userProfile.theme);
                 } else {
                     userProfile = {
-                        name: user.displayName || (user.isAnonymous ? "Invité_" + user.uid.slice(0,4) : "Utilisateur"),
+                        name: user.displayName || (user.isAnonymous ? "Invité_" + user.uid.slice(0, 4) : "Utilisateur"),
                         avatar: user.photoURL || "",
                         theme: "theme-violet"
                     };
-                    await setDoc(doc(db, "users", user.uid), userProfile);
                 }
-                updateUIRating();
-                await fetchUsersList();
-                await loadChannelsFromDB();
+                // L'uid est enregistré DANS le document : sans ça, impossible de savoir
+                // à qui on parle, et tous les MPs finissent au même endroit.
+                userProfile.uid = user.uid;
+                await setDoc(userRef, { ...userProfile, lastSeen: serverTimestamp() }, { merge: true });
+
+                updateProfileUI();
+                startHeartbeat();
+                listenUsers();
+                listenChannels();
                 loadMessages();
                 loadTypingIndicators();
                 listenVoiceChannels();
             } else {
                 document.getElementById('auth-screen').classList.remove('hidden');
                 document.getElementById('app-screen').classList.add('hidden');
-                if (unsubscribeMessages) unsubscribeMessages();
-                if (unsubscribeTyping) unsubscribeTyping();
+                [unsubscribeMessages, unsubscribeTyping, unsubscribeUsers, unsubscribeChannels]
+                    .forEach(fn => { if (fn) fn(); });
+                if (heartbeatTimer) clearInterval(heartbeatTimer);
             }
         });
 
-        async function fetchUsersList() {
-            const querySnapshot = await getDocs(collection(db, "users"));
-            allUsersList = [];
-            querySnapshot.forEach((doc) => allUsersList.push(doc.data()));
-            document.getElementById('online-count').textContent = allUsersList.length;
-            initSidebarUI();
+        function startHeartbeat() {
+            if (heartbeatTimer) clearInterval(heartbeatTimer);
+            heartbeatTimer = setInterval(() => {
+                if (!currentUser) return;
+                updateDoc(doc(db, "users", currentUser.uid), { lastSeen: serverTimestamp() }).catch(() => {});
+            }, 30000);
         }
 
-        function updateUIRating() {
+        // Écoute temps réel des utilisateurs : nouveaux arrivants, pseudos, avatars, présence.
+        function listenUsers() {
+            if (unsubscribeUsers) unsubscribeUsers();
+            unsubscribeUsers = onSnapshot(collection(db, "users"), (snapshot) => {
+                allUsersList = snapshot.docs.map(d => ({ ...d.data(), uid: d.id }));
+                document.getElementById('online-count').textContent = allUsersList.filter(isOnline).length;
+                initSidebarUI();
+            });
+        }
+
+        function updateProfileUI() {
             document.getElementById('user-name').textContent = userProfile.name;
             const container = document.getElementById('user-avatar-container');
-            if (userProfile.avatar) {
-                container.innerHTML = `<img src="${userProfile.avatar}" class="w-full h-full object-cover">`;
-            } else {
-                container.innerHTML = `<span id="user-avatar-text">${userProfile.name.charAt(0).toUpperCase()}</span>`;
-            }
+            const av = safeUrl(userProfile.avatar);
+            container.innerHTML = av
+                ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">`
+                : `<span id="user-avatar-text">${escapeHtml(String(userProfile.name || 'U').charAt(0).toUpperCase())}</span>`;
         }
 
         window.openProfileModal = () => {
-            document.getElementById('edit-username').value = userProfile.name;
-            document.getElementById('edit-avatar').value = userProfile.avatar;
+            document.getElementById('edit-username').value = userProfile.name || "";
+            document.getElementById('edit-avatar').value = userProfile.avatar || "";
             document.getElementById('profile-modal').classList.remove('hidden');
         }
         window.closeProfileModal = () => document.getElementById('profile-modal').classList.add('hidden');
@@ -471,55 +555,100 @@
 
             userProfile.name = newName;
             userProfile.avatar = newAvatar;
-            await setDoc(doc(db, "users", currentUser.uid), userProfile);
+            userProfile.uid = currentUser.uid;
+            await setDoc(doc(db, "users", currentUser.uid), { ...userProfile, lastSeen: serverTimestamp() }, { merge: true });
 
-            updateUIRating();
-            fetchUsersList();
-            initSidebarUI();
+            updateProfileUI();
             closeProfileModal();
             showToast("Profil mis à jour !");
         }
 
-        window.openMediaModal = () => document.getElementById('media-modal').classList.remove('hidden');
+        /* ---------- GIFs ---------- */
+
+        window.openMediaModal = () => {
+            document.getElementById('media-modal').classList.remove('hidden');
+            if (!document.getElementById('gif-results').dataset.loaded) loadTrendingGifs();
+        };
         window.closeMediaModal = () => document.getElementById('media-modal').classList.add('hidden');
+
+        function renderGifs(items) {
+            const box = document.getElementById('gif-results');
+            box.dataset.loaded = "1";
+            if (!items.length) {
+                box.innerHTML = `<div class="col-span-3 text-center text-xs text-slate-500 py-6">Aucun GIF trouvé.</div>`;
+                return;
+            }
+            box.innerHTML = items.map(g => {
+                const preview = g.images?.fixed_height_small?.url || g.images?.fixed_height?.url;
+                const full = g.images?.original?.url || preview;
+                if (!preview || !full) return '';
+                return `<img src="${escapeHtml(preview)}" data-full="${escapeHtml(full)}" onclick="sendPresetGif(this.dataset.full)" onerror="this.remove()" class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-slate-800">`;
+            }).join('');
+        }
+
+        async function fetchGiphy(url) {
+            const box = document.getElementById('gif-results');
+            box.innerHTML = `<div class="col-span-3 text-center text-xs text-slate-500 py-6">Chargement...</div>`;
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                renderGifs(data.data || []);
+            } catch (e) {
+                box.innerHTML = `<div class="col-span-3 text-center text-xs text-rose-400 py-6">GIFs indisponibles. Colle une URL à la main.</div>`;
+            }
+        }
+
+        function loadTrendingGifs() {
+            fetchGiphy(`https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_KEY}&limit=24&rating=pg-13`);
+        }
+
+        window.searchGifs = () => {
+            const q = document.getElementById('gif-search-input').value.trim();
+            if (!q) return loadTrendingGifs();
+            fetchGiphy(`https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(q)}&limit=24&rating=pg-13`);
+        };
+
+        document.getElementById('gif-search-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); searchGifs(); }
+        });
 
         window.sendMediaMessage = async () => {
             const url = document.getElementById('media-url-input').value.trim();
-            if(!url) return;
+            if (!url) return;
             await postMedia(url);
         }
 
-        window.sendPresetGif = async (url) => {
-            await postMedia(url);
-        }
+        window.sendPresetGif = async (url) => { await postMedia(url); }
 
         async function postMedia(url) {
+            const clean = safeUrl(url);
+            if (!clean) return showToast("URL invalide.");
             try {
-                const colPath = currentTargetType === 'channel' ? `channels/${currentTargetId}/messages` : `dms_chats/${currentTargetId}/messages`;
-                await addDoc(collection(db, colPath), {
-                    mediaUrl: url,
+                await addDoc(collection(db, messagesPath()), {
+                    mediaUrl: clean,
                     uid: currentUser.uid,
                     displayName: userProfile.name,
-                    avatar: userProfile.avatar,
+                    avatar: userProfile.avatar || "",
                     createdAt: serverTimestamp(),
                     reactions: {}
                 });
                 document.getElementById('media-url-input').value = '';
                 closeMediaModal();
-            } catch(e) { showToast("Erreur: " + e.message); }
+            } catch (e) { showToast("Erreur: " + e.message); }
         }
 
+        /* ---------- Vocaux ---------- */
+
         window.joinVoiceChannel = async (voiceId) => {
-            if (activeVoiceId && activeVoiceId !== voiceId) {
-                await leaveVoiceChannel();
-            }
+            if (activeVoiceId && activeVoiceId !== voiceId) await leaveVoiceChannel();
             activeVoiceId = voiceId;
             isMicMuted = false;
             updateMicUI();
-            
-            const vocalRef = doc(db, "voice_rooms", voiceId, "participants", currentUser.uid);
-            await setDoc(vocalRef, { name: userProfile.name, avatar: userProfile.avatar, muted: false });
-            
+
+            await setDoc(doc(db, "voice_rooms", voiceId, "participants", currentUser.uid), {
+                name: userProfile.name, avatar: userProfile.avatar || "", muted: false
+            });
+
             document.getElementById('active-voice-panel').classList.remove('hidden');
             const vObj = voiceChannelsList.find(v => v.id === voiceId);
             document.getElementById('active-voice-name').textContent = `Connecté à ${vObj ? vObj.name : voiceId}`;
@@ -529,8 +658,7 @@
 
         window.leaveVoiceChannel = async () => {
             if (!activeVoiceId) return;
-            const vocalRef = doc(db, "voice_rooms", activeVoiceId, "participants", currentUser.uid);
-            await deleteDoc(vocalRef);
+            await deleteDoc(doc(db, "voice_rooms", activeVoiceId, "participants", currentUser.uid));
             activeVoiceId = null;
             document.getElementById('active-voice-panel').classList.add('hidden');
             showToast("🔇 Déconnecté du vocal.");
@@ -541,8 +669,7 @@
             if (!activeVoiceId) return;
             isMicMuted = !isMicMuted;
             updateMicUI();
-            const vocalRef = doc(db, "voice_rooms", activeVoiceId, "participants", currentUser.uid);
-            await updateDoc(vocalRef, { muted: isMicMuted });
+            await updateDoc(doc(db, "voice_rooms", activeVoiceId, "participants", currentUser.uid), { muted: isMicMuted });
             showToast(isMicMuted ? "🎤 Micro coupé" : "🎤 Micro actif");
         };
 
@@ -564,83 +691,97 @@
         function listenVoiceChannels() {
             voiceChannelsList.forEach(v => {
                 onSnapshot(collection(db, "voice_rooms", v.id, "participants"), (snapshot) => {
-                    voiceParticipants[v.id] = [];
-                    snapshot.forEach(docSnap => voiceParticipants[v.id].push(docSnap.data()));
+                    voiceParticipants[v.id] = snapshot.docs.map(d => d.data());
                     initSidebarUI();
                 });
             });
         }
 
+        window.addEventListener('beforeunload', () => {
+            if (activeVoiceId && currentUser) {
+                deleteDoc(doc(db, "voice_rooms", activeVoiceId, "participants", currentUser.uid));
+            }
+        });
+
+        /* ---------- Saisie en cours ---------- */
+
         let typingTimeout;
         const msgInput = document.getElementById('message-input');
         msgInput.addEventListener('input', async () => {
-            if(!currentUser) return;
-            const path = currentTargetType === 'channel' ? `channels/${currentTargetId}/typing` : `dms_chats/${currentTargetId}/typing`;
-            const typingRef = doc(db, path, currentUser.uid);
-            await setDoc(typingRef, { name: userProfile.name });
+            if (!currentUser) return;
+            const typingRef = doc(db, typingPath(), currentUser.uid);
+            try { await setDoc(typingRef, { name: userProfile.name }); } catch {}
             clearTimeout(typingTimeout);
-            typingTimeout = setTimeout(async () => { await deleteDoc(typingRef); }, 2000);
+            typingTimeout = setTimeout(() => { deleteDoc(typingRef).catch(() => {}); }, 2000);
         });
 
         function loadTypingIndicators() {
-            if(unsubscribeTyping) unsubscribeTyping();
-            const path = currentTargetType === 'channel' ? `channels/${currentTargetId}/typing` : `dms_chats/${currentTargetId}/typing`;
-            unsubscribeTyping = onSnapshot(collection(db, path), (snapshot) => {
-                let typers = [];
-                snapshot.forEach(d => { if(d.id !== currentUser?.uid) typers.push(d.data().name); });
-                document.getElementById('typing-indicator').textContent = typers.length > 0 ? `${typers.join(', ')} écrit...` : "";
+            if (unsubscribeTyping) unsubscribeTyping();
+            unsubscribeTyping = onSnapshot(collection(db, typingPath()), (snapshot) => {
+                const typers = snapshot.docs.filter(d => d.id !== currentUser?.uid).map(d => d.data().name);
+                document.getElementById('typing-indicator').textContent = typers.length ? `${typers.join(', ')} écrit...` : "";
             });
         }
+
+        /* ---------- Messages ---------- */
 
         window.sendMessage = async (e) => {
             e.preventDefault();
             const text = msgInput.value.trim();
             if (!text || !currentUser) return;
 
-            if (text === "/clean" && currentTargetType === 'channel') {
+            if (text === "/clean") {
                 if (userProfile.name === ADMIN_NAME) {
                     try {
-                        const snapshot = await getDocs(collection(db, "channels", currentTargetId, "messages"));
-                        const batch = writeBatch(db);
-                        snapshot.docs.forEach((d) => batch.delete(d.ref));
-                        await batch.commit();
+                        const snapshot = await getDocs(collection(db, messagesPath()));
+                        // Firestore limite un batch à 500 opérations.
+                        const docs = snapshot.docs;
+                        for (let i = 0; i < docs.length; i += 450) {
+                            const batch = writeBatch(db);
+                            docs.slice(i, i + 450).forEach(d => batch.delete(d.ref));
+                            await batch.commit();
+                        }
                         showToast("🧹 Salon nettoyé !");
                     } catch (err) {
-                        showToast("Erreur lors du nettoyage.");
+                        showToast("Erreur lors du nettoyage : " + err.message);
                     }
                 } else {
-                    showToast("❌ Réservé à l'administrateur (Fire).");
+                    showToast("❌ Réservé à l'administrateur (" + ADMIN_NAME + ").");
                 }
                 msgInput.value = '';
                 return;
             }
 
             try {
-                const colPath = currentTargetType === 'channel' ? `channels/${currentTargetId}/messages` : `dms_chats/${currentTargetId}/messages`;
-                await addDoc(collection(db, colPath), {
+                await addDoc(collection(db, messagesPath()), {
                     text: text,
                     uid: currentUser.uid,
                     displayName: userProfile.name,
-                    avatar: userProfile.avatar,
+                    avatar: userProfile.avatar || "",
                     createdAt: serverTimestamp(),
                     reactions: {}
                 });
                 msgInput.value = '';
-                const path = currentTargetType === 'channel' ? `channels/${currentTargetId}/typing` : `dms_chats/${currentTargetId}/typing`;
-                await deleteDoc(doc(db, path, currentUser.uid));
+                deleteDoc(doc(db, typingPath(), currentUser.uid)).catch(() => {});
             } catch (error) { showToast("Erreur: " + error.message); }
+        };
+
+        window.deleteMessage = async (messageId) => {
+            if (!currentUser) return;
+            try {
+                await deleteDoc(doc(db, messagesPath(), messageId));
+            } catch (e) { showToast("Suppression impossible : " + e.message); }
         };
 
         window.addReaction = async (messageId, emoji) => {
             if (!currentUser) return;
-            const colPath = currentTargetType === 'channel' ? `channels/${currentTargetId}/messages` : `dms_chats/${currentTargetId}/messages`;
-            const msgRef = doc(db, colPath, messageId);
+            const msgRef = doc(db, messagesPath(), messageId);
             const msgSnap = await getDoc(msgRef);
             if (!msgSnap.exists()) return;
 
             let reactions = msgSnap.data().reactions || {};
             if (!reactions[emoji]) reactions[emoji] = [];
-            
+
             if (reactions[emoji].includes(currentUser.uid)) {
                 reactions[emoji] = reactions[emoji].filter(id => id !== currentUser.uid);
                 if (reactions[emoji].length === 0) delete reactions[emoji];
@@ -650,34 +791,42 @@
             await updateDoc(msgRef, { reactions });
         }
 
+        const EMOJIS = ['👍', '❤️', '😂', '🔥', '💀', '👑', '🚀', '🎮', '😎'];
+
         function loadMessages() {
             if (unsubscribeMessages) unsubscribeMessages();
-            const colPath = currentTargetType === 'channel' ? `channels/${currentTargetId}/messages` : `dms_chats/${currentTargetId}/messages`;
-            const q = query(collection(db, colPath), orderBy("createdAt", "asc"));
-            
+            const q = query(collection(db, messagesPath()), orderBy("createdAt", "asc"));
+            const targetAtLoad = currentTargetId;
+
             unsubscribeMessages = onSnapshot(q, (snapshot) => {
+                if (targetAtLoad !== currentTargetId) return; // écouteur périmé
                 const container = document.getElementById('messages-container');
+                const stick = container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+
                 container.innerHTML = snapshot.docs.map(docSnap => {
                     const msgId = docSnap.id;
                     const msg = docSnap.data();
                     const isMe = currentUser && msg.uid === currentUser.uid;
-                    const avatarHtml = msg.avatar 
-                        ? `<img src="${msg.avatar}" class="w-8 h-8 rounded-full object-cover">`
-                        : `<div class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-xs font-bold">${(msg.displayName || 'A').charAt(0).toUpperCase()}</div>`;
+                    const canDelete = isMe || userProfile.name === ADMIN_NAME;
+                    const av = safeUrl(msg.avatar);
+                    const avatarHtml = av
+                        ? `<img src="${escapeHtml(av)}" class="w-8 h-8 rounded-full object-cover" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'w-8 h-8 rounded-full bg-slate-800'}))">`
+                        : `<div class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-xs font-bold">${escapeHtml(String(msg.displayName || 'A').charAt(0).toUpperCase())}</div>`;
 
-                    let contentHtml = msg.mediaUrl ? `<img src="${msg.mediaUrl}" class="rounded-xl max-h-60 object-cover mt-1">` : escapeHtml(msg.text || '');
+                    const media = safeUrl(msg.mediaUrl);
+                    const contentHtml = media
+                        ? `<img src="${escapeHtml(media)}" class="rounded-xl max-h-60 object-cover mt-1" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'text-xs italic opacity-70',textContent:'[GIF indisponible]'}))">`
+                        : escapeHtml(msg.text || '');
 
                     let reactionsHtml = '';
                     if (msg.reactions && Object.keys(msg.reactions).length > 0) {
                         reactionsHtml = `<div class="flex flex-wrap gap-1 mt-1.5">`;
-                        for (let [emoji, userList] of Object.entries(msg.reactions)) {
+                        for (const [emoji, userList] of Object.entries(msg.reactions)) {
                             const hasReacted = userList.includes(currentUser?.uid);
                             reactionsHtml += `
                                 <button onclick="addReaction('${msgId}', '${emoji}')" class="text-xs px-2 py-0.5 rounded-lg border flex items-center gap-1 transition ${hasReacted ? 'bg-[var(--theme-color)]/20 border-[var(--theme-color)] text-white' : 'bg-slate-900 border-slate-800 text-slate-400'}">
-                                    <span>${emoji}</span>
-                                    <span class="font-medium">${userList.length}</span>
-                                </button>
-                            `;
+                                    <span>${emoji}</span><span class="font-medium">${userList.length}</span>
+                                </button>`;
                         }
                         reactionsHtml += `</div>`;
                     }
@@ -693,32 +842,18 @@
                                 ${reactionsHtml}
                             </div>
                             <div class="msg-actions hidden absolute ${isMe ? 'left-0' : 'right-0'} -top-3 bg-slate-900 border border-slate-800 rounded-lg p-1 shadow-lg items-center gap-1 z-10">
-                                <button onclick="addReaction('${msgId}', '👍')" class="hover:bg-slate-800 px-1 py-0.5 rounded text-xs" title="Pouce en haut">👍</button>
-                                <button onclick="addReaction('${msgId}', '❤️')" class="hover:bg-slate-800 px-1 py-0.5 rounded text-xs" title="Cœur">❤️</button>
-                                <button onclick="addReaction('${msgId}', '😂')" class="hover:bg-slate-800 px-1 py-0.5 rounded text-xs" title="Rigole">😂</button>
-                                <button onclick="addReaction('${msgId}', '🔥')" class="hover:bg-slate-800 px-1 py-0.5 rounded text-xs" title="Feu">🔥</button>
-                                <button onclick="addReaction('${msgId}', '💀')" class="hover:bg-slate-800 px-1 py-0.5 rounded text-xs" title="Mort de rire">💀</button>
-                                <button onclick="addReaction('${msgId}', '👑')" class="hover:bg-slate-800 px-1 py-0.5 rounded text-xs" title="Couronne">👑</button>
-                                <button onclick="addReaction('${msgId}', '🚀')" class="hover:bg-slate-800 px-1 py-0.5 rounded text-xs" title="Fusée">🚀</button>
-                                <button onclick="addReaction('${msgId}', '🎮')" class="hover:bg-slate-800 px-1 py-0.5 rounded text-xs" title="Gaming">🎮</button>
-                                <button onclick="addReaction('${msgId}', '😎')" class="hover:bg-slate-800 px-1 py-0.5 rounded text-xs" title="Stylé">😎</button>
+                                ${EMOJIS.map(e => `<button onclick="addReaction('${msgId}', '${e}')" class="hover:bg-slate-800 px-1 py-0.5 rounded text-xs">${e}</button>`).join('')}
+                                ${canDelete ? `<button onclick="deleteMessage('${msgId}')" class="hover:bg-rose-900/60 px-1.5 py-0.5 rounded text-xs text-rose-400" title="Supprimer"><i class="fa-solid fa-trash"></i></button>` : ''}
                             </div>
                         </div>
                     `;
                 }).join('');
-                container.scrollTop = container.scrollHeight;
+
+                if (stick) container.scrollTop = container.scrollHeight;
+            }, (err) => {
+                document.getElementById('messages-container').innerHTML =
+                    `<div class="text-center text-sm text-rose-400 py-8">Lecture impossible : ${escapeHtml(err.message)}<br><span class="text-xs text-slate-500">Vérifie tes règles Firestore.</span></div>`;
             });
-        }
-
-        function escapeHtml(str) {
-            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        }
-
-        window.showToast = function(msg) {
-            const t = document.getElementById('toast');
-            document.getElementById('toast-message').textContent = msg;
-            t.classList.remove('hidden');
-            setTimeout(() => t.classList.add('hidden'), 3000);
         }
     </script>
 </body>
