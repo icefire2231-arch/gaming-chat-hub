@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NexusChat - Gaming Hub</title>
+    <title>NexusChat - Ultimate Gaming Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -28,6 +28,7 @@
         .theme-blue { --theme-color: #3b82f6; --theme-dark: #2563eb; }
         .theme-rose { --theme-color: #f43f5e; --theme-dark: #e11d48; }
         .theme-amber { --theme-color: #f59e0b; --theme-dark: #d97706; }
+        .message-row:hover .msg-actions { display: flex; }
     </style>
 </head>
 <body id="body-theme" class="bg-slate-950 text-slate-100 h-screen flex flex-col overflow-hidden font-sans theme-violet">
@@ -39,7 +40,7 @@
                 <i class="fa-solid fa-gamepad"></i>
             </div>
             <h1 class="text-2xl font-bold mt-4 mb-2">NexusChat</h1>
-            <p class="text-slate-400 text-sm mb-6">Rejoins les salons gaming, partage des GIFs, discute en vocal et personnalise ton expérience !</p>
+            <p class="text-slate-400 text-sm mb-6">Salons textuels & vocaux, GIFs, réactions et messages privés !</p>
             
             <div class="space-y-3">
                 <button onclick="loginWithGoogle()" class="w-full bg-white hover:bg-slate-100 text-slate-900 font-medium py-3 px-4 rounded-xl transition flex items-center justify-center gap-3 shadow-md">
@@ -57,27 +58,36 @@
         <div id="sidebar-overlay" onclick="toggleMobileSidebar()" class="fixed inset-0 bg-black/50 z-20 md:hidden hidden"></div>
 
         <!-- Sidebar -->
-        <div id="sidebar" class="absolute md:relative inset-y-0 left-0 w-72 bg-slate-900 border-r border-slate-800 flex flex-col z-30 transform -translate-x-full md:translate-x-0 transition-transform duration-200">
+        <div id="sidebar" class="absolute md:relative inset-y-0 left-0 w-80 bg-slate-900 border-r border-slate-800 flex flex-col z-30 transform -translate-x-full md:translate-x-0 transition-transform duration-200">
             <div class="p-4 border-b border-slate-800 flex items-center justify-between">
                 <span class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-gamepad text-[var(--theme-color)]"></i> NexusChat</span>
                 <button onclick="toggleMobileSidebar()" class="md:hidden text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
             
-            <div class="p-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Salons de jeux</div>
-            <div id="channels-list" class="flex-1 overflow-y-auto px-2 space-y-1"></div>
+            <div class="flex-1 overflow-y-auto px-2 py-3 space-y-4">
+                <!-- Salons Textuels -->
+                <div>
+                    <div class="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Salons Textuels</div>
+                    <div id="channels-list" class="space-y-1"></div>
+                </div>
 
-            <!-- Espace Vocal -->
-            <div class="p-3 border-t border-slate-800 bg-slate-950/40">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-xs font-bold text-slate-400 flex items-center gap-1.5"><i class="fa-solid fa-headphones text-[var(--theme-color)]"></i> Salon Vocal</span>
-                    <span id="vocal-status" class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full">Déconnecté</span>
+                <!-- Salons Vocaux -->
+                <div>
+                    <div class="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Salons Vocaux</div>
+                    <div id="voice-channels-list" class="space-y-1"></div>
                 </div>
-                <div id="vocal-controls" class="flex gap-2">
-                    <button onclick="toggleVocal()" id="vocal-btn" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs py-2 rounded-xl transition font-medium flex items-center justify-center gap-1.5 shadow-md">
-                        <i class="fa-solid fa-microphone"></i> Rejoindre
-                    </button>
+
+                <!-- Messages Privés (MPs) -->
+                <div>
+                    <div class="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Messages Privés (MPs)</div>
+                    <div id="dm-list" class="space-y-1"></div>
                 </div>
-                <div id="vocal-users" class="mt-2 flex flex-wrap gap-1"></div>
+
+                <!-- Membres en ligne (cliquables pour MP) -->
+                <div>
+                    <div class="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Membres</div>
+                    <div id="members-list" class="space-y-1"></div>
+                </div>
             </div>
             
             <!-- Profil & Paramètres -->
@@ -88,7 +98,7 @@
                     </div>
                     <div class="truncate">
                         <span class="text-sm font-medium truncate block" id="user-name">Utilisateur</span>
-                        <span class="text-xs text-[var(--theme-color)]">Modifier profil</span>
+                        <span class="text-xs text-[var(--theme-color)]">Paramètres</span>
                     </div>
                 </div>
                 <button onclick="openProfileModal()" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-gear"></i></button>
@@ -103,12 +113,23 @@
                     <h2 id="current-channel-title" class="font-bold text-lg"># général</h2>
                 </div>
                 <div class="flex items-center gap-3">
-                    <div class="text-xs text-slate-400 hidden sm:block">💡 Astuce Admin : Tapez <code class="text-amber-400 bg-slate-900 px-1 py-0.5 rounded">/clean</code> pour vider le salon</div>
+                    <div class="text-xs text-slate-400 hidden sm:block">💡 Admin : <code class="text-amber-400 bg-slate-900 px-1 py-0.5 rounded">/clean</code></div>
                     <div class="flex items-center gap-2 bg-slate-800/60 px-3 py-1.5 rounded-full border border-slate-700/50 text-xs">
                         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                         <span id="online-count" class="text-slate-300 font-medium">0 en ligne</span>
                     </div>
                 </div>
+            </div>
+
+            <!-- Panel Actif Vocal (Si connecté en vocal) -->
+            <div id="active-voice-panel" class="bg-emerald-950/30 border-b border-emerald-900/50 px-6 py-2 hidden flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span class="text-xs text-emerald-300 font-semibold" id="active-voice-name">Connecté au salon vocal</span>
+                </div>
+                <button onclick="leaveVoiceChannel()" class="bg-rose-600 hover:bg-rose-500 text-white text-xs px-3 py-1.5 rounded-xl transition font-medium flex items-center gap-1 shadow">
+                    <i class="fa-solid fa-phone-slash"></i> Quitter le vocal
+                </button>
             </div>
 
             <div id="messages-container" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4"></div>
@@ -118,29 +139,29 @@
             <!-- Input & Formulaire -->
             <div class="p-4 border-t border-slate-800 bg-slate-900/50 relative">
                 <form id="message-form" onsubmit="sendMessage(event)" class="flex gap-2 items-center">
-                    <button type="button" onclick="openMediaModal()" class="text-slate-400 hover:text-slate-200 px-3 py-2 transition text-lg" title="Envoyer une image ou un GIF"><i class="fa-regular fa-image"></i></button>
-                    <input type="text" id="message-input" placeholder="Envoyer un message (tapez /clean pour tout effacer si vous êtes admin)..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[var(--theme-color)] text-slate-100">
+                    <button type="button" onclick="openMediaModal()" class="text-slate-400 hover:text-slate-200 px-3 py-2 transition text-lg" title="GIF / Image"><i class="fa-regular fa-image"></i></button>
+                    <input type="text" id="message-input" placeholder="Envoyer un message (ou /clean)..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[var(--theme-color)] text-slate-100">
                     <button type="submit" class="bg-[var(--theme-color)] hover:opacity-90 text-white px-5 rounded-xl transition font-medium text-sm flex items-center justify-center shadow-lg"><i class="fa-solid fa-paper-plane"></i></button>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Modale d'envoi d'image / GIF (Avec GIFs de base + URL perso) -->
+    <!-- Modale d'envoi d'image / GIF -->
     <div id="media-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-md w-full space-y-4 shadow-2xl">
-            <h3 class="font-bold text-lg text-slate-100 flex items-center gap-2"><i class="fa-solid fa-photo-film text-[var(--theme-color)]"></i> Partager un Média ou GIF</h3>
+            <h3 class="font-bold text-lg text-slate-100 flex items-center gap-2"><i class="fa-solid fa-photo-film text-[var(--theme-color)]"></i> Partager un GIF / Image</h3>
             
             <div>
-                <label class="text-xs text-slate-400 block mb-1">Collez l'URL de votre choix (Image / GIF)</label>
+                <label class="text-xs text-slate-400 block mb-1">URL personnalisée</label>
                 <div class="flex gap-2">
-                    <input type="text" id="media-url-input" placeholder="https://exemple.com/image.gif" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-[var(--theme-color)]">
+                    <input type="text" id="media-url-input" placeholder="https://..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-[var(--theme-color)]">
                     <button onclick="sendMediaMessage()" class="px-4 py-2 rounded-xl text-sm bg-[var(--theme-color)] hover:opacity-90 text-white transition font-medium">Envoyer</button>
                 </div>
             </div>
 
             <div class="border-t border-slate-800 pt-3">
-                <label class="text-xs font-semibold text-slate-400 block mb-2">Ou choisissez un GIF gaming de base :</label>
+                <label class="text-xs font-semibold text-slate-400 block mb-2">Ou GIFs gaming de base :</label>
                 <div class="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
                     <img src="https://media.giphy.com/media/LmNwrBhejkK9EFP504/giphy.gif" onclick="sendPresetGif(this.src)" class="w-full h-20 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-slate-800">
                     <img src="https://media.giphy.com/media/3oKIPnAiaMCws8nOsE/giphy.gif" onclick="sendPresetGif(this.src)" class="w-full h-20 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-slate-800">
@@ -162,20 +183,16 @@
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-md w-full space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <h3 class="font-bold text-lg text-slate-100">Mon Profil</h3>
             <div>
-                <label class="text-xs text-slate-400 block mb-1">Votre pseudo</label>
+                <label class="text-xs text-slate-400 block mb-1">Pseudo</label>
                 <input type="text" id="edit-username" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-[var(--theme-color)]">
             </div>
             <div>
-                <label class="text-xs text-slate-400 block mb-1">URL de votre avatar</label>
-                <input type="text" id="edit-avatar" placeholder="https://exemple.com/avatar.png" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-[var(--theme-color)]">
+                <label class="text-xs text-slate-400 block mb-1">URL Avatar</label>
+                <input type="text" id="edit-avatar" placeholder="https://..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-[var(--theme-color)]">
             </div>
 
-            <!-- Section Admin : Logos des salons -->
             <div id="admin-salons-section" class="border-t border-slate-800 pt-3 space-y-2 hidden">
-                <div class="flex items-center justify-between">
-                    <label class="text-xs font-semibold text-amber-400 block">⚙️ Espace Admin : Logos des salons</label>
-                    <span class="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded">Réservé à Fire</span>
-                </div>
+                <label class="text-xs font-semibold text-amber-400 block">⚙️ Logos des salons (Admin Fire)</label>
                 <div class="grid grid-cols-1 gap-2 text-xs">
                     <div><span class="text-slate-400">Général :</span><input type="text" id="img-general" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-100 mt-1"></div>
                     <div><span class="text-slate-400">Brawl Stars :</span><input type="text" id="img-brawl-stars" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-100 mt-1"></div>
@@ -204,7 +221,7 @@
 
     <!-- Toast Notifications -->
     <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 border border-[var(--theme-color)] text-slate-200 px-4 py-3 rounded-xl shadow-2xl hidden z-50 text-sm flex items-center gap-3">
-        <i class="fa-solid fa-bell text-[var(--theme-color)] animate-bounce"></i>
+        <i class="fa-solid fa-bell text-[var(--theme-color)]"></i>
         <span id="toast-message">Message</span>
     </div>
 
@@ -212,7 +229,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, arrayUnion, arrayRemove, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB9P5Y1ywmsbQt_PMCNsiRkryppVI1421o",
@@ -231,9 +248,14 @@
         const ADMIN_NAME = "Fire"; 
 
         let currentUser = null;
-        let currentChannel = "général";
+        let currentTargetType = "channel"; // "channel", "voice", "dm"
+        let currentTargetId = "général";
+        let activeVoiceId = null;
+        
         let unsubscribeMessages = null;
         let unsubscribeTyping = null;
+        let unsubscribeVoice = null;
+        
         let globalChannelImages = {
             "général": "https://cdn-icons-png.flaticon.com/512/426/426833.png",
             "brawl-stars": "https://cdn-icons-png.flaticon.com/512/3408/3408607.png",
@@ -243,15 +265,20 @@
         };
         let userProfile = { name: "", avatar: "", theme: "theme-violet" };
         let allUsersList = [];
-        let isVocalActive = false;
+        let voiceParticipants = {};
         let unreadChannels = {};
 
-        const channels = [
+        const textChannels = [
             { id: "général", name: "Général" }, 
             { id: "brawl-stars", name: "Brawl Stars" },
             { id: "clash-of-clans", name: "Clash of Clans" },
             { id: "clash-royale", name: "Clash Royale" },
             { id: "roblox", name: "Roblox" }
+        ];
+
+        const voiceChannelsList = [
+            { id: "vocal-general", name: "🔊 Salon Vocal Général" },
+            { id: "vocal-gaming", name: "🎮 Salon Vocal Gaming" }
         ];
 
         async function loadGlobalConfig() {
@@ -261,7 +288,7 @@
                     globalChannelImages = configSnap.data().channelImages;
                 }
             } catch(e) {}
-            initChannels();
+            initSidebarUI();
         }
 
         window.toggleMobileSidebar = () => {
@@ -269,31 +296,91 @@
             document.getElementById('sidebar-overlay').classList.toggle('hidden');
         };
 
-        function initChannels() {
-            document.getElementById('channels-list').innerHTML = channels.map(c => {
+        function initSidebarUI() {
+            // Salons Textuels
+            document.getElementById('channels-list').innerHTML = textChannels.map(c => {
                 const imgUrl = globalChannelImages[c.id] || 'https://cdn-icons-png.flaticon.com/512/808/808439.png';
-                const hasUnread = unreadChannels[c.id] && c.id !== currentChannel;
+                const isActive = currentTargetType === 'channel' && currentTargetId === c.id;
+                const hasUnread = unreadChannels[c.id] && !isActive;
                 return `
-                    <button onclick="switchChannel('${c.id}')" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center justify-between transition ${currentChannel === c.id ? 'bg-[var(--theme-color)] text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
-                        <div class="flex items-center gap-3 truncate">
-                            <img src="${imgUrl}" class="w-6 h-6 rounded-lg object-cover border border-slate-700 bg-slate-950">
+                    <button onclick="switchTarget('channel', '${c.id}')" class="w-full text-left px-3 py-2 rounded-xl text-sm font-medium flex items-center justify-between transition ${isActive ? 'bg-[var(--theme-color)] text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
+                        <div class="flex items-center gap-2.5 truncate">
+                            <img src="${imgUrl}" class="w-5 h-5 rounded-md object-cover border border-slate-700 bg-slate-950">
                             <span class="truncate">${c.name}</span>
                         </div>
-                        ${hasUnread ? '<span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse"></span>' : ''}
+                        ${hasUnread ? '<span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>' : ''}
+                    </button>
+                `;
+            }).join('');
+
+            // Salons Vocaux
+            document.getElementById('voice-channels-list').innerHTML = voiceChannelsList.map(v => {
+                const isConnected = activeVoiceId === v.id;
+                const members = voiceParticipants[v.id] || [];
+                return `
+                    <div class="space-y-1">
+                        <button onclick="joinVoiceChannel('${v.id}')" class="w-full text-left px-3 py-2 rounded-xl text-sm font-medium flex items-center justify-between transition ${isConnected ? 'bg-emerald-600/20 border border-emerald-500/40 text-emerald-300' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
+                            <div class="flex items-center gap-2 truncate">
+                                <span class="truncate">${v.name}</span>
+                            </div>
+                            <span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded-full text-slate-300">${members.length} connecté(s)</span>
+                        </button>
+                        ${members.length > 0 ? `
+                            <div class="pl-6 space-y-1">
+                                ${members.map(m => `
+                                    <div class="flex items-center gap-2 text-xs text-slate-400 py-0.5">
+                                        <div class="w-5 h-5 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-[10px] font-bold overflow-hidden">
+                                            ${m.avatar ? `<img src="${m.avatar}" class="w-full h-full object-cover">` : m.name.charAt(0)}
+                                        </div>
+                                        <span class="truncate">${m.name}</span>
+                                        <i class="fa-solid fa-microphone text-emerald-400 text-[10px] ml-auto"></i>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            // Membres (Cliquables pour MP)
+            document.getElementById('members-list').innerHTML = allUsersList.filter(u => u.uid !== currentUser?.uid).map(u => {
+                const dmId = getDmId(currentUser.uid, u.uid);
+                const isActive = currentTargetType === 'dm' && currentTargetId === dmId;
+                return `
+                    <button onclick="openDirectMessage('${u.uid}', '${u.name}')" class="w-full text-left px-3 py-2 rounded-xl text-sm font-medium flex items-center gap-2.5 transition ${isActive ? 'bg-[var(--theme-color)] text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
+                        <div class="w-6 h-6 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-xs font-bold overflow-hidden border border-slate-700">
+                            ${u.avatar ? `<img src="${u.avatar}" class="w-full h-full object-cover">` : u.name.charAt(0)}
+                        </div>
+                        <span class="truncate">${u.name}</span>
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 ml-auto"></span>
                     </button>
                 `;
             }).join('');
         }
 
-        window.switchChannel = function(channelId) {
-            currentChannel = channelId;
-            unreadChannels[channelId] = false;
-            const chan = channels.find(c => c.id === channelId);
-            document.getElementById('current-channel-title').textContent = `# ${chan ? chan.name : channelId}`;
-            initChannels();
+        window.switchTarget = function(type, id, title = "") {
+            currentTargetType = type;
+            currentTargetId = id;
+            if(type === 'channel') {
+                unreadChannels[id] = false;
+                const chan = textChannels.find(c => c.id === id);
+                document.getElementById('current-channel-title').textContent = `# ${chan ? chan.name : id}`;
+            } else if(type === 'dm') {
+                document.getElementById('current-channel-title').textContent = `💬 MP avec ${title}`;
+            }
+            initSidebarUI();
             loadMessages();
             loadTypingIndicators();
             if(window.innerWidth < 768) toggleMobileSidebar();
+        }
+
+        function getDmId(uid1, uid2) {
+            return uid1 < uid2 ? `${uid1}_${uid2}` : `${uid2}_${uid1}`;
+        }
+
+        window.openDirectMessage = (otherUid, otherName) => {
+            const dmId = getDmId(currentUser.uid, otherUid);
+            switchTarget('dm', dmId, otherName);
         }
 
         window.setTheme = (themeClass) => {
@@ -328,25 +415,27 @@
                     await setDoc(doc(db, "users", user.uid), userProfile);
                 }
                 updateUIRating();
-                fetchUsersList();
+                await fetchUsersList();
                 await loadGlobalConfig();
                 loadMessages();
                 loadTypingIndicators();
+                listenVoiceChannels();
                 listenAllChannelsUnread();
             } else {
                 document.getElementById('auth-screen').classList.remove('hidden');
                 document.getElementById('app-screen').classList.add('hidden');
                 if (unsubscribeMessages) unsubscribeMessages();
                 if (unsubscribeTyping) unsubscribeTyping();
+                if (unsubscribeVoice) unsubscribeVoice();
             }
         });
 
         function listenAllChannelsUnread() {
-            channels.forEach(c => {
+            textChannels.forEach(c => {
                 onSnapshot(collection(db, "channels", c.id, "messages"), (snapshot) => {
-                    if (!snapshot.empty && c.id !== currentChannel) {
+                    if (!snapshot.empty && c.id !== currentTargetId) {
                         unreadChannels[c.id] = true;
-                        initChannels();
+                        initSidebarUI();
                     }
                 });
             });
@@ -357,6 +446,7 @@
             allUsersList = [];
             querySnapshot.forEach((doc) => allUsersList.push(doc.data()));
             document.getElementById('online-count').textContent = `${allUsersList.length} en ligne`;
+            initSidebarUI();
         }
 
         function updateUIRating() {
@@ -384,7 +474,6 @@
             } else {
                 adminSection.classList.add('hidden');
             }
-
             document.getElementById('profile-modal').classList.remove('hidden');
         }
         window.closeProfileModal = () => document.getElementById('profile-modal').classList.add('hidden');
@@ -411,9 +500,9 @@
 
             updateUIRating();
             fetchUsersList();
-            initChannels();
+            initSidebarUI();
             closeProfileModal();
-            showToast("Modifications enregistrées !");
+            showToast("Profil mis à jour !");
         }
 
         window.openMediaModal = () => document.getElementById('media-modal').classList.remove('hidden');
@@ -431,41 +520,62 @@
 
         async function postMedia(url) {
             try {
-                await addDoc(collection(db, "channels", currentChannel, "messages"), {
+                const colPath = currentTargetType === 'channel' ? `channels/${currentTargetId}/messages` : `dms/${currentTargetId}/messages`;
+                await addDoc(collection(db, colPath), {
                     mediaUrl: url,
                     uid: currentUser.uid,
                     displayName: userProfile.name,
                     avatar: userProfile.avatar,
-                    createdAt: serverTimestamp()
+                    createdAt: serverTimestamp(),
+                    reactions: {}
                 });
                 document.getElementById('media-url-input').value = '';
                 closeMediaModal();
             } catch(e) { showToast("Erreur: " + e.message); }
         }
 
-        window.toggleVocal = async () => {
-            const vocalRef = doc(db, "channels", currentChannel, "vocal", currentUser.uid);
-            if(!isVocalActive) {
-                await setDoc(vocalRef, { name: userProfile.name, avatar: userProfile.avatar });
-                isVocalActive = true;
-                document.getElementById('vocal-btn').className = "flex-1 bg-rose-600 hover:bg-rose-500 text-white text-xs py-2 rounded-xl transition font-medium flex items-center justify-center gap-1.5 shadow-md";
-                document.getElementById('vocal-btn').innerHTML = `<i class="fa-solid fa-phone-slash"></i> Quitter`;
-                document.getElementById('vocal-status').textContent = "Connecté";
-                showToast("🔊 Salon vocal rejoint !");
-            } else {
-                await deleteDoc(vocalRef);
-                isVocalActive = false;
-                document.getElementById('vocal-btn').className = "flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs py-2 rounded-xl transition font-medium flex items-center justify-center gap-1.5 shadow-md";
-                document.getElementById('vocal-btn').innerHTML = `<i class="fa-solid fa-microphone"></i> Rejoindre`;
-                document.getElementById('vocal-status').textContent = "Déconnecté";
+        // --- GESTION VOCALE ---
+        window.joinVoiceChannel = async (voiceId) => {
+            if (activeVoiceId && activeVoiceId !== voiceId) {
+                await leaveVoiceChannel();
             }
+            activeVoiceId = voiceId;
+            const vocalRef = doc(db, "voice_rooms", voiceId, "participants", currentUser.uid);
+            await setDoc(vocalRef, { name: userProfile.name, avatar: userProfile.avatar });
+            
+            document.getElementById('active-voice-panel').classList.remove('hidden');
+            const vObj = voiceChannelsList.find(v => v.id === voiceId);
+            document.getElementById('active-voice-name').textContent = `Connecté à ${vObj ? vObj.name : voiceId}`;
+            showToast("🔊 Salon vocal rejoint !");
+            initSidebarUI();
         };
+
+        window.leaveVoiceChannel = async () => {
+            if (!activeVoiceId) return;
+            const vocalRef = doc(db, "voice_rooms", activeVoiceId, "participants", currentUser.uid);
+            await deleteDoc(vocalRef);
+            activeVoiceId = null;
+            document.getElementById('active-voice-panel').classList.add('hidden');
+            showToast("🔇 Déconnecté du vocal.");
+            initSidebarUI();
+        };
+
+        function listenVoiceChannels() {
+            voiceChannelsList.forEach(v => {
+                onSnapshot(collection(db, "voice_rooms", v.id, "participants"), (snapshot) => {
+                    voiceParticipants[v.id] = [];
+                    snapshot.forEach(docSnap => voiceParticipants[v.id].push(docSnap.data()));
+                    initSidebarUI();
+                });
+            });
+        }
 
         let typingTimeout;
         const msgInput = document.getElementById('message-input');
         msgInput.addEventListener('input', async () => {
             if(!currentUser) return;
-            const typingRef = doc(db, "channels", currentChannel, "typing", currentUser.uid);
+            const path = currentTargetType === 'channel' ? `channels/${currentTargetId}/typing` : `dms/${currentTargetId}/typing`;
+            const typingRef = doc(db, path, currentUser.uid);
             await setDoc(typingRef, { name: userProfile.name });
             clearTimeout(typingTimeout);
             typingTimeout = setTimeout(async () => { await deleteDoc(typingRef); }, 2000);
@@ -473,7 +583,8 @@
 
         function loadTypingIndicators() {
             if(unsubscribeTyping) unsubscribeTyping();
-            unsubscribeTyping = onSnapshot(collection(db, "channels", currentChannel, "typing"), (snapshot) => {
+            const path = currentTargetType === 'channel' ? `channels/${currentTargetId}/typing` : `dms/${currentTargetId}/typing`;
+            unsubscribeTyping = onSnapshot(collection(db, path), (snapshot) => {
                 let typers = [];
                 snapshot.forEach(d => { if(d.id !== currentUser?.uid) typers.push(d.data().name); });
                 document.getElementById('typing-indicator').textContent = typers.length > 0 ? `${typers.join(', ')} écrit...` : "";
@@ -485,45 +596,71 @@
             const text = msgInput.value.trim();
             if (!text || !currentUser) return;
 
-            // Commande sécurisée /clean (Seul l'admin Fire peut l'exécuter)
-            if (text === "/clean") {
+            // Commande sécurisée /clean (Admin Fire uniquement)
+            if (text === "/clean" && currentTargetType === 'channel') {
                 if (userProfile.name === ADMIN_NAME) {
                     try {
-                        const snapshot = await getDocs(collection(db, "channels", currentChannel, "messages"));
+                        const snapshot = await getDocs(collection(db, "channels", currentTargetId, "messages"));
                         const batch = writeBatch(db);
                         snapshot.docs.forEach((d) => batch.delete(d.ref));
                         await batch.commit();
-                        showToast("🧹 Salon nettoyé avec succès !");
+                        showToast("🧹 Salon nettoyé !");
                     } catch (err) {
                         showToast("Erreur lors du nettoyage.");
                     }
                 } else {
-                    showToast("❌ Commande réservée à l'administrateur (Fire).");
+                    showToast("❌ Réservé à l'administrateur (Fire).");
                 }
                 msgInput.value = '';
                 return;
             }
 
             try {
-                await addDoc(collection(db, "channels", currentChannel, "messages"), {
+                const colPath = currentTargetType === 'channel' ? `channels/${currentTargetId}/messages` : `dms/${currentTargetId}/messages`;
+                await addDoc(collection(db, colPath), {
                     text: text,
                     uid: currentUser.uid,
                     displayName: userProfile.name,
                     avatar: userProfile.avatar,
-                    createdAt: serverTimestamp()
+                    createdAt: serverTimestamp(),
+                    reactions: {}
                 });
                 msgInput.value = '';
-                await deleteDoc(doc(db, "channels", currentChannel, "typing", currentUser.uid));
+                const path = currentTargetType === 'channel' ? `channels/${currentTargetId}/typing` : `dms/${currentTargetId}/typing`;
+                await deleteDoc(doc(db, path, currentUser.uid));
             } catch (error) { showToast("Erreur: " + error.message); }
         };
 
+        window.addReaction = async (messageId, emoji) => {
+            if (!currentUser) return;
+            const colPath = currentTargetType === 'channel' ? `channels/${currentTargetId}/messages` : `dms/${currentTargetId}/messages`;
+            const msgRef = doc(db, colPath, messageId);
+            const msgSnap = await getDoc(msgRef);
+            if (!msgSnap.exists()) return;
+
+            let reactions = msgSnap.data().reactions || {};
+            if (!reactions[emoji]) reactions[emoji] = [];
+            
+            if (reactions[emoji].includes(currentUser.uid)) {
+                reactions[emoji] = reactions[emoji].filter(id => id !== currentUser.uid);
+                if (reactions[emoji].length === 0) delete reactions[emoji];
+            } else {
+                reactions[emoji].push(currentUser.uid);
+            }
+
+            await updateDoc(msgRef, { reactions });
+        }
+
         function loadMessages() {
             if (unsubscribeMessages) unsubscribeMessages();
-            const q = query(collection(db, "channels", currentChannel, "messages"), orderBy("createdAt", "asc"));
+            const colPath = currentTargetType === 'channel' ? `channels/${currentTargetId}/messages` : `dms/${currentTargetId}/messages`;
+            const q = query(collection(db, colPath), orderBy("createdAt", "asc"));
+            
             unsubscribeMessages = onSnapshot(q, (snapshot) => {
                 const container = document.getElementById('messages-container');
-                container.innerHTML = snapshot.docs.map(doc => {
-                    const msg = doc.data();
+                container.innerHTML = snapshot.docs.map(docSnap => {
+                    const msgId = docSnap.id;
+                    const msg = docSnap.data();
                     const isMe = currentUser && msg.uid === currentUser.uid;
                     const avatarHtml = msg.avatar 
                         ? `<img src="${msg.avatar}" class="w-8 h-8 rounded-full object-cover">`
@@ -531,14 +668,38 @@
 
                     let contentHtml = msg.mediaUrl ? `<img src="${msg.mediaUrl}" class="rounded-xl max-h-60 object-cover mt-1">` : escapeHtml(msg.text || '');
 
+                    // Rendu des réactions emojis
+                    let reactionsHtml = '';
+                    if (msg.reactions && Object.keys(msg.reactions).length > 0) {
+                        reactionsHtml = `<div class="flex flex-wrap gap-1 mt-1.5">`;
+                        for (let [emoji, userList] of Object.entries(msg.reactions)) {
+                            const hasReacted = userList.includes(currentUser?.uid);
+                            reactionsHtml += `
+                                <button onclick="addReaction('${msgId}', '${emoji}')" class="text-xs px-2 py-0.5 rounded-lg border flex items-center gap-1 transition ${hasReacted ? 'bg-[var(--theme-color)]/20 border-[var(--theme-color)] text-white' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'}">
+                                    <span>${emoji}</span>
+                                    <span class="font-medium">${userList.length}</span>
+                                </button>
+                            `;
+                        }
+                        reactionsHtml += `</div>`;
+                    }
+
                     return `
-                        <div class="flex gap-3 ${isMe ? 'flex-row-reverse' : 'flex-row'} items-end">
+                        <div class="message-row flex gap-3 ${isMe ? 'flex-row-reverse' : 'flex-row'} items-end relative group">
                             <div>${avatarHtml}</div>
-                            <div class="max-w-[70%]">
+                            <div class="max-w-[70%] relative">
                                 <div class="text-xs text-slate-500 mb-1 px-1 ${isMe ? 'text-right' : 'text-left'}">${escapeHtml(msg.displayName || 'Anonyme')}</div>
                                 <div class="p-3.5 rounded-2xl text-sm ${isMe ? 'bg-[var(--theme-color)] text-white rounded-br-none shadow-md' : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none'}">
                                     ${contentHtml}
                                 </div>
+                                ${reactionsHtml}
+                            </div>
+                            <!-- Boutons d'actions rapides / Emojis au survol -->
+                            <div class="msg-actions hidden absolute ${isMe ? 'left-0' : 'right-0'} -top-3 bg-slate-900 border border-slate-800 rounded-lg p-1 shadow-lg items-center gap-1 z-10">
+                                <button onclick="addReaction('${msgId}', '👍')" class="hover:bg-slate-800 px-1.5 py-0.5 rounded text-xs">👍</button>
+                                <button onclick="addReaction('${msgId}', '❤️')" class="hover:bg-slate-800 px-1.5 py-0.5 rounded text-xs">❤️</button>
+                                <button onclick="addReaction('${msgId}', '😂')" class="hover:bg-slate-800 px-1.5 py-0.5 rounded text-xs">😂</button>
+                                <button onclick="addReaction('${msgId}', '🔥')" class="hover:bg-slate-800 px-1.5 py-0.5 rounded text-xs">🔥</button>
                             </div>
                         </div>
                     `;
