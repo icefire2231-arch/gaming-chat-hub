@@ -29,7 +29,6 @@
         .theme-rose { --theme-color: #f43f5e; --theme-dark: #e11d48; }
         .theme-amber { --theme-color: #f59e0b; --theme-dark: #d97706; }
         .message-row:hover .msg-actions { display: flex; }
-        /* Empêcher le zoom sur iOS lors du focus */
         input, select, textarea { font-size: 16px !important; }
     </style>
 </head>
@@ -42,7 +41,7 @@
                 <i class="fa-solid fa-gamepad"></i>
             </div>
             <h1 class="text-2xl font-bold mt-4 mb-2">NexusChat</h1>
-            <p class="text-slate-400 text-sm mb-6">Salons, Vocaux avec mute, Vrais MPs et confort mobile optimisé !</p>
+            <p class="text-slate-400 text-sm mb-6">Salons, Vocaux, Création de salons persos et Vrais MPs isolés !</p>
             
             <div class="space-y-3">
                 <button onclick="loginWithGoogle()" class="w-full bg-white hover:bg-slate-100 text-slate-900 font-medium py-3 px-4 rounded-xl transition flex items-center justify-center gap-3 shadow-md">
@@ -67,9 +66,12 @@
             </div>
             
             <div class="flex-1 overflow-y-auto px-2 py-3 space-y-4">
-                <!-- Salons Textuels -->
+                <!-- Salons Textuels avec bouton de création -->
                 <div>
-                    <div class="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Salons Textuels</div>
+                    <div class="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 flex items-center justify-between">
+                        <span>Salons Textuels</span>
+                        <button onclick="openCreateChannelModal()" class="text-slate-400 hover:text-white transition" title="Créer un salon"><i class="fa-solid fa-plus text-xs bg-slate-800 p-1 rounded"></i></button>
+                    </div>
                     <div id="channels-list" class="space-y-1"></div>
                 </div>
 
@@ -81,16 +83,10 @@
 
                 <!-- Messages Privés (MPs) -->
                 <div>
-                    <div class="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Messages Privés Récents</div>
+                    <div class="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Messages Privés</div>
                     <div id="dm-conversations-list" class="space-y-1">
-                        <div class="px-3 py-2 text-xs text-slate-500 italic">Aucune conversation. Cliquez sur un membre ci-dessous pour lui parler.</div>
+                        <div class="px-3 py-2 text-xs text-slate-500 italic">Aucune conversation.</div>
                     </div>
-                </div>
-
-                <!-- Membres -->
-                <div>
-                    <div class="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Membres (Cliquer pour MP)</div>
-                    <div id="members-list" class="space-y-1"></div>
                 </div>
             </div>
             
@@ -125,7 +121,7 @@
                 </div>
             </div>
 
-            <!-- Panel Actif Vocal (Amélioré avec Mute Micro) -->
+            <!-- Panel Actif Vocal -->
             <div id="active-voice-panel" class="bg-emerald-950/40 border-b border-emerald-900/50 px-4 py-2 hidden flex items-center justify-between shrink-0">
                 <div class="flex items-center gap-2 truncate">
                     <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
@@ -146,13 +142,28 @@
 
             <div id="typing-indicator" class="px-4 py-0.5 text-xs text-slate-500 italic h-5 shrink-0"></div>
 
-            <!-- Input & Formulaire (Optimisé Mobile / Clavier virtuel) -->
+            <!-- Input & Formulaire -->
             <div class="p-2 md:p-4 border-t border-slate-800 bg-slate-900/80 backdrop-blur shrink-0">
                 <form id="message-form" onsubmit="sendMessage(event)" class="flex gap-2 items-center">
                     <button type="button" onclick="openMediaModal()" class="text-slate-400 hover:text-slate-200 p-2 transition text-lg shrink-0" title="GIF / Image"><i class="fa-regular fa-image"></i></button>
                     <input type="text" id="message-input" placeholder="Envoyer un message..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 md:py-3 text-sm focus:outline-none focus:border-[var(--theme-color)] text-slate-100 min-w-0">
                     <button type="submit" class="bg-[var(--theme-color)] hover:opacity-90 text-white px-4 md:px-5 py-2.5 md:py-3 rounded-xl transition font-medium text-sm flex items-center justify-center shadow-lg shrink-0"><i class="fa-solid fa-paper-plane"></i></button>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale de Création de Salon -->
+    <div id="create-channel-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4">
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-md w-full space-y-4 shadow-2xl">
+            <h3 class="font-bold text-lg text-slate-100 flex items-center gap-2"><i class="fa-solid fa-hashtag text-[var(--theme-color)]"></i> Créer un salon textuel</h3>
+            <div>
+                <label class="text-xs text-slate-400 block mb-1">Nom du salon</label>
+                <input type="text" id="new-channel-name" placeholder="ex: fortnite-team" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-[var(--theme-color)]">
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeCreateChannelModal()" class="px-4 py-2 rounded-xl text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 transition">Annuler</button>
+                <button onclick="createNewChannel()" class="px-4 py-2 rounded-xl text-sm bg-[var(--theme-color)] hover:opacity-90 text-white transition font-medium">Créer</button>
             </div>
         </div>
     </div>
@@ -174,9 +185,6 @@
                     <img src="https://media.giphy.com/media/LmNwrBhejkK9EFP504/giphy.gif" onclick="sendPresetGif(this.src)" class="w-full h-20 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-slate-800">
                     <img src="https://media.giphy.com/media/3oKIPnAiaMCws8nOsE/giphy.gif" onclick="sendPresetGif(this.src)" class="w-full h-20 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-slate-800">
                     <img src="https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif" onclick="sendPresetGif(this.src)" class="w-full h-20 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-slate-800">
-                    <img src="https://media.giphy.com/media/11zTEl7fbQDMr6/giphy.gif" onclick="sendPresetGif(this.src)" class="w-full h-20 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-slate-800">
-                    <img src="https://media.giphy.com/media/26u4lOMA8JKSnL9Uk/giphy.gif" onclick="sendPresetGif(this.src)" class="w-full h-20 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-slate-800">
-                    <img src="https://media.giphy.com/media/xT5LMGfRsLUsmNDFG8/giphy.gif" onclick="sendPresetGif(this.src)" class="w-full h-20 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-slate-800">
                 </div>
             </div>
             <div class="flex justify-end pt-2">
@@ -196,16 +204,6 @@
             <div>
                 <label class="text-xs text-slate-400 block mb-1">URL Avatar</label>
                 <input type="text" id="edit-avatar" placeholder="https://..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-[var(--theme-color)]">
-            </div>
-            <div id="admin-salons-section" class="border-t border-slate-800 pt-3 space-y-2 hidden">
-                <label class="text-xs font-semibold text-amber-400 block">⚙️ Logos des salons (Admin Fire)</label>
-                <div class="grid grid-cols-1 gap-2 text-xs">
-                    <div><span class="text-slate-400">Général :</span><input type="text" id="img-general" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-100 mt-1"></div>
-                    <div><span class="text-slate-400">Brawl Stars :</span><input type="text" id="img-brawl-stars" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-100 mt-1"></div>
-                    <div><span class="text-slate-400">Clash of Clans :</span><input type="text" id="img-clash-of-clans" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-100 mt-1"></div>
-                    <div><span class="text-slate-400">Clash Royale :</span><input type="text" id="img-clash-royale" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-100 mt-1"></div>
-                    <div><span class="text-slate-400">Roblox :</span><input type="text" id="img-roblox" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-100 mt-1"></div>
-                </div>
             </div>
             <div>
                 <label class="text-xs text-slate-400 block mb-2">Thème de couleur</label>
@@ -253,7 +251,7 @@
         const ADMIN_NAME = "Fire"; 
 
         let currentUser = null;
-        let currentTargetType = "channel"; // "channel" ou "dm"
+        let currentTargetType = "channel"; 
         let currentTargetId = "général";
         let activeVoiceId = null;
         let isMicMuted = false;
@@ -261,20 +259,7 @@
         let unsubscribeMessages = null;
         let unsubscribeTyping = null;
         
-        let globalChannelImages = {
-            "général": "https://cdn-icons-png.flaticon.com/512/426/426833.png",
-            "brawl-stars": "https://cdn-icons-png.flaticon.com/512/3408/3408607.png",
-            "clash-of-clans": "https://cdn-icons-png.flaticon.com/512/3408/3408506.png",
-            "clash-royale": "https://cdn-icons-png.flaticon.com/512/3408/3408511.png",
-            "roblox": "https://cdn-icons-png.flaticon.com/512/876/876211.png"
-        };
-        let userProfile = { name: "", avatar: "", theme: "theme-violet" };
-        let allUsersList = [];
-        let voiceParticipants = {};
-        let unreadChannels = {};
-        let dmConversations = []; // Liste des utilisateurs avec qui on a un historique ou contact
-
-        const textChannels = [
+        let textChannels = [
             { id: "général", name: "Général" }, 
             { id: "brawl-stars", name: "Brawl Stars" },
             { id: "clash-of-clans", name: "Clash of Clans" },
@@ -287,11 +272,16 @@
             { id: "vocal-gaming", name: "🎮 Salon Vocal Gaming" }
         ];
 
-        async function loadGlobalConfig() {
+        let userProfile = { name: "", avatar: "", theme: "theme-violet" };
+        let allUsersList = [];
+        let voiceParticipants = {};
+        let unreadChannels = {};
+
+        async function loadChannelsFromDB() {
             try {
-                const configSnap = await getDoc(doc(db, "settings", "app_config"));
-                if (configSnap.exists() && configSnap.data().channelImages) {
-                    globalChannelImages = configSnap.data().channelImages;
+                const snap = await getDoc(doc(db, "settings", "custom_channels"));
+                if (snap.exists() && snap.data().list) {
+                    textChannels = snap.data().list;
                 }
             } catch(e) {}
             initSidebarUI();
@@ -305,13 +295,12 @@
         function initSidebarUI() {
             // Salons Textuels
             document.getElementById('channels-list').innerHTML = textChannels.map(c => {
-                const imgUrl = globalChannelImages[c.id] || 'https://cdn-icons-png.flaticon.com/512/808/808439.png';
                 const isActive = currentTargetType === 'channel' && currentTargetId === c.id;
                 const hasUnread = unreadChannels[c.id] && !isActive;
                 return `
                     <button onclick="switchTarget('channel', '${c.id}')" class="w-full text-left px-3 py-2 rounded-xl text-sm font-medium flex items-center justify-between transition ${isActive ? 'bg-[var(--theme-color)] text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
                         <div class="flex items-center gap-2.5 truncate">
-                            <img src="${imgUrl}" class="w-5 h-5 rounded-md object-cover border border-slate-700 bg-slate-950 shrink-0">
+                            <i class="fa-solid fa-hashtag text-xs opacity-60"></i>
                             <span class="truncate">${c.name}</span>
                         </div>
                         ${hasUnread ? '<span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse shrink-0"></span>' : ''}
@@ -348,7 +337,7 @@
                 `;
             }).join('');
 
-            // Liste des MPs récents / disponibles
+            // Liste des MPs
             const otherUsers = allUsersList.filter(u => u.uid !== currentUser?.uid);
             const dmContainer = document.getElementById('dm-conversations-list');
             if(otherUsers.length === 0) {
@@ -368,10 +357,25 @@
                     `;
                 }).join('');
             }
-
-            // Cache la liste des membres séparée puisqu'on met tout dans les MPs
-            document.getElementById('members-list').innerHTML = `<div class="px-3 py-1 text-xs text-slate-500 italic">Utilisez les MPs ci-dessus pour discuter en privé.</div>`;
         }
+
+        window.openCreateChannelModal = () => document.getElementById('create-channel-modal').classList.remove('hidden');
+        window.closeCreateChannelModal = () => document.getElementById('create-channel-modal').classList.add('hidden');
+
+        window.createNewChannel = async () => {
+            const rawName = document.getElementById('new-channel-name').value.trim();
+            if(!rawName) return showToast("Entrez un nom de salon.");
+            const channelId = rawName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+            if(textChannels.some(c => c.id === channelId)) return showToast("Ce salon existe déjà.");
+
+            textChannels.push({ id: channelId, name: rawName });
+            await setDoc(doc(db, "settings", "custom_channels"), { list: textChannels });
+            document.getElementById('new-channel-name').value = '';
+            closeCreateChannelModal();
+            initSidebarUI();
+            switchTarget('channel', channelId);
+            showToast(" Salon créé avec succès !");
+        };
 
         window.switchTarget = function(type, id, title = "") {
             currentTargetType = type;
@@ -389,8 +393,9 @@
             if(window.innerWidth < 768) toggleMobileSidebar();
         }
 
+        // ID unique combiné et trié pour isoler strictement la conversation privée entre 2 utilisateurs
         function getDmId(uid1, uid2) {
-            return uid1 < uid2 ? `${uid1}_${uid2}` : `${uid2}_${uid1}`;
+            return uid1 < uid2 ? `dm_${uid1}_${uid2}` : `dm_${uid2}_${uid1}`;
         }
 
         window.openDirectMessage = (otherUid, otherName) => {
@@ -431,11 +436,10 @@
                 }
                 updateUIRating();
                 await fetchUsersList();
-                await loadGlobalConfig();
+                await loadChannelsFromDB();
                 loadMessages();
                 loadTypingIndicators();
                 listenVoiceChannels();
-                listenAllChannelsUnread();
             } else {
                 document.getElementById('auth-screen').classList.remove('hidden');
                 document.getElementById('app-screen').classList.add('hidden');
@@ -443,17 +447,6 @@
                 if (unsubscribeTyping) unsubscribeTyping();
             }
         });
-
-        function listenAllChannelsUnread() {
-            textChannels.forEach(c => {
-                onSnapshot(collection(db, "channels", c.id, "messages"), (snapshot) => {
-                    if (!snapshot.empty && c.id !== currentTargetId) {
-                        unreadChannels[c.id] = true;
-                        initSidebarUI();
-                    }
-                });
-            });
-        }
 
         async function fetchUsersList() {
             const querySnapshot = await getDocs(collection(db, "users"));
@@ -476,17 +469,6 @@
         window.openProfileModal = () => {
             document.getElementById('edit-username').value = userProfile.name;
             document.getElementById('edit-avatar').value = userProfile.avatar;
-            const adminSection = document.getElementById('admin-salons-section');
-            if (userProfile.name === ADMIN_NAME) {
-                adminSection.classList.remove('hidden');
-                document.getElementById('img-general').value = globalChannelImages["général"] || '';
-                document.getElementById('img-brawl-stars').value = globalChannelImages["brawl-stars"] || '';
-                document.getElementById('img-clash-of-clans').value = globalChannelImages["clash-of-clans"] || '';
-                document.getElementById('img-clash-royale').value = globalChannelImages["clash-royale"] || '';
-                document.getElementById('img-roblox').value = globalChannelImages["roblox"] || '';
-            } else {
-                adminSection.classList.add('hidden');
-            }
             document.getElementById('profile-modal').classList.remove('hidden');
         }
         window.closeProfileModal = () => document.getElementById('profile-modal').classList.add('hidden');
@@ -499,17 +481,6 @@
             userProfile.name = newName;
             userProfile.avatar = newAvatar;
             await setDoc(doc(db, "users", currentUser.uid), userProfile);
-
-            if (userProfile.name === ADMIN_NAME) {
-                globalChannelImages = {
-                    "général": document.getElementById('img-general').value.trim(),
-                    "brawl-stars": document.getElementById('img-brawl-stars').value.trim(),
-                    "clash-of-clans": document.getElementById('img-clash-of-clans').value.trim(),
-                    "clash-royale": document.getElementById('img-clash-royale').value.trim(),
-                    "roblox": document.getElementById('img-roblox').value.trim()
-                };
-                await setDoc(doc(db, "settings", "app_config"), { channelImages: globalChannelImages });
-            }
 
             updateUIRating();
             fetchUsersList();
@@ -533,7 +504,7 @@
 
         async function postMedia(url) {
             try {
-                const colPath = currentTargetType === 'channel' ? `channels/${currentTargetId}/messages` : `dms/${currentTargetId}/messages`;
+                const colPath = currentTargetType === 'channel' ? `channels/${currentTargetId}/messages` : `dms_chats/${currentTargetId}/messages`;
                 await addDoc(collection(db, colPath), {
                     mediaUrl: url,
                     uid: currentUser.uid,
@@ -547,7 +518,6 @@
             } catch(e) { showToast("Erreur: " + e.message); }
         }
 
-        // --- GESTION VOCALE & MUTE MICRO ---
         window.joinVoiceChannel = async (voiceId) => {
             if (activeVoiceId && activeVoiceId !== voiceId) {
                 await leaveVoiceChannel();
@@ -614,7 +584,7 @@
         const msgInput = document.getElementById('message-input');
         msgInput.addEventListener('input', async () => {
             if(!currentUser) return;
-            const path = currentTargetType === 'channel' ? `channels/${currentTargetId}/typing` : `dms/${currentTargetId}/typing`;
+            const path = currentTargetType === 'channel' ? `channels/${currentTargetId}/typing` : `dms_chats/${currentTargetId}/typing`;
             const typingRef = doc(db, path, currentUser.uid);
             await setDoc(typingRef, { name: userProfile.name });
             clearTimeout(typingTimeout);
@@ -623,7 +593,7 @@
 
         function loadTypingIndicators() {
             if(unsubscribeTyping) unsubscribeTyping();
-            const path = currentTargetType === 'channel' ? `channels/${currentTargetId}/typing` : `dms/${currentTargetId}/typing`;
+            const path = currentTargetType === 'channel' ? `channels/${currentTargetId}/typing` : `dms_chats/${currentTargetId}/typing`;
             unsubscribeTyping = onSnapshot(collection(db, path), (snapshot) => {
                 let typers = [];
                 snapshot.forEach(d => { if(d.id !== currentUser?.uid) typers.push(d.data().name); });
@@ -655,7 +625,7 @@
             }
 
             try {
-                const colPath = currentTargetType === 'channel' ? `channels/${currentTargetId}/messages` : `dms/${currentTargetId}/messages`;
+                const colPath = currentTargetType === 'channel' ? `channels/${currentTargetId}/messages` : `dms_chats/${currentTargetId}/messages`;
                 await addDoc(collection(db, colPath), {
                     text: text,
                     uid: currentUser.uid,
@@ -665,14 +635,14 @@
                     reactions: {}
                 });
                 msgInput.value = '';
-                const path = currentTargetType === 'channel' ? `channels/${currentTargetId}/typing` : `dms/${currentTargetId}/typing`;
+                const path = currentTargetType === 'channel' ? `channels/${currentTargetId}/typing` : `dms_chats/${currentTargetId}/typing`;
                 await deleteDoc(doc(db, path, currentUser.uid));
             } catch (error) { showToast("Erreur: " + error.message); }
         };
 
         window.addReaction = async (messageId, emoji) => {
             if (!currentUser) return;
-            const colPath = currentTargetType === 'channel' ? `channels/${currentTargetId}/messages` : `dms/${currentTargetId}/messages`;
+            const colPath = currentTargetType === 'channel' ? `channels/${currentTargetId}/messages` : `dms_chats/${currentTargetId}/messages`;
             const msgRef = doc(db, colPath, messageId);
             const msgSnap = await getDoc(msgRef);
             if (!msgSnap.exists()) return;
@@ -691,7 +661,7 @@
 
         function loadMessages() {
             if (unsubscribeMessages) unsubscribeMessages();
-            const colPath = currentTargetType === 'channel' ? `channels/${currentTargetId}/messages` : `dms/${currentTargetId}/messages`;
+            const colPath = currentTargetType === 'channel' ? `channels/${currentTargetId}/messages` : `dms_chats/${currentTargetId}/messages`;
             const q = query(collection(db, colPath), orderBy("createdAt", "asc"));
             
             unsubscribeMessages = onSnapshot(q, (snapshot) => {
@@ -735,7 +705,7 @@
                                 <button onclick="addReaction('${msgId}', '👍')" class="hover:bg-slate-800 px-1 py-0.5 rounded text-xs">👍</button>
                                 <button onclick="addReaction('${msgId}', '❤️')" class="hover:bg-slate-800 px-1 py-0.5 rounded text-xs">❤️</button>
                                 <button onclick="addReaction('${msgId}', '😂')" class="hover:bg-slate-800 px-1 py-0.5 rounded text-xs">😂</button>
-                                <button onclick="addReaction('${msgId}', '🔥')" class="hover:bg-slate-800 px-1 py-0.5 rounded text-xs">🔥</button>
+                                <button onclick="addReference('${msgId}', '🔥')" class="hover:bg-slate-800 px-1 py-0.5 rounded text-xs">🔥</button>
                             </div>
                         </div>
                     `;
