@@ -136,19 +136,21 @@
         let unsubscribeMessages = null;
         let userProfile = { name: "", avatar: "" };
 
+        // Tableaux des salons mis à jour avec vos images de jeux
         const channels = [
-            { id: "général", name: "Général", icon: "fa-comments" },
-            { id: "brawl-stars", name: "Brawl Stars", icon: "fa-star" },
-            { id: "clash-of-clans", name: "Clash of Clans", icon: "fa-shield-halved" },
-            { id: "clash-royale", name: "Clash Royale", icon: "fa-crown" },
-            { id: "roblox", name: "Roblox", icon: "fa-cube" }
+            { id: "général", name: "Général", img: "https://i.imgur.com/8364qZ9.png" }, 
+            { id: "brawl-stars", name: "Brawl Stars", img: "https://i.imgur.com/Z4w2u6n.png" },
+            { id: "clash-of-clans", name: "Clash of Clans", img: "https://i.imgur.com/G5g2m5g.png" },
+            { id: "clash-royale", name: "Clash Royale", img: "https://i.imgur.com/vHqL3P2.png" },
+            { id: "roblox", name: "Roblox", img: "https://i.imgur.com/x3C31vL.png" }
         ];
 
         function initChannels() {
             const list = document.getElementById('channels-list');
             list.innerHTML = channels.map(c => `
                 <button onclick="switchChannel('${c.id}')" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition ${currentChannel === c.id ? 'bg-violet-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
-                    <i class="fa-solid ${c.icon} w-5"></i> ${c.name}
+                    <img src="${c.img}" class="w-6 h-6 rounded-lg object-cover border border-slate-700"> 
+                    <span class="truncate">${c.name}</span>
                 </button>
             `).join('');
         }
@@ -180,7 +182,6 @@
                 document.getElementById('auth-screen').classList.add('hidden');
                 document.getElementById('app-screen').classList.remove('hidden');
                 
-                // Charger ou initialiser le profil Firestore de l'utilisateur
                 const userRef = doc(db, "users", user.uid);
                 const userSnap = await getDoc(userRef);
                 
@@ -268,7 +269,6 @@
                     const msg = doc.data();
                     const isMe = currentUser && msg.uid === currentUser.uid;
                     
-                    // Vérifier si l'utilisateur actuel est mentionné via @pseudo
                     if (currentUser && !isMe && msg.text.includes(`@${userProfile.name}`)) {
                         showToast(`🔔 Vous avez été mentionné par ${msg.displayName} !`);
                     }
