@@ -41,7 +41,7 @@
                 <i class="fa-solid fa-gamepad"></i>
             </div>
             <h1 class="text-2xl font-bold mt-4 mb-2">NexusChat</h1>
-            <p class="text-slate-400 text-sm mb-6">Salons, Vocaux, Création de salons persos et Vrais MPs isolés !</p>
+            <p class="text-slate-400 text-sm mb-6">Salons, Vocaux, Création de salons et Vrais MPs isolés !</p>
             
             <div class="space-y-3">
                 <button onclick="loginWithGoogle()" class="w-full bg-white hover:bg-slate-100 text-slate-900 font-medium py-3 px-4 rounded-xl transition flex items-center justify-center gap-3 shadow-md">
@@ -69,7 +69,7 @@
                 <!-- Salons Textuels avec bouton de création -->
                 <div>
                     <div class="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 flex items-center justify-between">
-                        <span>Salons Textuels</span>
+                        <span>SALONS TEXTUELS</span>
                         <button onclick="openCreateChannelModal()" class="text-slate-400 hover:text-white transition" title="Créer un salon"><i class="fa-solid fa-plus text-xs bg-slate-800 p-1 rounded"></i></button>
                     </div>
                     <div id="channels-list" class="space-y-1"></div>
@@ -77,13 +77,13 @@
 
                 <!-- Salons Vocaux -->
                 <div>
-                    <div class="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Salons Vocaux</div>
+                    <div class="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">SALONS VOCAUX</div>
                     <div id="voice-channels-list" class="space-y-1"></div>
                 </div>
 
                 <!-- Messages Privés (MPs) -->
                 <div>
-                    <div class="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Messages Privés</div>
+                    <div class="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">MESSAGES PRIVÉS RÉCENTS</div>
                     <div id="dm-conversations-list" class="space-y-1">
                         <div class="px-3 py-2 text-xs text-slate-500 italic">Aucune conversation.</div>
                     </div>
@@ -110,7 +110,7 @@
             <div class="h-14 md:h-16 border-b border-slate-800 px-4 flex items-center justify-between bg-slate-900/50 backdrop-blur shrink-0">
                 <div class="flex items-center gap-3 truncate">
                     <button onclick="toggleMobileSidebar()" class="md:hidden text-slate-300 hover:text-white text-lg p-1"><i class="fa-solid fa-bars"></i></button>
-                    <h2 id="current-channel-title" class="font-bold text-base md:text-lg truncate"># général</h2>
+                    <h2 id="current-channel-title" class="font-bold text-base md:text-lg truncate"># Général</h2>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
                     <div class="text-xs text-slate-400 hidden lg:block">Admin : <code class="text-amber-400 bg-slate-900 px-1 py-0.5 rounded">/clean</code></div>
@@ -259,17 +259,18 @@
         let unsubscribeMessages = null;
         let unsubscribeTyping = null;
         
+        // Liste initiale avec les icônes associées (fa-solid fa-fire, etc.)
         let textChannels = [
-            { id: "général", name: "Général" }, 
-            { id: "brawl-stars", name: "Brawl Stars" },
-            { id: "clash-of-clans", name: "Clash of Clans" },
-            { id: "clash-royale", name: "Clash Royale" },
-            { id: "roblox", name: "Roblox" }
+            { id: "général", name: "Général", icon: "fa-solid fa-fire text-amber-500" }, 
+            { id: "brawl-stars", name: "Brawl Stars", icon: "fa-solid fa-skull text-purple-400" },
+            { id: "clash-of-clans", name: "Clash of Clans", icon: "fa-solid fa-shield-halved text-amber-400" },
+            { id: "clash-royale", name: "Clash Royale", icon: "fa-solid fa-crown text-yellow-400" },
+            { id: "roblox", name: "Roblox", icon: "fa-solid fa-cube text-blue-400" }
         ];
 
         const voiceChannelsList = [
-            { id: "vocal-general", name: "🔊 Salon Vocal Général" },
-            { id: "vocal-gaming", name: "🎮 Salon Vocal Gaming" }
+            { id: "vocal-general", name: "Salon Vocal Général" },
+            { id: "vocal-gaming", name: "Salon Vocal Gaming" }
         ];
 
         let userProfile = { name: "", avatar: "", theme: "theme-violet" };
@@ -293,14 +294,15 @@
         };
 
         function initSidebarUI() {
-            // Salons Textuels
+            // Salons Textuels avec icônes
             document.getElementById('channels-list').innerHTML = textChannels.map(c => {
                 const isActive = currentTargetType === 'channel' && currentTargetId === c.id;
                 const hasUnread = unreadChannels[c.id] && !isActive;
+                const iconClass = c.icon || "fa-solid fa-hashtag text-xs opacity-60";
                 return `
                     <button onclick="switchTarget('channel', '${c.id}')" class="w-full text-left px-3 py-2 rounded-xl text-sm font-medium flex items-center justify-between transition ${isActive ? 'bg-[var(--theme-color)] text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
                         <div class="flex items-center gap-2.5 truncate">
-                            <i class="fa-solid fa-hashtag text-xs opacity-60"></i>
+                            <i class="${iconClass} w-4 text-center shrink-0"></i>
                             <span class="truncate">${c.name}</span>
                         </div>
                         ${hasUnread ? '<span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse shrink-0"></span>' : ''}
@@ -315,7 +317,8 @@
                 return `
                     <div class="space-y-1">
                         <button onclick="joinVoiceChannel('${v.id}')" class="w-full text-left px-3 py-2 rounded-xl text-sm font-medium flex items-center justify-between transition ${isConnected ? 'bg-emerald-600/20 border border-emerald-500/40 text-emerald-300' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
-                            <div class="flex items-center gap-2 truncate">
+                            <div class="flex items-center gap-2.5 truncate">
+                                <i class="fa-solid fa-volume-high text-slate-400 w-4 text-center shrink-0"></i>
                                 <span class="truncate">${v.name}</span>
                             </div>
                             <span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded-full text-slate-300 shrink-0">${members.length} connecté(s)</span>
@@ -368,13 +371,13 @@
             const channelId = rawName.toLowerCase().replace(/[^a-z0-9]/g, '-');
             if(textChannels.some(c => c.id === channelId)) return showToast("Ce salon existe déjà.");
 
-            textChannels.push({ id: channelId, name: rawName });
+            textChannels.push({ id: channelId, name: rawName, icon: "fa-solid fa-hashtag text-slate-400" });
             await setDoc(doc(db, "settings", "custom_channels"), { list: textChannels });
             document.getElementById('new-channel-name').value = '';
             closeCreateChannelModal();
             initSidebarUI();
             switchTarget('channel', channelId);
-            showToast(" Salon créé avec succès !");
+            showToast("Salon créé avec succès !");
         };
 
         window.switchTarget = function(type, id, title = "") {
@@ -625,6 +628,7 @@
             }
 
             try {
+                // Correction cruciale : ciblage distinct et sécurisé pour les messages privés
                 const colPath = currentTargetType === 'channel' ? `channels/${currentTargetId}/messages` : `dms_chats/${currentTargetId}/messages`;
                 await addDoc(collection(db, colPath), {
                     text: text,
@@ -661,6 +665,7 @@
 
         function loadMessages() {
             if (unsubscribeMessages) unsubscribeMessages();
+            // Correction cruciale : écouteur bien dissocié entre salons et dms_chats
             const colPath = currentTargetType === 'channel' ? `channels/${currentTargetId}/messages` : `dms_chats/${currentTargetId}/messages`;
             const q = query(collection(db, colPath), orderBy("createdAt", "asc"));
             
@@ -705,7 +710,7 @@
                                 <button onclick="addReaction('${msgId}', '👍')" class="hover:bg-slate-800 px-1 py-0.5 rounded text-xs">👍</button>
                                 <button onclick="addReaction('${msgId}', '❤️')" class="hover:bg-slate-800 px-1 py-0.5 rounded text-xs">❤️</button>
                                 <button onclick="addReaction('${msgId}', '😂')" class="hover:bg-slate-800 px-1 py-0.5 rounded text-xs">😂</button>
-                                <button onclick="addReference('${msgId}', '🔥')" class="hover:bg-slate-800 px-1 py-0.5 rounded text-xs">🔥</button>
+                                <button onclick="addReaction('${msgId}', '🔥')" class="hover:bg-slate-800 px-1 py-0.5 rounded text-xs">🔥</button>
                             </div>
                         </div>
                     `;
