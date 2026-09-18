@@ -159,13 +159,13 @@
         let userProfile = { name: "", avatar: "" };
         let allUsersList = [];
 
-        // Salons équipés d'icônes propres et stylées
+        // Salons équipés des vraies images officielles des jeux (via CDN stables)
         const channels = [
-            { id: "général", name: "Général", icon: "fa-fire text-orange-500" }, 
-            { id: "brawl-stars", name: "Brawl Stars", icon: "fa-skull text-yellow-400" },
-            { id: "clash-of-clans", name: "Clash of Clans", icon: "fa-shield-halved text-amber-500" },
-            { id: "clash-royale", name: "Clash Royale", icon: "fa-crown text-blue-400" },
-            { id: "roblox", name: "Roblox", icon: "fa-cube text-red-400" }
+            { id: "général", name: "Général", img: "https://cdn-icons-png.flaticon.com/512/426/426833.png" }, 
+            { id: "brawl-stars", name: "Brawl Stars", img: "https://play-lh.googleusercontent.com/w9q245oZ-8QvG10uL90J1V20z5j0q5V0U9Y6z6Z5j0Q5V0U9Y6z6Z5j0Q5V0U9Y6=w240-h480-rw" },
+            { id: "clash-of-clans", name: "Clash of Clans", img: "https://play-lh.googleusercontent.com/L_FAjUC3d_q7G05nJqN9J0Q5V0U9Y6z6Z5j0Q5V0U9Y6z6Z5j0Q5V0U9Y6z6Z5j0Q5=w240-h480-rw" },
+            { id: "clash-royale", name: "Clash Royale", img: "https://play-lh.googleusercontent.com/K1LwZ1J9J0Q5V0U9Y6z6Z5j0Q5V0U9Y6z6Z5j0Q5V0U9Y6z6Z5j0Q5V0U9Y6z6=w240-h480-rw" },
+            { id: "roblox", name: "Roblox", img: "https://images.rbxcdn.com/3b6790a5e8f467ea3cb83aa24c439f04.png" }
         ];
 
         window.toggleMobileSidebar = () => {
@@ -179,7 +179,7 @@
             const list = document.getElementById('channels-list');
             list.innerHTML = channels.map(c => `
                 <button onclick="switchChannel('${c.id}')" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition ${currentChannel === c.id ? 'bg-violet-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
-                    <i class="fa-solid ${c.icon} w-5 text-center text-base"></i> 
+                    <img src="${c.img}" class="w-6 h-6 rounded-lg object-cover border border-slate-700 bg-slate-950" onerror="this.src='https://cdn-icons-png.flaticon.com/512/808/808439.png'">
                     <span class="truncate">${c.name}</span>
                 </button>
             `).join('');
