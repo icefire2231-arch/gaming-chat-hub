@@ -53,11 +53,19 @@
             <div id="channels-list" class="flex-1 overflow-y-auto px-2 space-y-1">
                 <!-- Salons injectés dynamiquement -->
             </div>
+            
+            <!-- Profil utilisateur & Paramètres -->
             <div class="p-3 border-t border-slate-800 flex items-center justify-between bg-slate-950/50">
-                <div class="flex items-center gap-2 truncate">
-                    <div class="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center text-sm font-bold" id="user-avatar">U</div>
-                    <span class="text-sm font-medium truncate" id="user-name">Utilisateur</span>
+                <div class="flex items-center gap-2 truncate cursor-pointer" onclick="openProfileModal()" title="Modifier mon profil">
+                    <div id="user-avatar-container" class="w-9 h-9 rounded-full bg-violet-600 flex items-center justify-center text-sm font-bold overflow-hidden border border-violet-500">
+                        <span id="user-avatar-text">U</span>
+                    </div>
+                    <div class="truncate">
+                        <span class="text-sm font-medium truncate block" id="user-name">Utilisateur</span>
+                        <span class="text-xs text-violet-400">Modifier profil</span>
+                    </div>
                 </div>
+                <button onclick="openProfileModal()" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-gear"></i></button>
             </div>
         </div>
 
@@ -71,16 +79,35 @@
             </div>
             <div class="p-4 border-t border-slate-800 bg-slate-900/50">
                 <form id="message-form" onsubmit="sendMessage(event)" class="flex gap-2">
-                    <input type="text" id="message-input" placeholder="Envoyer un message..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-violet-500 text-slate-100">
+                    <input type="text" id="message-input" placeholder="Envoyer un message (ex: @pseudo)..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-violet-500 text-slate-100">
                     <button type="submit" class="bg-violet-600 hover:bg-violet-500 text-white px-5 rounded-xl transition font-medium text-sm flex items-center justify-center shadow-lg"><i class="fa-solid fa-paper-plane"></i></button>
                 </form>
             </div>
         </div>
     </div>
 
+    <!-- Modale de modification de profil -->
+    <div id="profile-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4">
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full space-y-4 shadow-2xl">
+            <h3 class="font-bold text-lg text-slate-100">Modifier mon profil</h3>
+            <div>
+                <label class="text-xs text-slate-400 block mb-1">Votre pseudo personnalisé</label>
+                <input type="text" id="edit-username" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-violet-500">
+            </div>
+            <div>
+                <label class="text-xs text-slate-400 block mb-1">URL de votre avatar (Lien d'image)</label>
+                <input type="text" id="edit-avatar" placeholder="https://exemple.com/image.png" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-violet-500">
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeProfileModal()" class="px-4 py-2 rounded-xl text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 transition">Annuler</button>
+                <button onclick="saveProfile()" class="px-4 py-2 rounded-xl text-sm bg-violet-600 hover:bg-violet-500 text-white transition font-medium">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Notifications Toast -->
-    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 border border-slate-700 text-slate-200 px-4 py-3 rounded-xl shadow-2xl hidden z-50 text-sm flex items-center gap-3">
-        <i class="fa-solid fa-circle-info text-violet-500"></i>
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 border border-violet-500/50 text-slate-200 px-4 py-3 rounded-xl shadow-2xl hidden z-50 text-sm flex items-center gap-3">
+        <i class="fa-solid fa-bell text-violet-500 animate-bounce"></i>
         <span id="toast-message">Message</span>
     </div>
 
@@ -88,9 +115,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // Votre configuration Firebase exacte
         const firebaseConfig = {
             apiKey: "AIzaSyB9P5Y1ywmsbQt_PMCNsiRkryppVI1421o",
             authDomain: "gaming-chat-hub.firebaseapp.com",
@@ -108,6 +134,7 @@
         let currentUser = null;
         let currentChannel = "général";
         let unsubscribeMessages = null;
+        let userProfile = { name: "", avatar: "" };
 
         const channels = [
             { id: "général", name: "Général", icon: "fa-comments" },
@@ -135,34 +162,39 @@
         }
 
         window.loginAnonymously = async () => {
-            try {
-                await signInAnonymously(auth);
-            } catch (error) {
-                showToast("Erreur de connexion anonyme: " + error.message);
-            }
+            try { await signInAnonymously(auth); } catch (error) { showToast("Erreur: " + error.message); }
         };
 
         window.loginWithGoogle = async () => {
             try {
                 const provider = new GoogleAuthProvider();
                 await signInWithPopup(auth, provider);
-            } catch (error) {
-                showToast("Erreur de connexion Google: " + error.message);
-            }
+            } catch (error) { showToast("Erreur: " + error.message); }
         };
 
         window.logout = () => signOut(auth);
 
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
             currentUser = user;
             if (user) {
                 document.getElementById('auth-screen').classList.add('hidden');
                 document.getElementById('app-screen').classList.remove('hidden');
                 
-                const name = user.displayName || (user.isAnonymous ? "Invité_" + user.uid.slice(0,4) : "Utilisateur");
-                document.getElementById('user-name').textContent = name;
-                document.getElementById('user-avatar').textContent = name.charAt(0).toUpperCase();
+                // Charger ou initialiser le profil Firestore de l'utilisateur
+                const userRef = doc(db, "users", user.uid);
+                const userSnap = await getDoc(userRef);
                 
+                if (userSnap.exists()) {
+                    userProfile = userSnap.data();
+                } else {
+                    userProfile = {
+                        name: user.displayName || (user.isAnonymous ? "Invité_" + user.uid.slice(0,4) : "Utilisateur"),
+                        avatar: user.photoURL || ""
+                    };
+                    await setDoc(userRef, userProfile);
+                }
+                
+                updateUIRating();
                 initChannels();
                 loadMessages();
             } else {
@@ -171,6 +203,40 @@
                 if (unsubscribeMessages) unsubscribeMessages();
             }
         });
+
+        function updateUIRating() {
+            document.getElementById('user-name').textContent = userProfile.name;
+            const container = document.getElementById('user-avatar-container');
+            if (userProfile.avatar) {
+                container.innerHTML = `<img src="${userProfile.avatar}" class="w-full h-full object-cover">`;
+            } else {
+                container.innerHTML = `<span id="user-avatar-text">${userProfile.name.charAt(0).toUpperCase()}</span>`;
+            }
+        }
+
+        window.openProfileModal = () => {
+            document.getElementById('edit-username').value = userProfile.name;
+            document.getElementById('edit-avatar').value = userProfile.avatar;
+            document.getElementById('profile-modal').classList.remove('hidden');
+        }
+
+        window.closeProfileModal = () => {
+            document.getElementById('profile-modal').classList.add('hidden');
+        }
+
+        window.saveProfile = async () => {
+            const newName = document.getElementById('edit-username').value.trim();
+            const newAvatar = document.getElementById('edit-avatar').value.trim();
+            if (!newName) return showToast("Le pseudo ne peut pas être vide.");
+
+            userProfile.name = newName;
+            userProfile.avatar = newAvatar;
+
+            await setDoc(doc(db, "users", currentUser.uid), userProfile);
+            updateUIRating();
+            closeProfileModal();
+            showToast("Profil mis à jour avec succès !");
+        }
 
         window.sendMessage = async (e) => {
             e.preventDefault();
@@ -182,7 +248,8 @@
                 await addDoc(collection(db, "channels", currentChannel, "messages"), {
                     text: text,
                     uid: currentUser.uid,
-                    displayName: currentUser.displayName || (currentUser.isAnonymous ? "Invité_" + currentUser.uid.slice(0,4) : "Utilisateur"),
+                    displayName: userProfile.name,
+                    avatar: userProfile.avatar,
                     createdAt: serverTimestamp()
                 });
                 input.value = '';
@@ -200,10 +267,21 @@
                 container.innerHTML = snapshot.docs.map(doc => {
                     const msg = doc.data();
                     const isMe = currentUser && msg.uid === currentUser.uid;
+                    
+                    // Vérifier si l'utilisateur actuel est mentionné via @pseudo
+                    if (currentUser && !isMe && msg.text.includes(`@${userProfile.name}`)) {
+                        showToast(`🔔 Vous avez été mentionné par ${msg.displayName} !`);
+                    }
+
+                    const avatarHtml = msg.avatar 
+                        ? `<img src="${msg.avatar}" class="w-8 h-8 rounded-full object-cover">`
+                        : `<div class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-xs font-bold">${(msg.displayName || 'A').charAt(0).toUpperCase()}</div>`;
+
                     return `
-                        <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'}">
+                        <div class="flex gap-3 ${isMe ? 'flex-row-reverse' : 'flex-row'} items-end">
+                            ${avatarHtml}
                             <div class="max-w-[70%]">
-                                <div class="text-xs text-slate-500 mb-1 px-1">${msg.displayName || 'Anonyme'}</div>
+                                <div class="text-xs text-slate-500 mb-1 px-1 ${isMe ? 'text-right' : 'text-left'}">${escapeHtml(msg.displayName || 'Anonyme')}</div>
                                 <div class="p-3.5 rounded-2xl text-sm ${isMe ? 'bg-violet-600 text-white rounded-br-none shadow-md' : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none'}">
                                     ${escapeHtml(msg.text)}
                                 </div>
@@ -219,7 +297,7 @@
             return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         }
 
-        function showToast(msg) {
+        window.showToast = function(msg) {
             const t = document.getElementById('toast');
             document.getElementById('toast-message').textContent = msg;
             t.classList.remove('hidden');
