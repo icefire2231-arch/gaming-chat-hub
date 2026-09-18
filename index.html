@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NexusChat • Gaming Hub</title>
+    <title>NexusChat - Gaming Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -11,634 +11,220 @@
             theme: {
                 extend: {
                     colors: {
-                        brand: {
-                            50: '#f5f3ff',
-                            500: '#8b5cf6',
-                            600: '#7c3aed',
-                            700: '#6d28d9',
-                        },
-                        darker: '#0a0b0e',
-                        darkcard: '#12141c',
-                        darkborder: '#1e2230'
+                        brand: { 500: '#8b5cf6', 600: '#7c3aed' }
                     }
                 }
             }
         }
     </script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; }
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-track { background: #0a0b0e; }
-        ::-webkit-scrollbar-thumb { background: #1e2230; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #2e364f; }
-        .banner-glow {
-            box-shadow: inset 0 -40px 40px -20px rgba(10, 11, 14, 0.95);
-        }
-    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="bg-darker text-gray-100 h-screen flex flex-col overflow-hidden selection:bg-purple-500 selection:text-white">
+<body class="bg-slate-950 text-slate-100 h-screen flex flex-col overflow-hidden font-sans">
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, GoogleAuthProvider, signInWithPopup, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, onSnapshot, orderBy, serverTimestamp, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'nexuschat-gaming-v1';
-        
-        // --- VOS VRAIES CLÉS FIREBASE CONFIGURÉES ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyD9P5YiwmsbQt_Pyw0mze1LWI1NmetMjY5N2Y", 
-            authDomain: "gaming-chat-hub.firebaseapp.com",
-            projectId: "gaming-chat-hub",
-            storageBucket: "gaming-chat-hub.appspot.com",
-            messagingSenderId: "838358986335",
-            appId: "1:838358986335:web:1294305385b47d9bb275ea"
-        };
-
-        let app, auth, db;
-        let currentUser = null;
-        let currentRoom = 'general';
-        let messagesUnsubscribe = null;
-        let usersUnsubscribe = null;
-        let allUsers = [];
-        let notifications = [];
-
-        const rooms = {
-            'general': { 
-                name: 'Général', 
-                icon: 'globe', 
-                desc: 'Le salon principal pour parler de tout et de rien entre passionnés.', 
-                banner: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1600&auto=format&fit=crop',
-                thumb: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=200&auto=format&fit=crop'
-            },
-            'brawl-stars': { 
-                name: 'Brawl Stars', 
-                icon: 'zap', 
-                desc: 'Trouvez des coéquipiers, partagez vos meilleures compos et tactiques de trophées.', 
-                banner: 'https://images.unsplash.com/photo-1563089145-599997674d42?q=80&w=1600&auto=format&fit=crop',
-                thumb: 'https://images.unsplash.com/photo-1563089145-599997674d42?q=80&w=200&auto=format&fit=crop'
-            },
-            'clash-of-clans': { 
-                name: 'Clash of Clans', 
-                icon: 'shield', 
-                desc: 'Discussions guerres de clans, stratégies d\'attaque HDV et recrutement.', 
-                banner: 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?q=80&w=1600&auto=format&fit=crop',
-                thumb: 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?q=80&w=200&auto=format&fit=crop'
-            },
-            'clash-royale': { 
-                name: 'Clash Royale', 
-                icon: 'crown', 
-                desc: 'Partagez vos decks méta, astuces d\'arènes et tournois exclusifs.', 
-                banner: 'https://images.unsplash.com/photo-1612287233202-b51b36618c07?q=80&w=1600&auto=format&fit=crop',
-                thumb: 'https://images.unsplash.com/photo-1612287233202-b51b36618c07?q=80&w=200&auto=format&fit=crop'
-            },
-            'roblox': { 
-                name: 'Roblox', 
-                icon: 'gamepad-2', 
-                desc: 'Explorez les meilleures expériences, codes promos et créations de mondes.', 
-                banner: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1600&auto=format&fit=crop',
-                thumb: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200&auto=format&fit=crop'
-            }
-        };
-
-        try {
-            app = initializeApp(firebaseConfig);
-            auth = getAuth(app);
-            db = getFirestore(app);
-        } catch (e) {
-            console.error("Firebase init error:", e);
-        }
-
-        const authScreen = document.getElementById('auth-screen');
-        const chatApp = document.getElementById('chat-app');
-        const googleLoginBtn = document.getElementById('google-login-btn');
-        const anonLoginBtn = document.getElementById('anon-login-btn');
-        const userAvatar = document.getElementById('user-avatar');
-        const userName = document.getElementById('user-name');
-        const userEmail = document.getElementById('user-email');
-        const logoutBtn = document.getElementById('logout-btn');
-        const roomListEl = document.getElementById('room-list');
-        const currentRoomTitle = document.getElementById('current-room-title');
-        const currentRoomDesc = document.getElementById('current-room-desc');
-        const roomBannerContainer = document.getElementById('room-banner-container');
-        const messagesContainer = document.getElementById('messages-container');
-        const messageForm = document.getElementById('message-form');
-        const messageInput = document.getElementById('message-input');
-        const onlineUsersList = document.getElementById('online-users-list');
-        const onlineCount = document.getElementById('online-count');
-        const notifBadge = document.getElementById('notif-badge');
-        const notifDropdown = document.getElementById('notif-dropdown');
-        const notifList = document.getElementById('notif-list');
-        const notifToggleBtn = document.getElementById('notif-toggle-btn');
-        const mentionAutocomplete = document.getElementById('mention-autocomplete');
-        const mentionList = document.getElementById('mention-list');
-        const toastContainer = document.getElementById('toast-container');
-
-        function playBeep() {
-            try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(659.25, audioCtx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.12);
-                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.25);
-            } catch (err) {}
-        }
-
-        window.showToast = function(title, message, type = 'info') {
-            const toast = document.createElement('div');
-            toast.className = `flex items-start p-4 mb-3 rounded-2xl shadow-2xl border backdrop-blur-xl transition-all duration-300 transform translate-y-2 opacity-0 ${
-                type === 'mention' ? 'bg-purple-950/90 border-purple-500/50 text-purple-200' : 'bg-darkcard/95 border-darkborder text-gray-200'
-            }`;
-            toast.innerHTML = `
-                <div class="mr-3 mt-0.5">
-                    <i data-lucide="${type === 'mention' ? 'at-sign' : 'bell'}" class="w-5 h-5 ${type === 'mention' ? 'text-purple-400 animate-pulse' : 'text-purple-400'}"></i>
-                </div>
-                <div class="flex-1 mr-2">
-                    <h5 class="font-semibold text-sm">${title}</h5>
-                    <p class="text-xs text-gray-300 mt-0.5">${message}</p>
-                </div>
-                <button class="text-gray-400 hover:text-white" onclick="this.parentElement.remove()">&times;</button>
-            `;
-            toastContainer.appendChild(toast);
-            lucide.createIcons();
-
-            setTimeout(() => toast.classList.remove('translate-y-2', 'opacity-0'), 10);
-            setTimeout(() => {
-                toast.classList.add('translate-y-2', 'opacity-0');
-                setTimeout(() => toast.remove(), 300);
-            }, 5000);
-        }
-
-        async function handleLogin(type) {
-            try {
-                if (type === 'google') {
-                    const provider = new GoogleAuthProvider();
-                    await signInWithPopup(auth, provider);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (error) {
-                console.error("Auth error:", error);
-                showToast("Échec de connexion", error.message, "error");
-            }
-        }
-
-        googleLoginBtn.addEventListener('click', () => handleLogin('google'));
-        anonLoginBtn.addEventListener('click', () => handleLogin('anon'));
-        logoutBtn.addEventListener('click', () => signOut(auth));
-
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                currentUser = user;
-                authScreen.classList.add('hidden');
-                chatApp.classList.remove('hidden');
-
-                const displayName = user.displayName || `Joueur_${user.uid.substring(0, 5)}`;
-                const photoURL = user.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.uid}`;
-                const email = user.email || 'Mode Invité';
-
-                userName.textContent = displayName;
-                userEmail.textContent = email;
-                userAvatar.src = photoURL;
-                userAvatar.onerror = () => { userAvatar.src = `https://placehold.co/100x100/12141c/8b5cf6?text=${displayName[0]}`; };
-
-                try {
-                    const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users_directory', user.uid);
-                    await setDoc(userRef, {
-                        uid: user.uid,
-                        displayName: displayName,
-                        photoURL: photoURL,
-                        lastSeen: serverTimestamp()
-                    }, { merge: true });
-                } catch (e) {
-                    console.error("Directory update error:", e);
-                }
-
-                initChat();
-                loadUsersDirectory();
-            } else {
-                currentUser = null;
-                authScreen.classList.remove('hidden');
-                chatApp.classList.add('hidden');
-                if (messagesUnsubscribe) messagesUnsubscribe();
-                if (usersUnsubscribe) usersUnsubscribe();
-            }
-        });
-
-        function renderRooms() {
-            roomListEl.innerHTML = '';
-            for (const [key, room] of Object.entries(rooms)) {
-                const isActive = key === currentRoom;
-                const btn = document.createElement('button');
-                btn.className = `w-full flex items-center justify-between p-2.5 rounded-2xl transition-all group ${
-                    isActive 
-                        ? 'bg-purple-600/20 text-purple-300 border border-purple-500/40 shadow-lg shadow-purple-950/30' 
-                        : 'text-gray-400 hover:bg-darkborder/40 hover:text-gray-200 border border-transparent'
-                }`;
-                btn.innerHTML = `
-                    <div class="flex items-center space-x-3 min-w-0">
-                        <div class="relative w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 border border-darkborder group-hover:border-purple-500/40 transition-colors">
-                            <img src="${room.thumb}" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/100x100/12141c/8b5cf6?text=R'">
-                        </div>
-                        <div class="text-left min-w-0">
-                            <span class="block font-semibold text-sm truncate text-gray-200 group-hover:text-white">${room.name}</span>
-                            <span class="block text-[11px] text-gray-400 truncate">Salon communautaire</span>
-                        </div>
-                    </div>
-                    <i data-lucide="chevron-right" class="w-4 h-4 text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity"></i>
-                `;
-                btn.onclick = () => switchRoom(key);
-                roomListEl.appendChild(btn);
-            }
-            lucide.createIcons();
-        }
-
-        function switchRoom(roomKey) {
-            currentRoom = roomKey;
-            const r = rooms[roomKey];
-            currentRoomTitle.textContent = r.name;
-            currentRoomDesc.textContent = r.desc;
-            
-            roomBannerContainer.style.backgroundImage = `url('${r.banner}')`;
-            roomBannerContainer.style.backgroundSize = 'cover';
-            roomBannerContainer.style.backgroundPosition = 'center';
-
-            renderRooms();
-            subscribeToMessages();
-        }
-
-        function loadUsersDirectory() {
-            const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'users_directory');
-            usersUnsubscribe = onSnapshot(usersRef, (snapshot) => {
-                allUsers = [];
-                onlineUsersList.innerHTML = '';
-                snapshot.forEach((docSnap) => {
-                    const u = docSnap.data();
-                    allUsers.push(u);
-                    const userEl = document.createElement('div');
-                    userEl.className = 'flex items-center space-x-3 p-2 rounded-xl hover:bg-darkborder/40 transition-colors';
-                    userEl.innerHTML = `
-                        <div class="relative flex-shrink-0">
-                            <img src="${u.photoURL}" class="w-8 h-8 rounded-full object-cover border border-darkborder" onerror="this.src='https://placehold.co/100x100/12141c/8b5cf6?text=U'">
-                            <span class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-darkcard rounded-full"></span>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <h4 class="text-xs font-semibold text-gray-300 truncate">${u.displayName}</h4>
-                            <p class="text-[10px] text-emerald-400">En ligne</p>
-                        </div>
-                    `;
-                    onlineUsersList.appendChild(userEl);
-                });
-                onlineCount.textContent = allUsers.length;
-            }, (error) => console.error("Users load error:", error));
-        }
-
-        function initChat() {
-            renderRooms();
-            switchRoom('general');
-        }
-
-        function subscribeToMessages() {
-            if (messagesUnsubscribe) messagesUnsubscribe();
-
-            const messagesRef = collection(db, 'artifacts', appId, 'public', 'data', `room_${currentRoom}_messages`);
-            const q = query(messagesRef, orderBy('createdAt', 'asc'));
-
-            messagesUnsubscribe = onSnapshot(q, (snapshot) => {
-                messagesContainer.innerHTML = '';
-                if (snapshot.empty) {
-                    messagesContainer.innerHTML = `
-                        <div class="flex flex-col items-center justify-center h-full text-center py-16 text-gray-500">
-                            <i data-lucide="message-square-dashed" class="w-12 h-12 mb-3 stroke-1 text-gray-600"></i>
-                            <p class="text-sm font-medium text-gray-400">Aucun message pour l'instant dans ${rooms[currentRoom].name}</p>
-                            <p class="text-xs text-gray-500 mt-1">Soyez le premier à lancer la discussion !</p>
-                        </div>
-                    `;
-                    lucide.createIcons();
-                    return;
-                }
-
-                snapshot.forEach((docSnap) => {
-                    const msg = docSnap.data();
-                    appendMessageUI(msg);
-                });
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                lucide.createIcons();
-            }, (error) => {
-                console.error("Messages sub error:", error);
-            });
-        }
-
-        function appendMessageUI(msg) {
-            const isMe = currentUser && msg.uid === currentUser.uid;
-            const dateStr = msg.createdAt?.toDate ? new Date(msg.createdAt.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'À l\'instant';
-            const myName = currentUser?.displayName || '';
-            const isMentioned = msg.text && (msg.text.includes(`@${myName}`) || msg.text.includes('@tous') || msg.text.includes('@everyone'));
-
-            if (isMentioned && !isMe) {
-                addNotification({
-                    title: `Mention de ${msg.displayName}`,
-                    room: rooms[currentRoom].name,
-                    text: msg.text,
-                    time: dateStr
-                });
-            }
-
-            const div = document.createElement('div');
-            div.className = `flex items-start space-x-3 mb-4 group ${isMe ? 'flex-row-reverse space-x-reverse' : ''}`;
-            
-            let formattedText = escapeHtml(msg.text || '');
-            allUsers.forEach(u => {
-                const mentionTag = `@${u.displayName}`;
-                if (formattedText.includes(mentionTag)) {
-                    formattedText = formattedText.replace(new RegExp(mentionTag, 'g'), `<span class="bg-purple-500/20 text-purple-300 font-semibold px-1.5 py-0.5 rounded">${mentionTag}</span>`);
-                }
-            });
-
-            div.innerHTML = `
-                <img src="${msg.photoURL || 'https://placehold.co/100x100/12141c/8b5cf6?text=U'}" class="w-9 h-9 rounded-full object-cover border border-darkborder shadow-md flex-shrink-0" onerror="this.src='https://placehold.co/100x100/12141c/8b5cf6?text=U'">
-                <div class="max-w-md lg:max-w-xl ${isMe ? 'items-end' : ''}">
-                    <div class="flex items-center space-x-2 mb-1 ${isMe ? 'flex-row-reverse space-x-reverse' : ''}">
-                        <span class="font-semibold text-xs text-gray-300">${escapeHtml(msg.displayName)}</span>
-                        <span class="text-[10px] text-gray-500 font-mono">${dateStr}</span>
-                    </div>
-                    <div class="p-3.5 rounded-2xl text-sm leading-relaxed shadow-md ${
-                        isMe 
-                            ? 'bg-purple-600 text-white rounded-tr-none' 
-                            : isMentioned 
-                                ? 'bg-darkcard border border-purple-500/50 text-gray-100 rounded-tl-none shadow-purple-950/50' 
-                                : 'bg-darkcard border border-darkborder text-gray-200 rounded-tl-none'
-                    }">
-                        ${formattedText}
-                    </div>
-                </div>
-            `;
-            messagesContainer.appendChild(div);
-        }
-
-        function escapeHtml(text) {
-            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-            return text.replace(/[&<>"']/g, m => map[m]);
-        }
-
-        function addNotification(notif) {
-            notifications.unshift(notif);
-            updateNotifBadge();
-            renderNotificationsList();
-            playBeep();
-            showToast(`Notification de ${notif.room}`, notif.text, 'mention');
-        }
-
-        function updateNotifBadge() {
-            if (notifications.length > 0) {
-                notifBadge.textContent = notifications.length;
-                notifBadge.classList.remove('hidden');
-            } else {
-                notifBadge.classList.add('hidden');
-            }
-        }
-
-        function renderNotificationsList() {
-            notifList.innerHTML = '';
-            if (notifications.length === 0) {
-                notifList.innerHTML = `<div class="p-4 text-center text-xs text-gray-500">Aucune nouvelle notification</div>`;
-                return;
-            }
-            notifications.forEach((n, idx) => {
-                const item = document.createElement('div');
-                item.className = 'p-3 border-b border-darkborder hover:bg-darkborder/30 transition-colors cursor-pointer';
-                item.innerHTML = `
-                    <div class="flex items-center justify-between mb-1">
-                        <span class="font-semibold text-xs text-purple-400">${n.title}</span>
-                        <span class="text-[10px] text-gray-500">${n.time}</span>
-                    </div>
-                    <p class="text-xs text-gray-300 line-clamp-2">${n.text}</p>
-                `;
-                item.onclick = () => {
-                    notifications.splice(idx, 1);
-                    updateNotifBadge();
-                    renderNotificationsList();
-                    notifDropdown.classList.add('hidden');
-                };
-                notifList.appendChild(item);
-            });
-        }
-
-        notifToggleBtn.onclick = () => notifDropdown.classList.toggle('hidden');
-        window.addEventListener('click', (e) => {
-            if (!notifToggleBtn.contains(e.target) && !notifDropdown.contains(e.target)) {
-                notifDropdown.classList.add('hidden');
-            }
-        });
-
-        messageInput.addEventListener('input', () => {
-            const val = messageInput.value;
-            const cursorIdx = messageInput.selectionStart;
-            const textBeforeCursor = val.substring(0, cursorIdx);
-            const atMatch = textBeforeCursor.match(/@(\w*)$/);
-
-            if (atMatch) {
-                const queryStr = atMatch[1].toLowerCase();
-                const filtered = allUsers.filter(u => u.displayName.toLowerCase().includes(queryStr) && u.uid !== currentUser?.uid);
-                
-                if (filtered.length > 0) {
-                    mentionList.innerHTML = '';
-                    filtered.forEach(u => {
-                        const li = document.createElement('button');
-                        li.type = 'button';
-                        li.className = 'w-full flex items-center space-x-2 px-3 py-2 text-left text-xs hover:bg-purple-500/10 hover:text-purple-300 transition-colors';
-                        li.innerHTML = `
-                            <img src="${u.photoURL}" class="w-6 h-6 rounded-full object-cover">
-                            <span class="font-medium">${u.displayName}</span>
-                        `;
-                        li.onclick = () => {
-                            const before = val.substring(0, cursorIdx - atMatch[0].length);
-                            const after = val.substring(cursorIdx);
-                            messageInput.value = `${before}@${u.displayName} ${after}`;
-                            mentionAutocomplete.classList.add('hidden');
-                            messageInput.focus();
-                        };
-                        mentionList.appendChild(li);
-                    });
-                    mentionAutocomplete.classList.remove('hidden');
-                } else {
-                    mentionAutocomplete.classList.add('hidden');
-                }
-            } else {
-                mentionAutocomplete.classList.add('hidden');
-            }
-        });
-
-        messageForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const text = messageInput.value.trim();
-            if (!text || !currentUser) return;
-
-            messageInput.value = '';
-            mentionAutocomplete.classList.add('hidden');
-
-            try {
-                const messagesRef = collection(db, 'artifacts', appId, 'public', 'data', `room_${currentRoom}_messages`);
-                await addDoc(messagesRef, {
-                    uid: currentUser.uid,
-                    displayName: currentUser.displayName || `Joueur_${currentUser.uid.substring(0,5)}`,
-                    photoURL: currentUser.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${currentUser.uid}`,
-                    text: text,
-                    createdAt: serverTimestamp()
-                });
-            } catch (err) {
-                console.error("Send message error:", err);
-                showToast("Erreur d'envoi", "Impossible d'envoyer le message.", "error");
-            }
-        });
-
-        window.onload = () => lucide.createIcons();
-    </script>
-
-    <!-- Authentication Screen -->
-    <div id="auth-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-darker p-4">
-        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-900/20 via-darker to-darker"></div>
-        <div class="relative z-10 w-full max-w-md bg-darkcard/90 border border-darkborder p-8 rounded-3xl shadow-2xl backdrop-blur-2xl text-center">
-            <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-purple-600/10 text-purple-400 mb-6 border border-purple-500/20 shadow-lg shadow-purple-950/50">
-                <i data-lucide="gamepad-2" class="w-8 h-8"></i>
+    <!-- Écran d'authentification -->
+    <div id="auth-screen" class="fixed inset-0 bg-slate-950 flex items-center justify-center z-50 p-4">
+        <div class="bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-2xl max-w-md w-full text-center relative">
+            <div class="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-violet-600 text-white w-16 h-16 rounded-2xl flex items-center justify-center text-2xl shadow-lg border-4 border-slate-950">
+                <i class="fa-solid fa-gamepad"></i>
             </div>
-            <h1 class="text-2xl font-extrabold text-white tracking-tight mb-2">NexusChat</h1>
-            <p class="text-sm text-gray-400 mb-8">Rejoins les salons de discussion gaming en temps réel, discute Brawl Stars, Clash of Clans, Clash Royale & Roblox avec la communauté.</p>
+            <h1 class="text-2xl font-bold mt-4 mb-2">NexusChat</h1>
+            <p class="text-slate-400 text-sm mb-6">Rejoins les salons de discussion gaming en temps réel, discute Brawl Stars, Clash of Clans, Clash Royale & Roblox avec la communauté.</p>
             
             <div class="space-y-3">
-                <button id="google-login-btn" class="w-full flex items-center justify-center space-x-3 py-3.5 px-4 bg-white hover:bg-gray-100 text-gray-900 font-semibold rounded-2xl shadow-lg transition-all duration-200 transform hover:-translate-y-0.5">
-                    <svg class="w-5 h-5" viewBox="0 0 24 24">
-                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                    </svg>
-                    <span>Continuer avec Google</span>
+                <button onclick="loginWithGoogle()" class="w-full bg-white hover:bg-slate-100 text-slate-900 font-medium py-3 px-4 rounded-xl transition flex items-center justify-center gap-3 shadow-md">
+                    <i class="fa-brands fa-google text-red-500"></i> Continuer avec Google
                 </button>
-
-                <button id="anon-login-btn" class="w-full flex items-center justify-center space-x-2 py-3.5 px-4 bg-darkborder/50 hover:bg-darkborder text-gray-300 font-semibold rounded-2xl border border-darkborder transition-all">
-                    <i data-lucide="user" class="w-5 h-5 text-gray-400"></i>
-                    <span>Mode Invité Rapide</span>
+                <button onclick="loginAnonymously()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium py-3 px-4 rounded-xl transition flex items-center justify-center gap-3 border border-slate-700">
+                    <i class="fa-solid fa-user-secret"></i> Mode Invité Rapide
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Main Chat Application -->
-    <div id="chat-app" class="hidden flex h-screen w-screen overflow-hidden">
-        
-        <!-- Sidebar -->
-        <aside class="w-80 bg-darkcard border-r border-darkborder flex flex-col justify-between flex-shrink-0 z-20">
-            <div class="p-4 border-b border-darkborder flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                    <div class="p-2 rounded-xl bg-purple-600/10 text-purple-400 border border-purple-500/20">
-                        <i data-lucide="gamepad-2" class="w-5 h-5"></i>
-                    </div>
-                    <div>
-                        <h2 class="font-extrabold text-sm text-white">NexusChat</h2>
-                        <p class="text-[10px] text-purple-400 font-mono">Gaming Hub</p>
-                    </div>
+    <!-- Application principale de Chat -->
+    <div id="app-screen" class="flex h-full w-full hidden">
+        <!-- Sidebar des salons -->
+        <div class="w-72 bg-slate-900 border-r border-slate-800 flex flex-col">
+            <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+                <span class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-gamepad text-violet-500"></i> NexusChat</span>
+                <button onclick="logout()" title="Se déconnecter" class="text-slate-400 hover:text-red-400 transition"><i class="fa-solid fa-right-from-bracket"></i></button>
+            </div>
+            <div class="p-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Salons de jeux</div>
+            <div id="channels-list" class="flex-1 overflow-y-auto px-2 space-y-1">
+                <!-- Salons injectés dynamiquement -->
+            </div>
+            <div class="p-3 border-t border-slate-800 flex items-center justify-between bg-slate-950/50">
+                <div class="flex items-center gap-2 truncate">
+                    <div class="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center text-sm font-bold" id="user-avatar">U</div>
+                    <span class="text-sm font-medium truncate" id="user-name">Utilisateur</span>
                 </div>
             </div>
+        </div>
 
-            <!-- Rooms List -->
-            <div class="flex-1 overflow-y-auto p-4 space-y-6">
-                <div>
-                    <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-1">Salons de Jeux</h3>
-                    <nav id="room-list" class="space-y-1.5"></nav>
-                </div>
-
-                <!-- Online Players -->
-                <div>
-                    <div class="flex items-center justify-between px-1 mb-2">
-                        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Membres en ligne</h3>
-                        <span id="online-count" class="px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 text-xs font-mono font-bold">0</span>
-                    </div>
-                    <div id="online-users-list" class="space-y-1 max-h-48 overflow-y-auto pr-1"></div>
-                </div>
+        <!-- Zone de discussion -->
+        <div class="flex-1 flex flex-col bg-slate-950">
+            <div class="h-16 border-b border-slate-800 px-6 flex items-center justify-between bg-slate-900/50 backdrop-blur">
+                <h2 id="current-channel-title" class="font-bold text-lg"># général</h2>
             </div>
-
-            <!-- User Footer Profile -->
-            <div class="p-4 border-t border-darkborder bg-darker/60 flex items-center justify-between">
-                <div class="flex items-center space-x-3 min-w-0">
-                    <img id="user-avatar" src="" class="w-10 h-10 rounded-full object-cover border border-purple-500/30 flex-shrink-0">
-                    <div class="min-w-0">
-                        <h4 id="user-name" class="text-xs font-semibold text-gray-200 truncate"></h4>
-                        <p id="user-email" class="text-[10px] text-gray-400 truncate"></p>
-                    </div>
-                </div>
-                <button id="logout-btn" class="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-colors" title="Déconnexion">
-                    <i data-lucide="log-out" class="w-5 h-5"></i>
-                </button>
+            <div id="messages-container" class="flex-1 overflow-y-auto p-6 space-y-4">
+                <!-- Messages injectés dynamiquement -->
             </div>
-        </aside>
-
-        <!-- Active Chat Main Area -->
-        <main class="flex-1 flex flex-1 flex-col min-w-0 bg-darker relative">
-            
-            <!-- Room Header Banner -->
-            <div id="room-banner-container" class="h-32 w-full relative flex flex-col justify-end p-6 border-b border-darkborder banner-glow flex-shrink-0">
-                <div class="absolute inset-0 bg-gradient-to-t from-darker via-darker/60 to-transparent"></div>
-                <div class="relative z-10 flex items-center justify-between">
-                    <div>
-                        <h2 id="current-room-title" class="text-xl font-extrabold text-white tracking-tight">Chargement...</h2>
-                        <p id="current-room-desc" class="text-xs text-gray-300 mt-0.5 line-clamp-1"></p>
-                    </div>
-                    <div class="flex items-center space-x-3">
-                        <!-- Notifications Dropdown Toggle -->
-                        <div class="relative">
-                            <button id="notif-toggle-btn" class="relative p-2.5 bg-darkcard/80 hover:bg-darkcard border border-darkborder rounded-xl text-gray-300 transition-colors">
-                                <i data-lucide="bell" class="w-5 h-5"></i>
-                                <span id="notif-badge" class="absolute -top-1 -right-1 w-5 h-5 bg-purple-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center hidden">0</span>
-                            </button>
-                            <!-- Dropdown list -->
-                            <div id="notif-dropdown" class="hidden absolute right-0 mt-2 w-80 bg-darkcard border border-darkborder rounded-2xl shadow-2xl z-50 overflow-hidden backdrop-blur-xl">
-                                <div class="p-3 border-b border-darkborder flex items-center justify-between">
-                                    <h4 class="font-semibold text-xs text-gray-200">Notifications & Mentions</h4>
-                                    <span class="text-[10px] text-purple-400">En direct</span>
-                                </div>
-                                <div id="notif-list" class="max-h-64 overflow-y-auto"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Messages Stream -->
-            <div id="messages-container" class="flex-1 overflow-y-auto p-6 space-y-4"></div>
-
-            <!-- Input Form & Mentions Autocomplete -->
-            <div class="p-4 bg-darkcard border-t border-darkborder relative">
-                <!-- Mention Autocomplete Popup -->
-                <div id="mention-autocomplete" class="hidden absolute bottom-full left-4 mb-2 w-64 bg-darkcard border border-darkborder rounded-xl shadow-2xl overflow-hidden z-30">
-                    <div class="p-2 bg-darker/60 border-b border-darkborder text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Membres suggérés</div>
-                    <div id="mention-list" class="max-h-40 overflow-y-auto"></div>
-                </div>
-
-                <form id="message-form" class="flex items-center space-x-3">
-                    <div class="flex-1 relative">
-                        <input id="message-input" type="text" placeholder="Envoyer un message... (Tapez @ pour mentionner)" class="w-full bg-darker border border-darkborder rounded-2xl px-4 py-3 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors">
-                    </div>
-                    <button type="submit" class="px-5 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-2xl shadow-lg shadow-purple-950/50 flex items-center justify-center space-x-2 transition-all duration-200 flex-shrink-0">
-                        <span>Envoyer</span>
-                        <i data-lucide="send" class="w-4 h-4"></i>
-                    </button>
+            <div class="p-4 border-t border-slate-800 bg-slate-900/50">
+                <form id="message-form" onsubmit="sendMessage(event)" class="flex gap-2">
+                    <input type="text" id="message-input" placeholder="Envoyer un message..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-violet-500 text-slate-100">
+                    <button type="submit" class="bg-violet-600 hover:bg-violet-500 text-white px-5 rounded-xl transition font-medium text-sm flex items-center justify-center shadow-lg"><i class="fa-solid fa-paper-plane"></i></button>
                 </form>
             </div>
-        </main>
+        </div>
     </div>
 
-    <!-- Toast Container for Alerts -->
-    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col items-end pointer-events-none"></div>
+    <!-- Notifications Toast -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 border border-slate-700 text-slate-200 px-4 py-3 rounded-xl shadow-2xl hidden z-50 text-sm flex items-center gap-3">
+        <i class="fa-solid fa-circle-info text-violet-500"></i>
+        <span id="toast-message">Message</span>
+    </div>
 
+    <!-- Scripts Firebase SDK v10 -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // Votre configuration Firebase exacte
+        const firebaseConfig = {
+            apiKey: "AIzaSyB9P5YIywmsBqT_P... (vos clés)",
+            authDomain: "gaming-chat-hub.firebaseapp.com",
+            projectId: "gaming-chat-hub",
+            storageBucket: "gaming-chat-hub.appspot.com",
+            messagingSenderId: "838358986335",
+            appId: "1:838358986335:web:1294305385b47d9bb275ea",
+            measurementId: "G-VVKQ8TH92L"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+        let currentChannel = "général";
+        let unsubscribeMessages = null;
+
+        const channels = [
+            { id: "général", name: "Général", icon: "fa-comments" },
+            { id: "brawl-stars", name: "Brawl Stars", icon: "fa-star" },
+            { id: "clash-of-clans", name: "Clash of Clans", icon: "fa-shield-halved" },
+            { id: "clash-royale", name: "Clash Royale", icon: "fa-crown" },
+            { id: "roblox", name: "Roblox", icon: "fa-cube" }
+        ];
+
+        function initChannels() {
+            const list = document.getElementById('channels-list');
+            list.innerHTML = channels.map(c => `
+                <button onclick="switchChannel('${c.id}')" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition ${currentChannel === c.id ? 'bg-violet-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
+                    <i class="fa-solid ${c.icon} w-5"></i> ${c.name}
+                </button>
+            `).join('');
+        }
+
+        window.switchChannel = function(channelId) {
+            currentChannel = channelId;
+            const chan = channels.find(c => c.id === channelId);
+            document.getElementById('current-channel-title').textContent = `# ${chan ? chan.name : channelId}`;
+            initChannels();
+            loadMessages();
+        }
+
+        window.loginAnonymously = async () => {
+            try {
+                await signInAnonymously(auth);
+            } catch (error) {
+                showToast("Erreur de connexion anonyme: " + error.message);
+            }
+        };
+
+        window.loginWithGoogle = async () => {
+            try {
+                const provider = new GoogleAuthProvider();
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                showToast("Erreur de connexion Google: " + error.message);
+            }
+        };
+
+        window.logout = () => signOut(auth);
+
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            if (user) {
+                document.getElementById('auth-screen').classList.add('hidden');
+                document.getElementById('app-screen').classList.remove('hidden');
+                
+                const name = user.displayName || (user.isAnonymous ? "Invité_" + user.uid.slice(0,4) : "Utilisateur");
+                document.getElementById('user-name').textContent = name;
+                document.getElementById('user-avatar').textContent = name.charAt(0).toUpperCase();
+                
+                initChannels();
+                loadMessages();
+            } else {
+                document.getElementById('auth-screen').classList.remove('hidden');
+                document.getElementById('app-screen').classList.add('hidden');
+                if (unsubscribeMessages) unsubscribeMessages();
+            }
+        });
+
+        window.sendMessage = async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('message-input');
+            const text = input.value.trim();
+            if (!text || !currentUser) return;
+
+            try {
+                await addDoc(collection(db, "channels", currentChannel, "messages"), {
+                    text: text,
+                    uid: currentUser.uid,
+                    displayName: currentUser.displayName || (currentUser.isAnonymous ? "Invité_" + currentUser.uid.slice(0,4) : "Utilisateur"),
+                    createdAt: serverTimestamp()
+                });
+                input.value = '';
+            } catch (error) {
+                showToast("Erreur d'envoi: " + error.message);
+            }
+        };
+
+        function loadMessages() {
+            if (unsubscribeMessages) unsubscribeMessages();
+            const q = query(collection(db, "channels", currentChannel, "messages"), orderBy("createdAt", "asc"));
+            
+            unsubscribeMessages = onSnapshot(q, (snapshot) => {
+                const container = document.getElementById('messages-container');
+                container.innerHTML = snapshot.docs.map(doc => {
+                    const msg = doc.data();
+                    const isMe = currentUser && msg.uid === currentUser.uid;
+                    return `
+                        flex flex-col ${isMe ? 'items-end' : 'items-start'}">
+                            <div class="max-w-[70%]">
+                                <div class="text-xs text-slate-500 mb-1 px-1">${msg.displayName || 'Anonyme'}</div>
+                                <div class="p-3.5 rounded-2xl text-sm ${isMe ? 'bg-violet-600 text-white rounded-br-none shadow-md' : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none'}">
+                                    ${escapeHtml(msg.text)}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                container.scrollTop = container.scrollHeight;
+            });
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            document.getElementById('toast-message').textContent = msg;
+            t.classList.remove('hidden');
+            setTimeout(() => t.classList.add('hidden'), 4000);
+        }
+    </script>
 </body>
 </html>
