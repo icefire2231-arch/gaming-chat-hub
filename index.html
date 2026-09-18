@@ -141,10 +141,10 @@
         </div>
     </div>
 
-    <!-- Modale de profil & thèmes -->
+    <!-- Modale de profil & thèmes & paramètres admin -->
     <div id="profile-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4">
-        <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full space-y-4 shadow-2xl">
-            <h3 class="font-bold text-lg text-slate-100">Modifier mon profil</h3>
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-md w-full space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 class="font-bold text-lg text-slate-100">Mon Profil</h3>
             <div>
                 <label class="text-xs text-slate-400 block mb-1">Votre pseudo</label>
                 <input type="text" id="edit-username" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-[var(--theme-color)]">
@@ -153,6 +153,37 @@
                 <label class="text-xs text-slate-400 block mb-1">URL de votre avatar</label>
                 <input type="text" id="edit-avatar" placeholder="https://exemple.com/avatar.png" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-[var(--theme-color)]">
             </div>
+
+            <!-- Section exclusive Admin (Salons de jeux) -->
+            <div id="admin-salons-section" class="border-t border-slate-800 pt-3 space-y-2 hidden">
+                <div class="flex items-center justify-between">
+                    <label class="text-xs font-semibold text-amber-400 block">⚙️ Espace Admin : Logos des salons</label>
+                    <span class="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded">Réservé au créateur</span>
+                </div>
+                <div class="grid grid-cols-1 gap-2 text-xs">
+                    <div>
+                        <span class="text-slate-400">Général :</span>
+                        <input type="text" id="img-general" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-100 mt-1">
+                    </div>
+                    <div>
+                        <span class="text-slate-400">Brawl Stars :</span>
+                        <input type="text" id="img-brawl-stars" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-100 mt-1">
+                    </div>
+                    <div>
+                        <span class="text-slate-400">Clash of Clans :</span>
+                        <input type="text" id="img-clash-of-clans" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-100 mt-1">
+                    </div>
+                    <div>
+                        <span class="text-slate-400">Clash Royale :</span>
+                        <input type="text" id="img-clash-royale" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-100 mt-1">
+                    </div>
+                    <div>
+                        <span class="text-slate-400">Roblox :</span>
+                        <input type="text" id="img-roblox" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-100 mt-1">
+                    </div>
+                </div>
+            </div>
+
             <div>
                 <label class="text-xs text-slate-400 block mb-2">Thème de couleur</label>
                 <div class="flex gap-3">
@@ -206,21 +237,43 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        // ==========================================
+        // 🔐 VOTRE PSEUDO ADMIN DIRECT (Actuellement "Fire")
+        // ==========================================
+        const ADMIN_NAME = "Fire"; 
+
         let currentUser = null;
         let currentChannel = "général";
         let unsubscribeMessages = null;
         let unsubscribeTyping = null;
+        let globalChannelImages = {
+            "général": "https://cdn-icons-png.flaticon.com/512/426/426833.png",
+            "brawl-stars": "https://cdn-icons-png.flaticon.com/512/3408/3408607.png",
+            "clash-of-clans": "https://cdn-icons-png.flaticon.com/512/3408/3408506.png",
+            "clash-royale": "https://cdn-icons-png.flaticon.com/512/3408/3408511.png",
+            "roblox": "https://cdn-icons-png.flaticon.com/512/876/876211.png"
+        };
         let userProfile = { name: "", avatar: "", theme: "theme-violet" };
         let allUsersList = [];
         let isVocalActive = false;
 
         const channels = [
-            { id: "général", name: "Général", img: "https://cdn-icons-png.flaticon.com/512/426/426833.png" }, 
-            { id: "brawl-stars", name: "Brawl Stars", img: "https://play-lh.googleusercontent.com/w9q245oZ-8QvG10uL90J1V20z5j0q5V0U9Y6z6Z5j0Q5V0U9Y6z6Z5j0Q5V0U9Y6=w240-h480-rw" },
-            { id: "clash-of-clans", name: "Clash of Clans", img: "https://play-lh.googleusercontent.com/L_FAjUC3d_q7G05nJqN9J0Q5V0U9Y6z6Z5j0Q5V0U9Y6z6Z5j0Q5V0U9Y6z6Z5j0Q5=w240-h480-rw" },
-            { id: "clash-royale", name: "Clash Royale", img: "https://play-lh.googleusercontent.com/K1LwZ1J9J0Q5V0U9Y6z6Z5j0Q5V0U9Y6z6Z5j0Q5V0U9Y6z6Z5j0Q5V0U9Y6z6=w240-h480-rw" },
-            { id: "roblox", name: "Roblox", img: "https://images.rbxcdn.com/3b6790a5e8f467ea3cb83aa24c439f04.png" }
+            { id: "général", name: "Général" }, 
+            { id: "brawl-stars", name: "Brawl Stars" },
+            { id: "clash-of-clans", name: "Clash of Clans" },
+            { id: "clash-royale", name: "Clash Royale" },
+            { id: "roblox", name: "Roblox" }
         ];
+
+        async function loadGlobalConfig() {
+            try {
+                const configSnap = await getDoc(doc(db, "settings", "app_config"));
+                if (configSnap.exists() && configSnap.data().channelImages) {
+                    globalChannelImages = configSnap.data().channelImages;
+                }
+            } catch(e) { console.log("Config par défaut utilisée"); }
+            initChannels();
+        }
 
         window.toggleMobileSidebar = () => {
             document.getElementById('sidebar').classList.toggle('-translate-x-full');
@@ -228,12 +281,15 @@
         };
 
         function initChannels() {
-            document.getElementById('channels-list').innerHTML = channels.map(c => `
-                <button onclick="switchChannel('${c.id}')" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition ${currentChannel === c.id ? 'bg-[var(--theme-color)] text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
-                    <img src="${c.img}" class="w-6 h-6 rounded-lg object-cover border border-slate-700 bg-slate-950" onerror="this.src='https://cdn-icons-png.flaticon.com/512/808/808439.png'">
-                    <span class="truncate">${c.name}</span>
-                </button>
-            `).join('');
+            document.getElementById('channels-list').innerHTML = channels.map(c => {
+                const imgUrl = globalChannelImages[c.id] || 'https://cdn-icons-png.flaticon.com/512/808/808439.png';
+                return `
+                    <button onclick="switchChannel('${c.id}')" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition ${currentChannel === c.id ? 'bg-[var(--theme-color)] text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
+                        <img src="${imgUrl}" class="w-6 h-6 rounded-lg object-cover border border-slate-700 bg-slate-950" onerror="this.src='https://cdn-icons-png.flaticon.com/512/808/808439.png'">
+                        <span class="truncate">${c.name}</span>
+                    </button>
+                `;
+            }).join('');
         }
 
         window.switchChannel = function(channelId) {
@@ -264,7 +320,7 @@
             if (user) {
                 document.getElementById('auth-screen').classList.add('hidden');
                 document.getElementById('app-screen').classList.remove('hidden');
-                
+
                 const userSnap = await getDoc(doc(db, "users", user.uid));
                 if (userSnap.exists()) {
                     userProfile = userSnap.data();
@@ -279,7 +335,7 @@
                 }
                 updateUIRating();
                 fetchUsersList();
-                initChannels();
+                await loadGlobalConfig();
                 loadMessages();
                 loadTypingIndicators();
             } else {
@@ -310,6 +366,20 @@
         window.openProfileModal = () => {
             document.getElementById('edit-username').value = userProfile.name;
             document.getElementById('edit-avatar').value = userProfile.avatar;
+            
+            // Vérification si le pseudo actuel correspond à "Fire"
+            const adminSection = document.getElementById('admin-salons-section');
+            if (userProfile.name === ADMIN_NAME) {
+                adminSection.classList.remove('hidden');
+                document.getElementById('img-general').value = globalChannelImages["général"] || '';
+                document.getElementById('img-brawl-stars').value = globalChannelImages["brawl-stars"] || '';
+                document.getElementById('img-clash-of-clans').value = globalChannelImages["clash-of-clans"] || '';
+                document.getElementById('img-clash-royale').value = globalChannelImages["clash-royale"] || '';
+                document.getElementById('img-roblox').value = globalChannelImages["roblox"] || '';
+            } else {
+                adminSection.classList.add('hidden');
+            }
+
             document.getElementById('profile-modal').classList.remove('hidden');
         }
         window.closeProfileModal = () => document.getElementById('profile-modal').classList.add('hidden');
@@ -321,12 +391,25 @@
 
             userProfile.name = newName;
             userProfile.avatar = newAvatar;
-
             await setDoc(doc(db, "users", currentUser.uid), userProfile);
+
+            // Si c'est l'admin ("Fire"), on sauvegarde aussi les images globales
+            if (userProfile.name === ADMIN_NAME) {
+                globalChannelImages = {
+                    "général": document.getElementById('img-general').value.trim(),
+                    "brawl-stars": document.getElementById('img-brawl-stars').value.trim(),
+                    "clash-of-clans": document.getElementById('img-clash-of-clans').value.trim(),
+                    "clash-royale": document.getElementById('img-clash-royale').value.trim(),
+                    "roblox": document.getElementById('img-roblox').value.trim()
+                };
+                await setDoc(doc(db, "settings", "app_config"), { channelImages: globalChannelImages });
+            }
+
             updateUIRating();
             fetchUsersList();
+            initChannels();
             closeProfileModal();
-            showToast("Profil mis à jour !");
+            showToast("Modifications enregistrées !");
         }
 
         window.openMediaModal = () => document.getElementById('media-modal').classList.remove('hidden');
@@ -348,7 +431,6 @@
             } catch(e) { showToast("Erreur: " + e.message); }
         };
 
-        // Gestion du Salon Vocal Rapide
         window.toggleVocal = async () => {
             const vocalRef = doc(db, "channels", currentChannel, "vocal", currentUser.uid);
             if(!isVocalActive) {
@@ -366,37 +448,26 @@
                 document.getElementById('vocal-btn').innerHTML = `<i class="fa-solid fa-microphone"></i> Rejoindre`;
                 document.getElementById('vocal-status').textContent = "Déconnecté";
                 document.getElementById('vocal-status').className = "text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full";
-                document.getElementById('vocal-users').innerHTML = "";
             }
         };
 
-        // Indicateur En train d'écrire
         let typingTimeout;
         const msgInput = document.getElementById('message-input');
         msgInput.addEventListener('input', async () => {
             if(!currentUser) return;
             const typingRef = doc(db, "channels", currentChannel, "typing", currentUser.uid);
             await setDoc(typingRef, { name: userProfile.name });
-            
             clearTimeout(typingTimeout);
-            typingTimeout = setTimeout(async () => {
-                await deleteDoc(typingRef);
-            }, 2000);
+            typingTimeout = setTimeout(async () => { await deleteDoc(typingRef); }, 2000);
         });
 
         function loadTypingIndicators() {
             if(unsubscribeTyping) unsubscribeTyping();
             unsubscribeTyping = onSnapshot(collection(db, "channels", currentChannel, "typing"), (snapshot) => {
                 let typers = [];
-                snapshot.forEach(d => {
-                    if(d.id !== currentUser?.uid) typers.push(d.data().name);
-                });
+                snapshot.forEach(d => { if(d.id !== currentUser?.uid) typers.push(d.data().name); });
                 const indicator = document.getElementById('typing-indicator');
-                if(typers.length > 0) {
-                    indicator.textContent = `${typers.join(', ')} ${typers.length > 1 ? 'sont' : 'est'} en train d'écrire...`;
-                } else {
-                    indicator.textContent = "";
-                }
+                indicator.textContent = typers.length > 0 ? `${typers.join(', ')} ${typers.length > 1 ? 'sont' : 'est'} en train d'écrire...` : "";
             });
         }
 
@@ -404,7 +475,6 @@
             e.preventDefault();
             const text = msgInput.value.trim();
             if (!text || !currentUser) return;
-
             try {
                 await addDoc(collection(db, "channels", currentChannel, "messages"), {
                     text: text,
@@ -414,7 +484,6 @@
                     createdAt: serverTimestamp()
                 });
                 msgInput.value = '';
-                document.getElementById('mention-suggestions').classList.add('hidden');
                 await deleteDoc(doc(db, "channels", currentChannel, "typing", currentUser.uid));
             } catch (error) { showToast("Erreur: " + error.message); }
         };
@@ -422,7 +491,6 @@
         function loadMessages() {
             if (unsubscribeMessages) unsubscribeMessages();
             const q = query(collection(db, "channels", currentChannel, "messages"), orderBy("createdAt", "asc"));
-            
             unsubscribeMessages = onSnapshot(q, (snapshot) => {
                 const container = document.getElementById('messages-container');
                 container.innerHTML = snapshot.docs.map(doc => {
@@ -432,12 +500,7 @@
                         ? `<img src="${msg.avatar}" class="w-8 h-8 rounded-full object-cover">`
                         : `<div class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-xs font-bold">${(msg.displayName || 'A').charAt(0).toUpperCase()}</div>`;
 
-                    let contentHtml = "";
-                    if(msg.mediaUrl) {
-                        contentHtml = `<img src="${msg.mediaUrl}" class="rounded-xl max-h-60 object-cover mt-1">`;
-                    } else {
-                        contentHtml = escapeHtml(msg.text || '');
-                    }
+                    let contentHtml = msg.mediaUrl ? `<img src="${msg.mediaUrl}" class="rounded-xl max-h-60 object-cover mt-1">` : escapeHtml(msg.text || '');
 
                     return `
                         <div class="flex gap-3 ${isMe ? 'flex-row-reverse' : 'flex-row'} items-end">
