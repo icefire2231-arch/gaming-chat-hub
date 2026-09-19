@@ -17,9 +17,14 @@
         .theme-rose { --theme-color: #f43f5e; --theme-dark: #e11d48; }
         .theme-amber { --theme-color: #f59e0b; --theme-dark: #d97706; }
         .message-row:hover .msg-actions { display: flex; }
-        #chat-bg { background-size: cover; background-position: center 20%; }
+        #chat-bg {
+            background-size: cover;
+            background-position: center center;
+            background-repeat: no-repeat;
+            background-color: #1e1f22;
+        }
         @media (min-width: 768px) {
-            #chat-bg { background-size: 150% auto; background-position: center 12%; }
+            #chat-bg { background-size: cover; background-position: center center; }
         }
         .has-bg .message-row .msg-bubble-bg {
             background: rgba(30,31,34,.62);
@@ -446,12 +451,14 @@
         let inboxReady = false;
         let myInboxList = [];
 
+        // Images stockées à la racine du dépôt GitHub (à côté de index.html).
+        // Les noms doivent respecter exactement les majuscules/minuscules des fichiers GitHub.
         const DEFAULT_CHANNELS = [
-            { id: "général", name: "Général", icon: "fa-solid fa-fire text-amber-500", image: "assets/general.png" },
-            { id: "brawl-stars", name: "Brawl Stars", icon: "fa-solid fa-skull text-purple-400", image: "assets/brawl-stars.png" },
-            { id: "clash-of-clans", name: "Clash of Clans", icon: "fa-solid fa-shield-halved text-amber-400", image: "assets/clash-of-clans.png" },
-            { id: "clash-royale", name: "Clash Royale", icon: "fa-solid fa-crown text-yellow-400", image: "assets/clash-royale.png" },
-            { id: "roblox", name: "Roblox", icon: "fa-solid fa-cube text-blue-400", image: "assets/roblox.png" }
+            { id: "général", name: "Général", icon: "fa-solid fa-fire text-amber-500", image: "", bg: "" },
+            { id: "brawl-stars", name: "Brawl Stars", icon: "fa-solid fa-skull text-purple-400", image: "Brawl-star.png", bg: "Brawl-star.png" },
+            { id: "clash-of-clans", name: "Clash of Clans", icon: "fa-solid fa-shield-halved text-amber-400", image: "Clash-of-clan.png", bg: "Clash-of-clan.png" },
+            { id: "clash-royale", name: "Clash Royale", icon: "fa-solid fa-crown text-yellow-400", image: "Clash-Royal.png", bg: "Clash-Royal.png" },
+            { id: "roblox", name: "Roblox", icon: "fa-solid fa-cube text-blue-400", image: "Roblox.png", bg: "Roblox.png" }
         ];
         let textChannels = [...DEFAULT_CHANNELS];
 
@@ -567,7 +574,12 @@
             const bgEl = document.getElementById('chat-bg');
             const overlay = document.getElementById('chat-bg-overlay');
             const container = document.getElementById('messages-container');
-            const url = channel && safeUrl(channel.bg);
+
+            // Si Firebase contient déjà les salons, on récupère quand même le fond
+            // local correspondant au salon quand aucun bg n'a encore été enregistré.
+            const defaultChannel = DEFAULT_CHANNELS.find(c => c.id === channel?.id);
+            const url = safeUrl(channel?.bg) || safeUrl(defaultChannel?.bg);
+
             if (url) {
                 bgEl.style.backgroundImage = `url("${url}")`;
                 overlay.classList.remove('hidden');
@@ -915,10 +927,15 @@
             if (unsubscribeChannels) unsubscribeChannels();
             unsubscribeChannels = onSnapshot(doc(db, "settings", "custom_channels"), (snap) => {
                 const list = snap.exists() && Array.isArray(snap.data().list) ? snap.data().list : [];
-                textChannels = list.length ? list : [...DEFAULT_CHANNELS];
+                textChannels = list.length
+                    ? list.map(c => {
+                        const d = DEFAULT_CHANNELS.find(def => def.id === c.id);
+                        return d ? { ...d, ...c, image: safeUrl(c.image) || d.image, bg: safeUrl(c.bg) || d.bg } : c;
+                    })
+                    : [...DEFAULT_CHANNELS];
                 initSidebarUI();
                 if (currentTargetType === 'channel') applyChannelBackground(textChannels.find(c => c.id === currentTargetId));
-            }, () => { textChannels = [...DEFAULT_CHANNELS]; initSidebarUI(); });
+            }, () => { textChannels = [...DEFAULT_CHANNELS]; initSidebarUI(); if (currentTargetType === 'channel') applyChannelBackground(textChannels.find(c => c.id === currentTargetId)); });
         }
 
         // Glisser-déposer une image ou une URL, ou choisir un fichier : envoyé sur Firebase Storage.
