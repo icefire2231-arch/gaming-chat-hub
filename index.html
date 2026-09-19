@@ -618,7 +618,7 @@ match /inbox/{inboxId} {
         const RESERVED_NAMES = ["fire", "admin", "moderateur", "nexuschat"];
         const GIPHY_KEY = "GlVGYHkr3WSBnllca54iNt0yFbjz7L65"; // clé de démo, prends la tienne sur developers.giphy.com
         const ONLINE_WINDOW_MS = 90 * 1000;
-        const RTC_CONFIG = { iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }] };
+        const RTC_CONFIG = { iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }], iceCandidatePoolSize: 4 };
 
         // Nombre de messages chargés d'un coup (un bouton "Charger les messages plus anciens" permet d'en voir plus)
         const MESSAGE_PAGE = 150;
