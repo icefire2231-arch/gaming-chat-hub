@@ -2099,7 +2099,43 @@ match /inbox/{inboxId} {
            VOCAUX WEBRTC — confirmation, connexion fluide, appels privés
            ========================================================= */
 
+        /* ==========================================================================
+           ÉTAPE 2 — VOCAL WEBRTC v2
+           Remplace tout ce qui va de "const pairId" jusqu'au bloc "beforeunload"
+           (juste avant le commentaire "Saisie").
+           Ce qui change : connexions fiables (plus de candidats ICE perdus),
+           démarrage plus rapide, reconnexion automatique, participants fantômes
+           ignorés, indicateur "qui parle", erreurs micro claires.
+           ========================================================================== */
+
+        const VOICE_PING_MS = 15000;    // "je suis toujours là" toutes les 15 s
+        const VOICE_STALE_MS = 60000;   // sans signe de vie depuis 60 s = fantôme, ignoré
+        const VOICE_TICK_MS = 4000;     // contrôle régulier des connexions
+
+        let mySid = null;               // identifiant de MA session vocale (change à chaque "rejoindre")
+        let voiceRoomData = [];         // participants "vivants" de la salle où je suis
+        let voiceTimer = null, speakTimer = null, lastPing = 0;
+        let audioCtx = null;
+        const speakers = new Map();     // 'me' ou uid -> analyseur de volume
+        const ghostTried = new Set();
+
         const pairId = (a, b) => a < b ? `${a}__${b}` : `${b}__${a}`;
+        const rid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+        const tsMillis = (t) => (t && typeof t.toMillis === 'function') ? t.toMillis() : 0;
+
+        // Un participant sans signe de vie depuis longtemps (onglet fermé brutalement, réseau coupé...) est ignoré
+        function isVoiceAlive(p) {
+            const ms = tsMillis(p.ping) || tsMillis(p.joinedAt);
+            return !ms || (Date.now() - ms < VOICE_STALE_MS);
+        }
+
+        // Identifiant de la connexion entre 2 personnes : il contient les 2 sessions vocales.
+        // Un ancien reste de connexion ne peut donc plus jamais perturber une nouvelle.
+        function connDocRef(roomId, otherUid, otherSid) {
+            const mineFirst = currentUser.uid < otherUid;
+            const sids = mineFirst ? `${mySid}_${otherSid}` : `${otherSid}_${mySid}`;
+            return doc(db, "voice_rooms", roomId, "connections", `${pairId(currentUser.uid, otherUid)}__${sids}`);
+        }
 
         async function clearPairDoc(pairRef) {
             for (const sub of ["callerCandidates", "calleeCandidates"]) {
@@ -2111,6 +2147,71 @@ match /inbox/{inboxId} {
             await deleteDoc(pairRef).catch(() => {});
         }
 
+        /* ---------- Messages d'erreur micro ---------- */
+
+        function micErrorMessage(e) {
+            const n = e && e.name;
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return "🎤 Ton navigateur bloque le micro (le site doit être en https).";
+            if (n === 'NotAllowedError' || n === 'SecurityError') return "🎤 Micro refusé : autorise-le dans les réglages du navigateur (cadenas à côté de l'adresse), puis réessaie.";
+            if (n === 'NotFoundError' || n === 'OverconstrainedError') return "🎤 Aucun micro détecté sur cet appareil.";
+            if (n === 'NotReadableError' || n === 'AbortError') return "🎤 Le micro est utilisé par une autre application. Ferme-la puis réessaie.";
+            return "🎤 Micro indisponible : " + ((e && e.message) || "erreur inconnue");
+        }
+
+        /* ---------- Qui parle ? (mesure du volume, 100 % local, aucune écriture Firebase) ---------- */
+
+        function ensureAudioCtx() {
+            if (!audioCtx) {
+                try { const AC = window.AudioContext || window.webkitAudioContext; if (AC) audioCtx = new AC(); } catch {}
+            }
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+            return audioCtx;
+        }
+
+        function watchSpeaker(key, stream) {
+            const ctx = ensureAudioCtx();
+            if (!ctx || !stream || !stream.getAudioTracks().length) return;
+            unwatchSpeaker(key);
+            try {
+                const src = ctx.createMediaStreamSource(stream);
+                const an = ctx.createAnalyser();
+                an.fftSize = 512;
+                src.connect(an);   // volontairement pas relié à la sortie : on mesure seulement, pas d'écho
+                speakers.set(key, { src, an, buf: new Uint8Array(an.fftSize), speaking: false, hold: 0 });
+            } catch {}
+        }
+
+        function unwatchSpeaker(key) {
+            const s = speakers.get(key);
+            if (!s) return;
+            try { s.src.disconnect(); } catch {}
+            speakers.delete(key);
+        }
+
+        function paintSpeaking() {
+            document.querySelectorAll('[data-vuid]').forEach(el => {
+                const key = (currentUser && el.dataset.vuid === currentUser.uid) ? 'me' : el.dataset.vuid;
+                const s = speakers.get(key);
+                el.classList.toggle('voice-speaking', !!(s && s.speaking));
+            });
+        }
+
+        function speakingLoop() {
+            const now = Date.now();
+            speakers.forEach((s, key) => {
+                s.an.getByteTimeDomainData(s.buf);
+                let peak = 0;
+                for (let i = 0; i < s.buf.length; i++) { const v = Math.abs(s.buf[i] - 128); if (v > peak) peak = v; }
+                let talking = peak > 10;
+                if (key === 'me' && isMicMuted) talking = false;
+                if (talking) s.hold = now + 350;     // petit délai pour éviter le clignotement
+                s.speaking = now < s.hold;
+            });
+            paintSpeaking();
+        }
+
+        /* ---------- Audio distant ---------- */
+
         function attachRemoteAudio(uid, stream) {
             let el = $(`audio-${uid}`);
             if (!el) {
@@ -2118,77 +2219,260 @@ match /inbox/{inboxId} {
                 el.id = `audio-${uid}`; el.autoplay = true; el.playsInline = true;
                 $('remote-audios').appendChild(el);
             }
-            el.srcObject = stream;
+            if (el.srcObject !== stream) el.srcObject = stream;
             el.muted = isDeafened;
             el.play().catch(() => {});
+            watchSpeaker(uid, stream);
         }
 
-        async function connectToPeer(roomId, otherUid) {
-            if (peers[otherUid] || !localStream) return;
-            const isCaller = currentUser.uid < otherUid;
-            const pairRef = doc(db, "voice_rooms", roomId, "connections", pairId(currentUser.uid, otherUid));
-            const callerCands = collection(pairRef, "callerCandidates");
-            const calleeCands = collection(pairRef, "calleeCandidates");
+        /* ---------- Connexion WebRTC entre 2 personnes ----------
+           Le plus petit UID appelle (envoie l'offre), l'autre répond : jamais deux offres en même temps.
+           Chaque tentative a un "cid" : les anciens messages d'une tentative ratée sont ignorés.
+           Les candidats ICE reçus trop tôt sont mis en attente au lieu d'être perdus. */
 
+        function closePc(entry) {
+            const pc = entry.pc;
+            entry.pc = null;
+            if (!pc) return;
+            pc.onicecandidate = null; pc.ontrack = null; pc.onconnectionstatechange = null;
+            try { pc.close(); } catch {}
+        }
+
+        function makePc(entry) {
             const pc = new RTCPeerConnection(RTC_CONFIG);
-            const entry = { pc, unsubs: [] };
-            peers[otherUid] = entry;
-
-            localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-            pc.ontrack = (ev) => attachRemoteAudio(otherUid, ev.streams[0]);
+            entry.pc = pc;
+            entry.stateSince = Date.now();
+            if (localStream) localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+            pc.ontrack = (ev) => { if (entry.pc === pc && ev.streams && ev.streams[0]) attachRemoteAudio(entry.uid, ev.streams[0]); };
+            pc.onicecandidate = (e) => {
+                if (e.candidate && entry.pc === pc && entry.cid) addDoc(entry.myCands, { ...e.candidate.toJSON(), cid: entry.cid }).catch(() => {});
+            };
             pc.onconnectionstatechange = () => {
-                if (["failed", "closed"].includes(pc.connectionState)) closePeer(otherUid);
+                if (entry.pc !== pc) return;
+                entry.stateSince = Date.now();
+                if (pc.connectionState === 'connected') entry.fails = 0;
+                if (pc.connectionState === 'failed') recoverPeer(entry);
                 updateVoicePanel();
             };
+            return pc;
+        }
 
-            const myCands = isCaller ? callerCands : calleeCands;
-            const theirCands = isCaller ? calleeCands : callerCands;
-            pc.onicecandidate = (e) => { if (e.candidate) addDoc(myCands, e.candidate.toJSON()).catch(() => {}); };
-            entry.unsubs.push(onSnapshot(theirCands, (s) => {
-                s.docChanges().forEach(c => { if (c.type === 'added') pc.addIceCandidate(new RTCIceCandidate(c.doc.data())).catch(() => {}); });
-            }));
+        function feedCandidate(entry, c) {
+            const pc = entry.pc;
+            if (!pc || !entry.cid || !pc.remoteDescription) {
+                if (entry.queue.length < 300) entry.queue.push(c);   // trop tôt : on garde pour plus tard
+                return;
+            }
+            if (c.cid !== entry.cid) return;                         // reste d'une ancienne tentative
+            const { cid, ...init } = c;
+            try { pc.addIceCandidate(new RTCIceCandidate(init)).catch(() => {}); } catch {}
+        }
 
-            if (isCaller) {
-                await clearPairDoc(pairRef);
+        function flushCandidates(entry) {
+            const q = entry.queue; entry.queue = [];
+            q.forEach(c => feedCandidate(entry, c));
+        }
+
+        // Côté "appelant" : nouvelle connexion propre + envoi de l'offre
+        async function callerOffer(entry) {
+            if (entry.dead) return;
+            entry.offerAt = Date.now();
+            closePc(entry);
+            entry.cid = rid();
+            entry.remoteSetFor = null;
+            const pc = makePc(entry);
+            try {
                 const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
-                await setDoc(pairRef, { offer: { type: offer.type, sdp: offer.sdp }, caller: currentUser.uid });
-                entry.unsubs.push(onSnapshot(pairRef, async (s) => {
-                    const d = s.data();
-                    if (d?.answer && !pc.currentRemoteDescription) await pc.setRemoteDescription(new RTCSessionDescription(d.answer)).catch(() => {});
-                }));
-            } else {
-                entry.unsubs.push(onSnapshot(pairRef, async (s) => {
-                    const d = s.data();
-                    if (d?.offer && !pc.currentRemoteDescription) {
-                        await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
-                        const answer = await pc.createAnswer();
-                        await pc.setLocalDescription(answer);
-                        await updateDoc(pairRef, { answer: { type: answer.type, sdp: answer.sdp } }).catch(() => {});
-                    }
-                }));
+                if (entry.dead || entry.pc !== pc) return;
+                await setDoc(entry.pairRef, { offer: { type: offer.type, sdp: offer.sdp }, cid: entry.cid, caller: currentUser.uid });
+            } catch (e) { console.warn("offre vocale", e); }
+        }
+
+        async function callerOnDoc(entry, d) {
+            if (entry.dead) return;
+            // Demande de reconnexion envoyée par l'autre personne
+            if (!entry.retryInit) { entry.retryInit = true; entry.lastRetry = (d && d.retry) || ''; }
+            else if (d && d.retry && d.retry !== entry.lastRetry) {
+                entry.lastRetry = d.retry;
+                if (Date.now() - entry.offerAt > 3000) callerOffer(entry);
+            }
+            const pc = entry.pc;
+            if (d && d.answer && d.answerCid === entry.cid && pc && entry.remoteSetFor !== pc) {
+                entry.remoteSetFor = pc;
+                try {
+                    await pc.setRemoteDescription(new RTCSessionDescription(d.answer));
+                    if (entry.pc === pc) flushCandidates(entry);
+                } catch (e) { console.warn("réponse vocale invalide", e); }
             }
         }
 
+        // Côté "répondeur" : une nouvelle offre = une nouvelle connexion propre
+        async function calleeAnswer(entry, d) {
+            if (entry.dead || !d.offer || !d.cid || d.cid === entry.cid) return;
+            closePc(entry);
+            entry.cid = d.cid;
+            const pc = makePc(entry);
+            try {
+                await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
+                if (entry.pc !== pc) return;
+                flushCandidates(entry);
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                if (entry.pc !== pc) return;
+                await updateDoc(entry.pairRef, { answer: { type: answer.type, sdp: answer.sdp }, answerCid: entry.cid });
+            } catch (e) { console.warn("réponse vocale", e); }
+        }
+
+        // Connexion tombée : on repart proprement (au plus une fois toutes les 5 s)
+        function recoverPeer(entry) {
+            if (entry.dead || !activeVoiceId) return;
+            const now = Date.now();
+            if (now - (entry.lastRecover || 0) < 5000) return;
+            entry.lastRecover = now;
+            entry.fails = (entry.fails || 0) + 1;
+            if (entry.fails === 3) {
+                const p = voiceRoomData.find(x => x.uid === entry.uid);
+                showToast(`Connexion difficile avec ${(p && p.name) || 'un participant'} (réseau restrictif ?)`, 4500);
+            }
+            if (entry.isCaller) callerOffer(entry);
+            else {
+                closePc(entry);
+                entry.stateSince = now;
+                updateDoc(entry.pairRef, { retry: rid() }).catch(() => {});   // on demande une nouvelle offre
+            }
+        }
+
+        function connectToPeer(roomId, other) {
+            if (peers[other.uid] || !localStream || !mySid) return;
+            const isCaller = currentUser.uid < other.uid;
+            const pairRef = connDocRef(roomId, other.uid, other.sid);
+            const entry = {
+                uid: other.uid, sid: other.sid, pairRef, isCaller,
+                pc: null, cid: null, queue: [], unsubs: [], dead: false,
+                chain: Promise.resolve(), stateSince: Date.now(), offerAt: 0, fails: 0,
+                myCands: collection(pairRef, isCaller ? "callerCandidates" : "calleeCandidates")
+            };
+            peers[other.uid] = entry;
+
+            const theirCands = collection(pairRef, isCaller ? "calleeCandidates" : "callerCandidates");
+            entry.unsubs.push(onSnapshot(theirCands, (s) => {
+                s.docChanges().forEach(c => { if (c.type === 'added') feedCandidate(entry, c.doc.data()); });
+            }, () => {}));
+
+            if (isCaller) {
+                entry.unsubs.push(onSnapshot(pairRef, (s) => { callerOnDoc(entry, s.data()); }, () => {}));
+                callerOffer(entry);
+            } else {
+                entry.unsubs.push(onSnapshot(pairRef, (s) => {
+                    const d = s.data();
+                    if (d && d.offer) entry.chain = entry.chain.then(() => calleeAnswer(entry, d)).catch(() => {});
+                }, () => {}));
+            }
+            updateVoicePanel();
+        }
+
+        // Une seule fonction pour fermer proprement une connexion (aussi appelée à la déconnexion du compte)
         function closePeer(uid) {
-            const p = peers[uid];
-            if (!p) return;
-            p.unsubs.forEach(fn => { try { fn(); } catch {} });
-            try { p.pc.close(); } catch {}
+            const e = peers[uid];
+            if (!e) return;
+            e.dead = true;
+            e.unsubs.forEach(fn => { try { fn(); } catch {} });
+            closePc(e);
             $(`audio-${uid}`)?.remove();
+            unwatchSpeaker(uid);
             delete peers[uid];
             updateVoicePanel();
         }
 
+        // Compare la liste des participants vivants et les connexions ouvertes : connecte / ferme ce qu'il faut
+        function reconcilePeers() {
+            if (!activeVoiceId || !localStream || !currentUser) return;
+            const others = voiceRoomData.filter(p => p.uid !== currentUser.uid);
+            const wanted = new Set(others.map(p => p.uid));
+            others.forEach(p => {
+                const sid = p.sid || 'x';
+                if (peers[p.uid] && peers[p.uid].sid !== sid) closePeer(p.uid);   // la personne est revenue avec une nouvelle session
+                if (!peers[p.uid]) connectToPeer(activeVoiceId, { uid: p.uid, sid });
+            });
+            Object.keys(peers).forEach(uid => { if (!wanted.has(uid)) closePeer(uid); });
+        }
+
+        /* ---------- Panneau vocal ---------- */
+
         function updateVoicePanel() {
-            const n = Object.keys(peers).length;
-            $('voice-peer-count').textContent = n ? `${n} connexion(s)` : "en attente...";
+            const el = $('voice-peer-count');
+            if (!el) return;
+            const list = Object.values(peers);
+            if (!list.length) { el.textContent = voiceRoomData.length > 1 ? "connexion…" : "en attente…"; return; }
+            const ok = list.filter(e => e.pc && e.pc.connectionState === 'connected').length;
+            el.textContent = ok === list.length ? `${ok} connecté${ok > 1 ? 's' : ''}` : `${ok}/${list.length} connectés…`;
+        }
+
+        function renderVoicePeople() {
+            const box = $('voice-people');
+            if (!box) return;
+            if (!activeVoiceId) { setHtml(box, ''); return; }
+            setHtml(box, voiceRoomData.map(p => {
+                const av = safeUrl(p.avatar);
+                const letter = escapeHtml(String(p.name || '?').charAt(0));
+                return `<div data-vuid="${escapeHtml(p.uid)}" class="flex items-center gap-1.5 bg-[#1e1f22]/70 rounded-full pl-1 pr-2.5 py-1 text-xs text-[#dbdee1] transition">
+                    <div class="v-av w-5 h-5 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-[10px] font-bold overflow-hidden shrink-0 transition">
+                        ${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : letter}
+                    </div>
+                    <span class="truncate max-w-[7rem]">${escapeHtml(p.name || '?')}</span>
+                    <i class="fa-solid ${p.muted ? 'fa-microphone-slash text-rose-400' : 'fa-microphone text-emerald-400'} text-[10px]"></i>
+                </div>`;
+            }).join(''));
+            paintSpeaking();
         }
 
         function hideVoicePanel() {
             const p = $('active-voice-panel');
             p.classList.add('hidden'); p.classList.remove('flex');
         }
+
+        /* ---------- Contrôle régulier : signe de vie, reconnexions ---------- */
+
+        function sendVoicePing() {
+            if (!activeVoiceId || !currentUser) return;
+            // setDoc + merge : si mon document a disparu, il est recréé tout seul
+            setDoc(doc(db, "voice_rooms", activeVoiceId, "participants", currentUser.uid), {
+                name: userProfile.name, avatar: userProfile.avatar || "", muted: isMicMuted, sid: mySid, ping: serverTimestamp()
+            }, { merge: true }).catch(() => {});
+        }
+
+        function voiceTick() {
+            if (!activeVoiceId || !currentUser || !localStream) { stopVoiceTimers(); return; }
+            const now = Date.now();
+            if (now - lastPing > VOICE_PING_MS) { lastPing = now; sendVoicePing(); }
+
+            voiceRoomData = voiceRoomData.filter(isVoiceAlive);   // les fantômes disparaissent même sans nouvel évènement
+            reconcilePeers();
+            renderVoicePeople();
+
+            Object.values(peers).forEach(e => {
+                const st = e.pc ? e.pc.connectionState : 'none';
+                if (st === 'connected') return;
+                const age = now - e.stateSince;
+                if (st === 'failed' || st === 'closed' || (st === 'disconnected' && age > 6000) || age > 15000) recoverPeer(e);
+            });
+            updateVoicePanel();
+        }
+
+        function startVoiceTimers() {
+            stopVoiceTimers();
+            voiceTimer = setInterval(voiceTick, VOICE_TICK_MS);
+            speakTimer = setInterval(speakingLoop, 120);
+        }
+        function stopVoiceTimers() {
+            clearInterval(voiceTimer); clearInterval(speakTimer);
+            voiceTimer = speakTimer = null;
+            [...speakers.keys()].forEach(unwatchSpeaker);
+            paintSpeaking();
+        }
+
+        /* ---------- Rejoindre / quitter ---------- */
 
         window.requestJoinVoice = (id, name) => {
             if (activeVoiceId === id) return showToast("Tu es déjà dans ce vocal.");
@@ -2200,11 +2484,13 @@ match /inbox/{inboxId} {
 
         window.confirmJoinVoice = async () => {
             if (!pendingVoice) return;
+            ensureAudioCtx();   // à faire pendant le clic : sinon les navigateurs mobiles bloquent l'audio
             const { id, name } = pendingVoice;
             const btn = $('voice-confirm-btn');
             btn.disabled = true;
             btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Connexion...`;
-            await doJoinVoice(id, name);
+            try { await doJoinVoice(id, name); }
+            catch (e) { console.warn(e); showToast("Erreur vocal : " + e.message); }
             btn.disabled = false;
             btn.innerHTML = `<i class="fa-solid fa-phone"></i> Rejoindre`;
             $('voice-confirm-modal').classList.add('hidden');
@@ -2212,59 +2498,99 @@ match /inbox/{inboxId} {
         };
 
         async function doJoinVoice(voiceId, friendlyName) {
-            if (activeVoiceId === voiceId) return;
-            if (activeVoiceId) await leaveVoiceChannel();
+            if (activeVoiceId === voiceId || !currentUser) return;
+            if (activeVoiceId) await leaveVoiceChannel(true);
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { showToast(micErrorMessage()); return; }
 
             const panel = $('active-voice-panel');
             panel.classList.remove('hidden'); panel.classList.add('flex');
             $('active-voice-name').textContent = `Connexion à ${friendlyName}...`;
             $('voice-panel-controls').classList.add('opacity-40', 'pointer-events-none');
 
+            let stream;
             try {
-                localStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+                stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
             } catch (e) {
                 hideVoicePanel();
-                return showToast("🎤 Micro refusé ou indisponible.");
+                showToast(micErrorMessage(e), 5000);
+                return;
             }
+            if (!currentUser) { stream.getTracks().forEach(t => t.stop()); return; }
 
+            localStream = stream;
+            mySid = rid();
             activeVoiceId = voiceId;
+            voiceRoomData = [];
+            ghostTried.clear();
             isMicMuted = false; isDeafened = false;
             updateMicUI();
+            $('deafen-icon').className = "fa-solid fa-headphones text-emerald-400";
             $('voice-panel-controls').classList.remove('opacity-40', 'pointer-events-none');
 
-            await setDoc(doc(db, "voice_rooms", voiceId, "participants", currentUser.uid), {
-                name: userProfile.name, avatar: userProfile.avatar || "", muted: false, joinedAt: serverTimestamp()
-            });
+            try {
+                await setDoc(doc(db, "voice_rooms", voiceId, "participants", currentUser.uid), {
+                    name: userProfile.name, avatar: userProfile.avatar || "", muted: false,
+                    sid: mySid, joinedAt: serverTimestamp(), ping: serverTimestamp()
+                });
+            } catch (e) {
+                showToast("Impossible de rejoindre le vocal : " + e.message);
+                await leaveVoiceChannel(true);   // relâche le micro
+                return;
+            }
 
+            watchSpeaker('me', localStream);
+            lastPing = Date.now();
+            startVoiceTimers();
             $('active-voice-name').textContent = `🔊 ${friendlyName}`;
             updateVoicePanel();
             showToast("Connecté !");
 
             if (unsubRoomParticipants) unsubRoomParticipants();
             unsubRoomParticipants = onSnapshot(collection(db, "voice_rooms", voiceId, "participants"), (snap) => {
-                const ids = snap.docs.map(d => d.id).filter(id => id !== currentUser.uid);
-                ids.forEach(id => { if (!peers[id]) connectToPeer(voiceId, id); });
-                Object.keys(peers).forEach(id => { if (!ids.includes(id)) closePeer(id); });
-            });
+                if (activeVoiceId !== voiceId || !currentUser) return;
+                const all = snap.docs.map(d => ({ ...d.data({ serverTimestamps: 'estimate' }), uid: d.id }));
+                voiceRoomData = all.filter(isVoiceAlive);
+                // Nettoyage (si les règles Firebase l'autorisent) des fantômes vieux de plus de 2 minutes
+                all.filter(p => p.uid !== currentUser.uid && !isVoiceAlive(p) && Date.now() - (tsMillis(p.ping) || tsMillis(p.joinedAt)) > 120000)
+                    .forEach(p => {
+                        const k = `${voiceId}/${p.uid}`;
+                        if (ghostTried.has(k)) return;
+                        ghostTried.add(k);
+                        deleteDoc(doc(db, "voice_rooms", voiceId, "participants", p.uid)).catch(() => {});
+                    });
+                reconcilePeers();
+                renderVoicePeople();
+                updateVoicePanel();
+            }, (err) => console.warn("participants vocaux", err));
 
             initSidebarUI();
         }
 
-        window.leaveVoiceChannel = async () => {
+        window.leaveVoiceChannel = async (silent) => {
             if (!activeVoiceId) return;
             const room = activeVoiceId;
+            const me = currentUser;
             activeVoiceId = null;
-            hideVoicePanel();
-            initSidebarUI();
-            showToast("Appel terminé.");
 
+            // 1) On disparaît tout de suite pour les autres
+            const removeMe = me ? deleteDoc(doc(db, "voice_rooms", room, "participants", me.uid)).catch(() => {}) : Promise.resolve();
+
+            // 2) Nettoyage local immédiat
+            hideVoicePanel();
+            stopVoiceTimers();
+            voiceRoomData = [];
+            renderVoicePeople();
+            initSidebarUI();
+            if (silent !== true) showToast("Appel terminé.");
             if (unsubRoomParticipants) { unsubRoomParticipants(); unsubRoomParticipants = null; }
-            for (const uid of Object.keys(peers)) {
-                if (currentUser.uid < uid) clearPairDoc(doc(db, "voice_rooms", room, "connections", pairId(currentUser.uid, uid)));
-                closePeer(uid);
-            }
+
+            const pairRefs = Object.values(peers).map(e => e.pairRef);
+            Object.keys(peers).forEach(closePeer);
             if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
-            await deleteDoc(doc(db, "voice_rooms", room, "participants", currentUser.uid)).catch(() => {});
+            mySid = null;
+
+            // 3) Suppression des traces de signalisation
+            await Promise.all([removeMe, ...pairRefs.map(clearPairDoc)]);
         };
 
         window.toggleMuteMic = async () => {
@@ -2295,19 +2621,36 @@ match /inbox/{inboxId} {
             }
         }
 
+        // Liste des personnes présentes dans chaque salon vocal (menu de gauche)
         function listenVoiceChannels() {
             voiceUnsubs.forEach(fn => fn && fn());
             voiceUnsubs = voiceChannelsList.map(v =>
                 onSnapshot(collection(db, "voice_rooms", v.id, "participants"), (snap) => {
-                    voiceParticipants[v.id] = snap.docs.map(d => d.data());
+                    voiceParticipants[v.id] = snap.docs.map(d => ({ ...d.data({ serverTimestamps: 'estimate' }), uid: d.id }));
                     initSidebarUI();
-                })
+                }, () => {})
             );
         }
 
-        window.addEventListener('beforeunload', () => {
-            if (activeVoiceId && currentUser) deleteDoc(doc(db, "voice_rooms", activeVoiceId, "participants", currentUser.uid));
-        });
+        /* ---------- Évènements du navigateur ---------- */
+
+        const leaveOnUnload = (e) => {
+            if (e && e.persisted) return;
+            if (activeVoiceId && currentUser) deleteDoc(doc(db, "voice_rooms", activeVoiceId, "participants", currentUser.uid)).catch(() => {});
+        };
+        window.addEventListener('beforeunload', leaveOnUnload);
+        window.addEventListener('pagehide', leaveOnUnload);
+
+        // Retour sur l'appli ou retour du réseau : on se signale, on réveille l'audio, on répare les connexions
+        function wakeVoice() {
+            if (!activeVoiceId) return;
+            lastPing = 0;
+            ensureAudioCtx();
+            document.querySelectorAll('#remote-audios audio').forEach(a => a.play().catch(() => {}));
+            voiceTick();
+        }
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) wakeVoice(); });
+        window.addEventListener('online', wakeVoice);
 
         /* ---------- Saisie ---------- */
 
