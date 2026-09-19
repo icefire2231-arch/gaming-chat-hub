@@ -3,7 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#1e1f22">
     <title>NexusChat - Ultimate Gaming Hub</title>
+
+    <!-- Logo : le fichier logo5.png doit être à la racine du dépôt, à côté de index.html -->
+    <link rel="icon" type="image/png" href="logo5.png">
+    <link rel="apple-touch-icon" href="logo5.png">
+    <link rel="preload" as="image" href="logo5.png">
+
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js">
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js">
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = { darkMode: 'class' }
@@ -16,6 +28,12 @@
         .theme-blue { --theme-color: #3b82f6; --theme-dark: #2563eb; }
         .theme-rose { --theme-color: #f43f5e; --theme-dark: #e11d48; }
         .theme-amber { --theme-color: #f59e0b; --theme-dark: #d97706; }
+
+        html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+        /* On garde le contrôle des gestes horizontaux (swipe du menu) : le navigateur ne gère que le scroll vertical */
+        #app-screen { touch-action: pan-y; }
+        #messages-container, #sidebar .overflow-y-auto { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+
         .message-row:hover .msg-actions { display: flex; }
         #chat-bg {
             background-size: cover;
@@ -38,20 +56,43 @@
         .chan-row:hover .chan-edit { opacity: 1; }
         input, select, textarea { font-size: 16px !important; }
         .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
-        #sidebar { transition: transform .25s ease-out; }
+
+        /* Menu latéral : suit le doigt pendant le glissement, puis s'anime vers sa position finale */
+        #sidebar { transition: transform .28s cubic-bezier(.22,.8,.3,1); }
+        @media (max-width: 767px) { #sidebar { will-change: transform; } }
+        #sidebar-overlay { transition: opacity .28s ease; }
+
         .modal-pop { animation: modalPop .18s ease-out; }
         @keyframes modalPop { from { opacity:0; transform: scale(.96); } to { opacity:1; transform: scale(1); } }
         .dropzone-active { border-color: var(--theme-color) !important; background: rgba(139,92,246,.08); }
+
+        /* Nouveau message : petite entrée douce (uniquement pour les messages qui arrivent en direct) */
+        .msg-row-enter { animation: rowIn .2s ease-out; }
+        @keyframes rowIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+        /* Logo : halo glacé à gauche, halo de feu à droite, comme le logo lui-même */
+        .logo-glow { filter: drop-shadow(-6px 0 14px rgba(56,189,248,.35)) drop-shadow(6px 0 14px rgba(251,113,60,.35)); }
+        .logo-glow-sm { filter: drop-shadow(-2px 0 5px rgba(56,189,248,.4)) drop-shadow(2px 0 5px rgba(251,113,60,.4)); }
+
+        @media (prefers-reduced-motion: reduce) {
+            * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+        }
     </style>
 </head>
 <body id="body-theme" class="bg-[#1e1f22] text-[#f2f3f5] h-[100dvh] flex flex-col overflow-hidden font-sans theme-violet">
 
-    <div id="auth-screen" class="fixed inset-0 bg-[#1e1f22] flex items-center justify-center z-50 p-4">
-        <div class="bg-[#2b2d31] border border-[#3f4147] p-8 rounded-2xl shadow-2xl max-w-md w-full text-center relative">
-            <div class="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-[var(--theme-color)] text-white w-16 h-16 rounded-2xl flex items-center justify-center text-2xl shadow-lg border-4 border-slate-950">
-                <i class="fa-solid fa-gamepad"></i>
+    <!-- Écran de démarrage : évite de voir clignoter l'écran de connexion pendant que Firebase vérifie la session -->
+    <div id="splash" class="fixed inset-0 z-[70] bg-[#1e1f22] flex flex-col items-center justify-center gap-5 transition-opacity duration-300">
+        <img src="logo5.png" alt="NexusChat" class="w-32 h-32 object-contain logo-glow animate-pulse">
+        <span class="text-[#949ba4] text-sm tracking-wide">Chargement…</span>
+    </div>
+
+    <div id="auth-screen" class="fixed inset-0 bg-[#1e1f22] hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-[#2b2d31] border border-[#3f4147] px-8 pb-8 pt-20 mt-16 rounded-2xl shadow-2xl max-w-md w-full text-center relative">
+            <div class="absolute -top-16 left-1/2 -translate-x-1/2 w-32 h-32 flex items-center justify-center">
+                <img src="logo5.png" alt="NexusChat" class="w-full h-full object-contain logo-glow" onerror="this.style.display='none'">
             </div>
-            <h1 class="text-2xl font-bold mt-4 mb-2">NexusChat</h1>
+            <h1 class="text-2xl font-bold mb-2">NexusChat</h1>
             <p class="text-[#949ba4] text-sm mb-6">Salons, Vocaux réels, Groupes privés et MPs isolés !</p>
             <div class="space-y-3">
                 <button onclick="loginWithGoogle()" class="w-full bg-white hover:bg-slate-100 text-slate-900 font-medium py-3 px-4 rounded-xl transition flex items-center justify-center gap-3 shadow-md">
@@ -65,11 +106,15 @@
     </div>
 
     <div id="app-screen" class="flex h-full w-full hidden relative overflow-hidden">
-        <div id="sidebar-overlay" onclick="toggleMobileSidebar()" class="fixed inset-0 bg-black/60 z-20 md:hidden hidden backdrop-blur-sm"></div>
+        <div id="sidebar-overlay" onclick="toggleMobileSidebar()" class="fixed inset-0 bg-black/60 z-20 md:hidden opacity-0 pointer-events-none"></div>
 
         <div id="sidebar" class="absolute md:relative inset-y-0 left-0 w-80 max-w-[85vw] bg-[#2b2d31] border-r border-[#3f4147] flex flex-col z-30 transform -translate-x-full md:translate-x-0">
             <div class="p-4 border-b border-[#3f4147] flex items-center justify-between shrink-0">
-                <span class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-gamepad text-[var(--theme-color)]"></i> NexusChat</span>
+                <span class="font-bold text-lg flex items-center gap-2.5">
+                    <img src="logo5.png" alt="" class="w-9 h-9 object-contain logo-glow-sm" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block'">
+                    <i class="fa-solid fa-gamepad text-[var(--theme-color)]" style="display:none"></i>
+                    NexusChat
+                </span>
                 <button onclick="toggleMobileSidebar()" class="md:hidden text-[#949ba4] hover:text-white p-2 -mr-2"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
 
@@ -144,8 +189,27 @@
             <div class="relative flex-1 overflow-hidden flex flex-col">
                 <div id="chat-bg" class="absolute inset-0 transition-opacity duration-300"></div>
                 <div id="chat-bg-overlay" class="absolute inset-0 bg-[#313338]/93 hidden"></div>
-                <div id="messages-container" class="relative z-10 flex-1 overflow-y-auto px-2 md:px-4 py-3 space-y-0.5"></div>
+
+                <div id="messages-container" class="relative z-10 flex-1 overflow-y-auto px-2 md:px-4 py-3">
+                    <div id="load-more-wrap" class="hidden flex justify-center pb-3">
+                        <button id="load-more-btn" onclick="loadOlderMessages()" class="text-xs text-[#dbdee1] bg-[#1e1f22]/85 hover:bg-[#1e1f22] border border-[#3f4147] px-3.5 py-1.5 rounded-full transition">
+                            <i class="fa-solid fa-clock-rotate-left mr-1.5"></i>Charger les messages plus anciens
+                        </button>
+                    </div>
+                    <div id="messages-skeleton" class="space-y-5 px-2 py-2" aria-hidden="true"></div>
+                    <div id="messages-list" class="space-y-0.5"></div>
+                    <div id="messages-empty" class="hidden flex flex-col items-center justify-center text-center py-16 gap-3 text-[#80848e]">
+                        <img src="logo5.png" alt="" class="w-24 h-24 object-contain opacity-60" onerror="this.style.display='none'">
+                        <p class="text-sm">Aucun message ici pour l'instant.<br>Lance la conversation !</p>
+                    </div>
+                </div>
+
                 <div id="scroll-time-indicator" class="hidden absolute top-2 left-1/2 -translate-x-1/2 bg-[#1e1f22]/90 text-[#dbdee1] text-xs font-medium px-3 py-1.5 rounded-full shadow-lg z-20 pointer-events-none transition-opacity duration-200">--</div>
+
+                <button id="scroll-bottom-btn" onclick="jumpToBottom()" class="hidden absolute bottom-3 right-3 z-20 w-9 h-9 rounded-full bg-[var(--theme-color)] text-white flex items-center justify-center shadow-lg transition hover:opacity-90" title="Aller au dernier message">
+                    <i class="fa-solid fa-arrow-down text-sm"></i>
+                </button>
+
                 <div class="absolute top-2 right-2 z-20">
                     <button onclick="toggleJumpMenu()" id="jump-btn" class="w-9 h-9 rounded-full bg-[#1e1f22]/85 hover:bg-[#1e1f22] text-[#dbdee1] flex items-center justify-center shadow-lg transition" title="Remonter dans le temps">
                         <i class="fa-solid fa-clock-rotate-left text-sm"></i>
@@ -188,9 +252,10 @@
                     <button type="button" onclick="openPingPicker()" class="text-[#949ba4] hover:text-[#dbdee1] p-2 transition text-lg shrink-0" title="Ping quelqu'un"><i class="fa-solid fa-at"></i></button>
                     <div class="relative flex-1 min-w-0">
                         <div id="mention-suggestions" class="hidden absolute bottom-full mb-2 left-0 right-0 bg-[#2b2d31] border border-[#3f4147] rounded-xl shadow-2xl max-h-48 overflow-y-auto z-20"></div>
-                        <input type="text" id="message-input" placeholder="Envoyer un message... (@ pour ping)" class="w-full bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3.5 py-2.5 md:py-3 text-sm focus:outline-none focus:border-[var(--theme-color)] text-[#f2f3f5]">
+                        <input type="text" id="message-input" autocomplete="off" placeholder="Envoyer un message... (@ pour ping)" class="w-full bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3.5 py-2.5 md:py-3 text-sm focus:outline-none focus:border-[var(--theme-color)] text-[#f2f3f5]">
                     </div>
-                    <button type="submit" class="bg-[var(--theme-color)] hover:opacity-90 text-white px-4 md:px-5 py-2.5 md:py-3 rounded-xl transition font-medium text-sm flex items-center justify-center shadow-lg shrink-0"><i class="fa-solid fa-paper-plane"></i></button>
+                    <!-- onmousedown/preventDefault : le bouton n'enlève plus le focus du champ, le clavier mobile reste ouvert -->
+                    <button type="submit" onmousedown="event.preventDefault()" class="bg-[var(--theme-color)] hover:opacity-90 text-white px-4 md:px-5 py-2.5 md:py-3 rounded-xl transition font-medium text-sm flex items-center justify-center shadow-lg shrink-0"><i class="fa-solid fa-paper-plane"></i></button>
                 </form>
             </div>
         </div>
@@ -399,10 +464,19 @@
         <span id="toast-message">Message</span>
     </div>
 
+    <!-- Filet de sécurité : si Firebase met trop longtemps à répondre, on ne reste pas bloqué sur l'écran de démarrage -->
+    <script>
+        window.__splashTimer = setTimeout(function () {
+            var s = document.getElementById('splash'); if (s) s.remove();
+            var app = document.getElementById('app-screen');
+            if (app && app.classList.contains('hidden')) document.getElementById('auth-screen').classList.remove('hidden');
+        }, 9000);
+    </script>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, where, orderBy, onSnapshot, serverTimestamp, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, writeBatch, arrayRemove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, where, orderBy, limitToLast, onSnapshot, serverTimestamp, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, writeBatch, arrayRemove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
         const firebaseConfig = {
@@ -435,6 +509,12 @@
         const ONLINE_WINDOW_MS = 90 * 1000;
         const RTC_CONFIG = { iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }] };
 
+        // Nombre de messages chargés d'un coup (un bouton "Charger les messages plus anciens" permet d'en voir plus)
+        const MESSAGE_PAGE = 150;
+        const EMOJIS = ['👍', '❤️', '😂', '🔥', '💀', '👑', '🚀', '🎮', '😎'];
+
+        const $ = (id) => document.getElementById(id);
+
         let currentUser = null;
         let currentTargetType = "channel";
         let currentTargetId = "général";
@@ -447,9 +527,22 @@
         let unsubscribeMessages = null, unsubscribeTyping = null, unsubscribeUsers = null,
             unsubscribeChannels = null, unsubscribeGroups = null, unsubRoomParticipants = null,
             unsubConvVoice = null, unsubInbox = null;
+        let voiceUnsubs = [];
         let heartbeatTimer = null;
         let inboxReady = false;
         let myInboxList = [];
+
+        // État du chargement des messages : le "token" change à chaque changement de salon,
+        // ce qui permet d'ignorer toute réponse tardive venant du salon précédent.
+        let messagesToken = 0;
+        let typingToken = 0;
+        let messageLimit = MESSAGE_PAGE;
+        let hasMore = false;
+        let pendingJumpHours = null;
+        let renderedKey = null;          // clé de la conversation actuellement affichée dans la liste
+        const convCache = new Map();     // clé -> HTML déjà affiché (pour un retour instantané dans un salon visité)
+        const msgData = new Map();       // id message -> données (pour les réactions sans relecture)
+        let pinned = true;               // vrai si on est collé en bas du chat
 
         // Images stockées à la racine du dépôt GitHub (à côté de index.html).
         // Les noms doivent respecter exactement les majuscules/minuscules des fichiers GitHub.
@@ -461,6 +554,14 @@
             { id: "roblox", name: "Roblox", icon: "fa-solid fa-cube text-blue-400", image: "Roblox.png", bg: "Roblox.png" }
         ];
         let textChannels = [...DEFAULT_CHANNELS];
+
+        // Fonds locaux présents à la racine du dépôt GitHub
+        const LOCAL_BACKGROUNDS = {
+            "brawl-stars": "Brawl-star.png",
+            "clash-of-clans": "Clash-of-clan.png",
+            "clash-royale": "Clash-Royal.png",
+            "roblox": "Roblox.png"
+        };
 
         const voiceChannelsList = [
             { id: "vocal-general", name: "Salon Vocal Général" },
@@ -509,50 +610,137 @@
             return ts.toDate().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
         }
 
+        let toastTimer;
         window.showToast = (msg) => {
-            const t = document.getElementById('toast');
-            document.getElementById('toast-message').textContent = msg;
+            const t = $('toast');
+            $('toast-message').textContent = msg;
             t.classList.remove('hidden');
-            setTimeout(() => t.classList.add('hidden'), 3000);
-        }
-
-        window.toggleMobileSidebar = () => {
-            document.getElementById('sidebar').classList.toggle('-translate-x-full');
-            document.getElementById('sidebar-overlay').classList.toggle('hidden');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => t.classList.add('hidden'), 3000);
         };
 
-        // Glissement façon Discord mobile : depuis le bord gauche → ouvre le menu,
-        // glisser vers la gauche pendant qu'il est ouvert → le referme.
+        function hideSplash() {
+            clearTimeout(window.__splashTimer);
+            const s = $('splash');
+            if (!s || s.dataset.done) return;
+            s.dataset.done = '1';
+            s.classList.add('opacity-0', 'pointer-events-none');
+            setTimeout(() => s.remove(), 350);
+        }
+
+        // Écrit dans un conteneur seulement si le HTML a réellement changé (évite les clignotements et le travail inutile).
+        function setHtml(el, html) {
+            if (el.__h !== html) { el.__h = html; el.innerHTML = html; }
+        }
+
+        /* ---------- Menu latéral + glissement (swipe) ----------
+           Le menu suit le doigt en temps réel, puis se pose à l'ouverture ou à la
+           fermeture selon la distance parcourue ou la vitesse du geste. */
+
+        const sidebarEl = $('sidebar');
+        const overlayEl = $('sidebar-overlay');
+        let sidebarOpen = false;
+        let sidebarCleanupT = 0;
+
+        function setSidebar(open) {
+            clearTimeout(sidebarCleanupT);
+            sidebarOpen = open;
+            sidebarEl.style.transform = ''; sidebarEl.style.transition = '';
+            overlayEl.style.opacity = ''; overlayEl.style.transition = ''; overlayEl.style.pointerEvents = '';
+            sidebarEl.classList.toggle('-translate-x-full', !open);
+            overlayEl.classList.toggle('opacity-0', !open);
+            overlayEl.classList.toggle('pointer-events-none', !open);
+        }
+        window.toggleMobileSidebar = () => setSidebar(!sidebarOpen);
+        const closeSidebarOnMobile = () => { if (window.innerWidth < 768 && sidebarOpen) setSidebar(false); };
+
         (function enableSwipeNav() {
-            let startX = 0, startY = 0, tracking = false;
+            let sx = 0, sy = 0, lx = 0, lt = 0, vx = 0;
+            let active = false, dir = null, wasOpen = false, w = 320;
+
+            const blocked = () =>
+                window.innerWidth >= 768 ||
+                $('app-screen').classList.contains('hidden') ||
+                !!document.querySelector('div[id$="-modal"]:not(.hidden)');
+
+            function beginDrag() {
+                clearTimeout(sidebarCleanupT);
+                w = sidebarEl.offsetWidth || 320;
+                sidebarEl.style.transition = 'none';
+                overlayEl.style.transition = 'none';
+                overlayEl.style.pointerEvents = 'auto';
+            }
+
+            function finishDrag(open) {
+                sidebarOpen = open;
+                sidebarEl.style.transition = '';
+                overlayEl.style.transition = '';
+                sidebarEl.style.transform = open ? 'translateX(0px)' : 'translateX(-100%)';
+                overlayEl.style.opacity = open ? '1' : '0';
+                sidebarEl.classList.toggle('-translate-x-full', !open);
+                overlayEl.classList.toggle('opacity-0', !open);
+                overlayEl.classList.toggle('pointer-events-none', !open);
+                // Une fois l'animation terminée, on rend la main aux classes Tailwind
+                sidebarCleanupT = setTimeout(() => {
+                    sidebarEl.style.transform = '';
+                    overlayEl.style.opacity = '';
+                    overlayEl.style.pointerEvents = '';
+                }, 320);
+            }
+
             document.addEventListener('touchstart', (e) => {
-                const appScreen = document.getElementById('app-screen');
-                if (window.innerWidth >= 768 || !appScreen || appScreen.classList.contains('hidden')) return;
+                if (e.touches.length !== 1 || blocked()) { active = false; return; }
+                // On ne détourne pas les gestes faits dans un champ texte / une liste de suggestions
+                if (e.target.closest && e.target.closest('input, textarea, select, #mention-suggestions, #jump-menu')) { active = false; return; }
                 const t = e.touches[0];
-                startX = t.clientX; startY = t.clientY; tracking = true;
+                sx = lx = t.clientX; sy = t.clientY; lt = performance.now(); vx = 0;
+                active = true; dir = null; wasOpen = sidebarOpen;
             }, { passive: true });
-            document.addEventListener('touchend', (e) => {
-                if (!tracking) return;
-                tracking = false;
-                if (window.innerWidth >= 768) return;
-                const t = e.changedTouches[0];
-                const dx = t.clientX - startX, dy = t.clientY - startY;
-                if (Math.abs(dx) < 55 || Math.abs(dy) > 70) return;
-                const sidebar = document.getElementById('sidebar');
-                const isOpen = !sidebar.classList.contains('-translate-x-full');
-                if (dx > 0 && !isOpen && startX < 36) toggleMobileSidebar();
-                else if (dx < 0 && isOpen) toggleMobileSidebar();
-            }, { passive: true });
+
+            document.addEventListener('touchmove', (e) => {
+                if (!active) return;
+                const t = e.touches[0];
+                const dx = t.clientX - sx, dy = t.clientY - sy;
+
+                if (dir === null) {
+                    if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+                    const horizontal = Math.abs(dx) > Math.abs(dy) * 1.2;
+                    const sensible = (!wasOpen && dx > 0) || (wasOpen && dx < 0);
+                    if (horizontal && sensible) { dir = 'x'; beginDrag(); }
+                    else { active = false; return; }   // geste vertical (scroll) : on laisse faire
+                }
+
+                if (e.cancelable) e.preventDefault();
+                const now = performance.now();
+                vx = (t.clientX - lx) / Math.max(1, now - lt);
+                lx = t.clientX; lt = now;
+
+                const off = Math.max(-w, Math.min(0, (wasOpen ? 0 : -w) + dx));
+                sidebarEl.style.transform = `translateX(${off}px)`;
+                overlayEl.style.opacity = String((off + w) / w);
+            }, { passive: false });
+
+            function end(e) {
+                if (!active || dir !== 'x') { active = false; return; }
+                active = false;
+                const x = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0].clientX : lx;
+                const dx = x - sx;
+                const progress = wasOpen ? (w + Math.min(0, dx)) / w : Math.max(0, dx) / w;   // 0 = fermé, 1 = ouvert
+                // Un geste rapide (lancer) l'emporte sur la distance
+                const open = Math.abs(vx) > 0.45 ? vx > 0 : progress > 0.5;
+                finishDrag(open);
+            }
+            document.addEventListener('touchend', end, { passive: true });
+            document.addEventListener('touchcancel', end, { passive: true });
         })();
 
         window.focusSidebarSection = (key) => {
-            const sidebar = document.getElementById('sidebar');
-            if (sidebar.classList.contains('-translate-x-full')) toggleMobileSidebar();
-            document.getElementById(`${key}-section`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (!sidebarOpen) setSidebar(true);
+            $(`${key}-section`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         };
 
         function updateAdminUI() {
-            document.getElementById('create-channel-btn').classList.toggle('hidden', !isAdmin());
+            $('create-channel-btn').classList.toggle('hidden', !isAdmin());
         }
 
         /* ---------- Chemins ---------- */
@@ -564,6 +752,8 @@
         }
         const messagesPath = () => `${basePath()}/messages`;
         const typingPath = () => `${basePath()}/typing`;
+        const convKey = () => `${currentTargetType}:${currentTargetId}`;
+        const currentConv = () => ({ type: currentTargetType, id: currentTargetId, name: currentConvName });
 
         function getDmId(a, b) {
             if (!a || !b) return null;
@@ -571,42 +761,26 @@
         }
 
         function applyChannelBackground(channel) {
-    const bgEl = document.getElementById('chat-bg');
-    const overlay = document.getElementById('chat-bg-overlay');
-    const container = document.getElementById('messages-container');
+            const bgEl = $('chat-bg');
+            const overlay = $('chat-bg-overlay');
+            const container = $('messages-container');
 
-    if (!channel) {
-        bgEl.style.backgroundImage = '';
-        overlay.classList.add('hidden');
-        container.classList.remove('has-bg');
-        return;
-    }
+            const bgFile = channel ? LOCAL_BACKGROUNDS[channel.id] : null;
 
-    // Fonds locaux présents à la racine du dépôt GitHub
-    const localBackgrounds = {
-        "brawl-stars": "Brawl-star.png",
-        "clash-of-clans": "Clash-of-clan.png",
-        "clash-royale": "Clash-Royal.png",
-        "roblox": "Roblox.png"
-    };
-
-    const bgFile = localBackgrounds[channel.id];
-
-    if (bgFile) {
-        bgEl.style.backgroundImage = `url("${bgFile}")`;
-        bgEl.style.backgroundSize = "cover";
-        bgEl.style.backgroundPosition = "center center";
-        bgEl.style.backgroundRepeat = "no-repeat";
-
-        overlay.classList.remove('hidden');
-        container.classList.add('has-bg');
-    } else {
-        // Général et autres salons sans fond
-        bgEl.style.backgroundImage = '';
-        overlay.classList.add('hidden');
-        container.classList.remove('has-bg');
-    }
-}
+            if (bgFile) {
+                bgEl.style.backgroundImage = `url("${bgFile}")`;
+                bgEl.style.backgroundSize = "cover";
+                bgEl.style.backgroundPosition = "center center";
+                bgEl.style.backgroundRepeat = "no-repeat";
+                overlay.classList.remove('hidden');
+                container.classList.add('has-bg');
+            } else {
+                // Général, MP, groupes et autres salons sans fond
+                bgEl.style.backgroundImage = '';
+                overlay.classList.add('hidden');
+                container.classList.remove('has-bg');
+            }
+        }
 
         function channelIconHtml(c) {
             const img = safeUrl(c.image);
@@ -618,6 +792,15 @@
                 <i class="${icon}" style="display:none"></i>
             </span>`;
         }
+
+        // Les valeurs venant d'utilisateurs (noms de groupes, pseudos…) passent par des attributs data-*
+        // et non plus dans du JavaScript en ligne : aucune injection de code possible.
+        window.goTo = (el) => switchTarget(el.dataset.type, el.dataset.id, el.dataset.name || "");
+        window.callUser = (uid) => {
+            const u = allUsersList.find(x => x.uid === uid);
+            if (!u) return;
+            requestJoinVoice(getDmId(currentUser.uid, uid), `Appel avec ${u.name}`);
+        };
 
         /* ---------- Mentions ("pings") ---------- */
 
@@ -645,7 +828,7 @@
         }
 
         window.openPingPicker = () => {
-            const box = document.getElementById('ping-list');
+            const box = $('ping-list');
             const sorted = allUsersList.filter(u => u.uid && u.uid !== currentUser.uid)
                 .sort((a, b) => (isOnline(b) - isOnline(a)) || String(a.name).localeCompare(String(b.name)));
             box.innerHTML = sorted.length ? sorted.map(u => {
@@ -659,9 +842,9 @@
                         <span class="w-2 h-2 rounded-full ${isOnline(u) ? 'bg-emerald-500' : 'bg-slate-600'} shrink-0" title="${isOnline(u) ? 'En ligne' : 'Hors ligne'}"></span>
                     </button>`;
             }).join('') : `<div class="text-xs text-[#80848e] italic text-center py-6">Personne d'autre n'est inscrit.</div>`;
-            document.getElementById('ping-modal').classList.remove('hidden');
+            $('ping-modal').classList.remove('hidden');
         };
-        window.closePingPicker = () => document.getElementById('ping-modal').classList.add('hidden');
+        window.closePingPicker = () => $('ping-modal').classList.add('hidden');
         window.pingUser = (uid) => {
             const u = allUsersList.find(x => x.uid === uid);
             if (!u) return;
@@ -674,7 +857,7 @@
         function handleMentionAutocomplete() {
             const val = msgInput.value;
             const at = val.lastIndexOf('@');
-            const box = document.getElementById('mention-suggestions');
+            const box = $('mention-suggestions');
             if (at === -1 || /\s/.test(val.slice(at + 1))) { box.classList.add('hidden'); return; }
             const partial = normalizeName(val.slice(at + 1));
             const matches = allUsersList.filter(u => u.uid !== currentUser?.uid && normalizeName(u.name).includes(partial)).slice(0, 6);
@@ -692,7 +875,7 @@
             const val = msgInput.value;
             const at = val.lastIndexOf('@');
             msgInput.value = val.slice(0, at) + `@${u.name} `;
-            document.getElementById('mention-suggestions').classList.add('hidden');
+            $('mention-suggestions').classList.add('hidden');
             msgInput.focus();
         };
 
@@ -702,31 +885,31 @@
 
         async function notifyUsers(targetUsers, payload) {
             const uids = [...new Set(targetUsers.map(u => typeof u === 'string' ? u : u.uid).filter(uid => uid && uid !== currentUser.uid))];
-            for (const uid of uids) {
-                try {
-                    await setDoc(doc(db, "inbox", inboxKey(uid, payload.convType, payload.convId)), {
-                        forUid: uid, convType: payload.convType, convId: payload.convId, convName: payload.convName,
-                        fromUid: currentUser.uid, fromName: userProfile.name, lastText: payload.text,
-                        isMention: !!payload.isMention, unread: true, lastAt: serverTimestamp()
-                    }, { merge: true });
-                } catch {}
-            }
+            await Promise.all(uids.map(uid =>
+                setDoc(doc(db, "inbox", inboxKey(uid, payload.convType, payload.convId)), {
+                    forUid: uid, convType: payload.convType, convId: payload.convId, convName: payload.convName,
+                    fromUid: currentUser.uid, fromName: userProfile.name, lastText: payload.text,
+                    isMention: !!payload.isMention, unread: true, lastAt: serverTimestamp()
+                }, { merge: true }).catch(() => {})
+            ));
         }
 
-        function notifyConversationPeers(previewText) {
-            if (currentTargetType === 'dm') {
-                const otherUid = currentTargetId.replace(/^dm_/, '').split('_').find(p => p !== currentUser.uid);
-                if (otherUid) notifyUsers([otherUid], { convType: 'dm', convId: currentTargetId, convName: userProfile.name, text: previewText });
-            } else if (currentTargetType === 'group') {
-                const g = myGroups.find(g => g.id === currentTargetId);
+        // La conversation est passée explicitement : si on change de salon pendant l'envoi,
+        // la notification part quand même vers la bonne conversation.
+        function notifyConversationPeers(previewText, conv) {
+            if (conv.type === 'dm') {
+                const otherUid = conv.id.replace(/^dm_/, '').split('_').find(p => p !== currentUser.uid);
+                if (otherUid) notifyUsers([otherUid], { convType: 'dm', convId: conv.id, convName: userProfile.name, text: previewText });
+            } else if (conv.type === 'group') {
+                const g = myGroups.find(g => g.id === conv.id);
                 const members = (g?.members || []).filter(u => u !== currentUser.uid);
-                if (members.length) notifyUsers(members, { convType: 'group', convId: currentTargetId, convName: currentConvName, text: previewText });
+                if (members.length) notifyUsers(members, { convType: 'group', convId: conv.id, convName: conv.name, text: previewText });
             }
         }
-        function notifyMentions(text) {
+        function notifyMentions(text, conv) {
             const mentioned = findMentionedUsers(text);
             if (mentioned.length) notifyUsers(mentioned, {
-                convType: currentTargetType, convId: currentTargetId, convName: currentConvName,
+                convType: conv.type, convId: conv.id, convName: conv.name,
                 text: text.length > 60 ? text.slice(0, 57) + '…' : text, isMention: true
             });
         }
@@ -738,7 +921,7 @@
             unsubInbox = onSnapshot(q, (snap) => {
                 myInboxList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                 const unreadCount = myInboxList.filter(n => n.unread).length;
-                const badge = document.getElementById('notif-badge');
+                const badge = $('notif-badge');
                 if (unreadCount > 0) { badge.textContent = unreadCount > 9 ? '9+' : unreadCount; badge.classList.remove('hidden'); badge.classList.add('flex'); }
                 else { badge.classList.add('hidden'); badge.classList.remove('flex'); }
 
@@ -754,18 +937,18 @@
                 inboxReady = true;
 
                 initSidebarUI();
-                if (!document.getElementById('notifications-modal').classList.contains('hidden')) renderNotificationsList();
+                if (!$('notifications-modal').classList.contains('hidden')) renderNotificationsList();
             });
         }
 
-        window.openNotificationsModal = () => { renderNotificationsList(); document.getElementById('notifications-modal').classList.remove('hidden'); };
-        window.closeNotificationsModal = () => document.getElementById('notifications-modal').classList.add('hidden');
+        window.openNotificationsModal = () => { renderNotificationsList(); $('notifications-modal').classList.remove('hidden'); };
+        window.closeNotificationsModal = () => $('notifications-modal').classList.add('hidden');
 
         function renderNotificationsList() {
-            const box = document.getElementById('notifications-list');
+            const box = $('notifications-list');
             const sorted = [...myInboxList].sort((a, b) => (b.lastAt?.toMillis?.() || 0) - (a.lastAt?.toMillis?.() || 0));
             box.innerHTML = sorted.length ? sorted.map(n => `
-                <button onclick="openNotification('${escapeHtml(n.id)}')" class="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[#35373c] transition flex items-start gap-2.5 ${n.unread ? 'bg-[#35373c]/60' : ''}">
+                <button data-id="${escapeHtml(n.id)}" onclick="openNotification(this.dataset.id)" class="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[#35373c] transition flex items-start gap-2.5 ${n.unread ? 'bg-[#35373c]/60' : ''}">
                     <div class="w-8 h-8 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">${escapeHtml((n.fromName || '?').charAt(0))}</div>
                     <div class="min-w-0 flex-1">
                         <div class="text-sm font-medium truncate flex items-center gap-1.5">
@@ -795,24 +978,31 @@
             return myInboxList.some(n => n.convType === type && n.convId === id && n.unread);
         }
 
+        // Le rendu du menu est regroupé : plusieurs mises à jour d'affilée = un seul rendu par image.
+        let sidebarRaf = 0;
         function initSidebarUI() {
+            if (sidebarRaf) return;
+            sidebarRaf = requestAnimationFrame(() => { sidebarRaf = 0; renderSidebar(); });
+        }
+
+        function renderSidebar() {
             updateAdminUI();
 
-            document.getElementById('channels-list').innerHTML = textChannels.map(c => {
+            setHtml($('channels-list'), textChannels.map(c => {
                 const isActive = currentTargetType === 'channel' && currentTargetId === c.id;
                 const unread = hasUnreadFor('channel', c.id) && !isActive;
                 return `
                     <div class="chan-row relative group">
-                        <button onclick="switchTarget('channel', '${escapeHtml(c.id)}', '${escapeHtml(c.name)}')" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2.5 transition ${isActive ? 'bg-[var(--theme-color)] text-white shadow-lg' : 'text-[#949ba4] hover:bg-[#35373c] hover:text-[#dbdee1]'}">
+                        <button data-type="channel" data-id="${escapeHtml(c.id)}" data-name="${escapeHtml(c.name)}" onclick="goTo(this)" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2.5 transition ${isActive ? 'bg-[var(--theme-color)] text-white shadow-lg' : 'text-[#949ba4] hover:bg-[#35373c] hover:text-[#dbdee1]'}">
                             ${channelIconHtml(c)}
                             <span class="truncate">${escapeHtml(c.name)}</span>
                             ${unread ? '<span class="w-2 h-2 rounded-full bg-rose-500 ml-auto shrink-0"></span>' : ''}
                         </button>
                         ${isAdmin() ? `<button onclick="openEditChannelModal('${escapeHtml(c.id)}')" class="chan-edit md:opacity-0 opacity-70 transition absolute right-2 top-1/2 -translate-y-1/2 text-[#dbdee1] hover:text-white bg-[#2b2d31]/80 rounded p-1.5" title="Image du salon"><i class="fa-solid fa-pen text-[10px]"></i></button>` : ''}
                     </div>`;
-            }).join('');
+            }).join(''));
 
-            document.getElementById('voice-channels-list').innerHTML = voiceChannelsList.map(v => {
+            setHtml($('voice-channels-list'), voiceChannelsList.map(v => {
                 const isConnected = activeVoiceId === v.id;
                 const members = voiceParticipants[v.id] || [];
                 return `
@@ -836,18 +1026,17 @@
                             </div>`;
                         }).join('')}</div>` : ''}
                     </div>`;
-            }).join('');
+            }).join(''));
 
-            document.getElementById('mobile-voice-dot').classList.toggle('hidden', !activeVoiceId);
+            $('mobile-voice-dot').classList.toggle('hidden', !activeVoiceId);
 
-            const gBox = document.getElementById('groups-list');
-            gBox.innerHTML = myGroups.length ? myGroups.map(g => {
+            setHtml($('groups-list'), myGroups.length ? myGroups.map(g => {
                 const isActive = currentTargetType === 'group' && currentTargetId === g.id;
                 const count = (g.members || []).length;
                 const unread = hasUnreadFor('group', g.id) && !isActive;
                 return `
                     <div class="chan-row relative group">
-                        <button onclick="switchTarget('group','${escapeHtml(g.id)}','${escapeHtml(g.name)}')" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2.5 transition ${isActive ? 'bg-[var(--theme-color)] text-white' : 'text-[#949ba4] hover:bg-[#35373c] hover:text-[#dbdee1]'}">
+                        <button data-type="group" data-id="${escapeHtml(g.id)}" data-name="${escapeHtml(g.name)}" onclick="goTo(this)" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2.5 transition ${isActive ? 'bg-[var(--theme-color)] text-white' : 'text-[#949ba4] hover:bg-[#35373c] hover:text-[#dbdee1]'}">
                             <i class="fa-solid fa-users w-4 text-center shrink-0"></i>
                             <span class="truncate">${escapeHtml(g.name)}</span>
                             ${unread ? '<span class="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>' : ''}
@@ -855,13 +1044,12 @@
                         </button>
                         <button onclick="leaveGroup('${escapeHtml(g.id)}')" class="chan-edit md:opacity-0 opacity-70 transition absolute right-1 top-1/2 -translate-y-1/2 text-rose-400 hover:text-rose-300 bg-[#2b2d31]/80 rounded p-1.5" title="Quitter"><i class="fa-solid fa-right-from-bracket text-[10px]"></i></button>
                     </div>`;
-            }).join('') : `<div class="px-3 py-2 text-xs text-[#80848e] italic">Aucun groupe.</div>`;
+            }).join('') : `<div class="px-3 py-2 text-xs text-[#80848e] italic">Aucun groupe.</div>`);
 
             const others = allUsersList
                 .filter(u => u.uid && currentUser && u.uid !== currentUser.uid)
                 .sort((a, b) => (isOnline(b) - isOnline(a)) || String(a.name).localeCompare(String(b.name)));
-            const dmBox = document.getElementById('dm-conversations-list');
-            dmBox.innerHTML = others.length ? others.map(u => {
+            setHtml($('dm-conversations-list'), others.length ? others.map(u => {
                 const dmId = getDmId(currentUser.uid, u.uid);
                 const isActive = currentTargetType === 'dm' && currentTargetId === dmId;
                 const unread = hasUnreadFor('dm', dmId) && !isActive;
@@ -875,24 +1063,24 @@
                         ${unread ? '<span class="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>' : ''}
                         <span class="w-2 h-2 rounded-full ${isOnline(u) ? 'bg-emerald-500' : 'bg-slate-600'} ${unread ? '' : 'ml-auto'} shrink-0"></span>
                     </button>`;
-            }).join('') : `<div class="px-3 py-2 text-xs text-[#80848e] italic">Aucun autre utilisateur.</div>`;
+            }).join('') : `<div class="px-3 py-2 text-xs text-[#80848e] italic">Aucun autre utilisateur.</div>`);
         }
 
         /* ---------- Salons (admin uniquement) + upload d'image ---------- */
 
         window.openCreateChannelModal = () => {
             if (!isAdmin()) return showToast("⛔ Réservé à l'administrateur.");
-            document.getElementById('new-channel-image').value = '';
-            document.getElementById('new-channel-bg').value = '';
-            document.getElementById('create-channel-modal').classList.remove('hidden');
+            $('new-channel-image').value = '';
+            $('new-channel-bg').value = '';
+            $('create-channel-modal').classList.remove('hidden');
         };
-        window.closeCreateChannelModal = () => document.getElementById('create-channel-modal').classList.add('hidden');
+        window.closeCreateChannelModal = () => $('create-channel-modal').classList.add('hidden');
 
         window.createNewChannel = async () => {
             if (!isAdmin()) return showToast("⛔ Réservé à l'administrateur.");
-            const rawName = document.getElementById('new-channel-name').value.trim();
-            const image = document.getElementById('new-channel-image').value.trim();
-            const bg = document.getElementById('new-channel-bg').value.trim();
+            const rawName = $('new-channel-name').value.trim();
+            const image = $('new-channel-image').value.trim();
+            const bg = $('new-channel-bg').value.trim();
             if (!rawName) return showToast("Entrez un nom de salon.");
             const id = rawName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/^-+|-+$/g, '');
             if (!id) return showToast("Nom invalide.");
@@ -900,9 +1088,9 @@
             const updated = [...textChannels, { id, name: rawName, icon: "fa-solid fa-hashtag text-[#949ba4]", image: safeUrl(image), bg: safeUrl(bg) }];
             try {
                 await setDoc(doc(db, "settings", "custom_channels"), { list: updated });
-                document.getElementById('new-channel-name').value = '';
-                document.getElementById('new-channel-image').value = '';
-                document.getElementById('new-channel-bg').value = '';
+                $('new-channel-name').value = '';
+                $('new-channel-image').value = '';
+                $('new-channel-bg').value = '';
                 closeCreateChannelModal();
                 switchTarget('channel', id, rawName);
             } catch (e) { showToast("Erreur : " + e.message); }
@@ -912,17 +1100,17 @@
             if (!isAdmin()) return;
             editingChannelId = id;
             const c = textChannels.find(x => x.id === id);
-            document.getElementById('edit-channel-image').value = c?.image || "";
-            document.getElementById('edit-channel-bg').value = c?.bg || "";
-            document.getElementById('delete-channel-btn').style.display = DEFAULT_CHANNELS.some(d => d.id === id) ? 'none' : 'block';
-            document.getElementById('edit-channel-modal').classList.remove('hidden');
+            $('edit-channel-image').value = c?.image || "";
+            $('edit-channel-bg').value = c?.bg || "";
+            $('delete-channel-btn').style.display = DEFAULT_CHANNELS.some(d => d.id === id) ? 'none' : 'block';
+            $('edit-channel-modal').classList.remove('hidden');
         };
-        window.closeEditChannelModal = () => document.getElementById('edit-channel-modal').classList.add('hidden');
+        window.closeEditChannelModal = () => $('edit-channel-modal').classList.add('hidden');
 
         window.saveChannelImage = async () => {
             if (!isAdmin() || !editingChannelId) return;
-            const url = safeUrl(document.getElementById('edit-channel-image').value.trim());
-            const bgUrl = safeUrl(document.getElementById('edit-channel-bg').value.trim());
+            const url = safeUrl($('edit-channel-image').value.trim());
+            const bgUrl = safeUrl($('edit-channel-bg').value.trim());
             const updated = textChannels.map(c => c.id === editingChannelId ? { ...c, image: url, bg: bgUrl } : c);
             await setDoc(doc(db, "settings", "custom_channels"), { list: updated });
             closeEditChannelModal();
@@ -974,9 +1162,9 @@
         }
 
         function wireDropzone(zoneId, fileId, targetId) {
-            const zone = document.getElementById(zoneId);
-            const fileInput = document.getElementById(fileId);
-            const target = document.getElementById(targetId);
+            const zone = $(zoneId);
+            const fileInput = $(fileId);
+            const target = $(targetId);
             fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleImageFile(fileInput.files[0], target); fileInput.value = ''; });
             zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dropzone-active'); });
             zone.addEventListener('dragleave', () => zone.classList.remove('dropzone-active'));
@@ -994,17 +1182,49 @@
         wireDropzone('new-channel-bg-dropzone', 'new-channel-bg-file', 'new-channel-bg');
         wireDropzone('edit-channel-bg-dropzone', 'edit-channel-bg-file', 'edit-channel-bg');
 
-        /* ---------- Navigation ---------- */
+        /* ---------- Navigation entre salons ---------- */
 
-        window.switchTarget = function(type, id, title = "") {
+        function cacheCurrentConversation() {
+            const list = $('messages-list');
+            if (!renderedKey || !list.children.length) return;
+            convCache.delete(renderedKey);
+            convCache.set(renderedKey, list.innerHTML);
+            while (convCache.size > 12) convCache.delete(convCache.keys().next().value);
+        }
+
+        // Vide tout de suite l'affichage du salon précédent : soit le contenu déjà vu de ce salon
+        // (retour instantané), soit un squelette de chargement. Jamais les messages d'un autre salon.
+        function resetMessageView(key) {
+            messageLimit = MESSAGE_PAGE;
+            hasMore = false;
+            pendingJumpHours = null;
+            msgData.clear();
+            $('load-more-wrap').classList.add('hidden');
+            $('messages-empty').classList.add('hidden');
+            $('typing-indicator').textContent = '';
+
+            const list = $('messages-list');
+            const cached = convCache.get(key);
+            if (cached) {
+                list.innerHTML = cached;
+                renderedKey = key;
+                $('messages-skeleton').classList.add('hidden');
+                scrollToBottom();
+            } else {
+                list.innerHTML = '';
+                renderedKey = null;
+                $('messages-skeleton').classList.remove('hidden');
+                $('messages-container').scrollTop = 0;
+            }
+        }
+
+        window.switchTarget = function (type, id, title = "") {
+            const same = currentTargetType === type && currentTargetId === id;
             currentTargetType = type;
             currentTargetId = id;
             currentConvName = title || id;
-            const h = document.getElementById('current-channel-title');
-            const callBtn = document.getElementById('header-call-btn');
-
-            if (unsubConvVoice) { unsubConvVoice(); unsubConvVoice = null; }
-            document.getElementById('conv-call-banner').classList.add('hidden');
+            const h = $('current-channel-title');
+            const callBtn = $('header-call-btn');
 
             if (type === 'channel') {
                 h.textContent = `# ${title || id}`;
@@ -1013,7 +1233,6 @@
             } else {
                 h.textContent = type === 'group' ? `👥 ${title}` : `💬 MP : ${title}`;
                 callBtn.classList.remove('hidden'); callBtn.classList.add('flex');
-                listenConversationVoice(id);
                 applyChannelBackground(null);
             }
 
@@ -1021,27 +1240,38 @@
             const key = inboxKey(currentUser.uid, type, id);
             if (myInboxList.some(n => n.id === key && n.unread)) updateDoc(doc(db, "inbox", key), { unread: false }).catch(() => {});
 
-            initSidebarUI();
-            loadMessages();
-            loadTypingIndicators();
-            const sidebar = document.getElementById('sidebar');
-            if (window.innerWidth < 768 && !sidebar.classList.contains('-translate-x-full')) toggleMobileSidebar();
-        }
+            // Même salon re-sélectionné : rien à recharger, on referme juste le menu.
+            if (!same) {
+                if (unsubConvVoice) { unsubConvVoice(); unsubConvVoice = null; }
+                $('conv-call-banner').classList.add('hidden');
+                if (type !== 'channel') listenConversationVoice(id);
+
+                stopTyping();
+                cacheCurrentConversation();
+                resetMessageView(`${type}:${id}`);
+                loadMessages();
+                loadTypingIndicators();
+            }
+
+            renderSidebar();
+            closeSidebarOnMobile();
+        };
 
         window.openDirectMessage = (otherUid) => {
             const peer = allUsersList.find(u => u.uid === otherUid);
             const dmId = getDmId(currentUser.uid, otherUid);
             if (!dmId) return showToast("Utilisateur introuvable.");
             switchTarget('dm', dmId, peer ? peer.name : "Utilisateur");
-        }
+        };
 
         function listenConversationVoice(id) {
             unsubConvVoice = onSnapshot(collection(db, "voice_rooms", id, "participants"), (snap) => {
+                if (id !== currentTargetId) return;
                 const others = snap.docs.filter(d => d.id !== currentUser?.uid);
-                const banner = document.getElementById('conv-call-banner');
+                const banner = $('conv-call-banner');
                 if (others.length && activeVoiceId !== id) {
                     banner.classList.remove('hidden'); banner.classList.add('flex');
-                    document.getElementById('conv-call-banner-text').textContent =
+                    $('conv-call-banner-text').textContent =
                         `Appel en cours (${others.length} personne${others.length > 1 ? 's' : ''})`;
                 } else {
                     banner.classList.add('hidden'); banner.classList.remove('flex');
@@ -1059,7 +1289,7 @@
 
         window.openGroupModal = () => {
             const others = allUsersList.filter(u => u.uid && u.uid !== currentUser.uid);
-            document.getElementById('group-members-picker').innerHTML = others.length ? others.map(u => {
+            $('group-members-picker').innerHTML = others.length ? others.map(u => {
                 const av = safeUrl(u.avatar);
                 return `
                     <label class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-[#35373c] cursor-pointer">
@@ -1071,12 +1301,12 @@
                         <span class="w-2 h-2 rounded-full ${isOnline(u) ? 'bg-emerald-500' : 'bg-slate-600'} ml-auto"></span>
                     </label>`;
             }).join('') : `<div class="text-xs text-[#80848e] italic px-2">Personne d'autre n'est inscrit.</div>`;
-            document.getElementById('group-modal').classList.remove('hidden');
+            $('group-modal').classList.remove('hidden');
         };
-        window.closeGroupModal = () => document.getElementById('group-modal').classList.add('hidden');
+        window.closeGroupModal = () => $('group-modal').classList.add('hidden');
 
         window.createGroup = async () => {
-            const name = document.getElementById('group-name-input').value.trim();
+            const name = $('group-name-input').value.trim();
             const picked = [...document.querySelectorAll('.group-member-cb:checked')].map(cb => cb.value);
             if (!name) return showToast("Donne un nom au groupe.");
             if (!picked.length) return showToast("Sélectionne au moins une personne.");
@@ -1084,7 +1314,7 @@
                 const ref = await addDoc(collection(db, "groups"), {
                     name, members: [currentUser.uid, ...picked], createdBy: currentUser.uid, createdAt: serverTimestamp()
                 });
-                document.getElementById('group-name-input').value = '';
+                $('group-name-input').value = '';
                 closeGroupModal();
                 switchTarget('group', ref.id, name);
                 showToast("Groupe créé !");
@@ -1111,7 +1341,7 @@
         /* ---------- Panneau "En ligne" ---------- */
 
         window.openOnlineModal = () => {
-            const box = document.getElementById('online-list');
+            const box = $('online-list');
             const online = allUsersList.filter(isOnline)
                 .sort((a, b) => (b.uid === currentUser.uid ? 1 : 0) - (a.uid === currentUser.uid ? 1 : 0) || String(a.name).localeCompare(String(b.name)));
             box.innerHTML = online.length ? online.map(u => {
@@ -1128,21 +1358,21 @@
                         <span class="text-sm font-medium truncate flex-1">${escapeHtml(u.name)}${isMe ? ' <span class="text-xs text-[#80848e]">(toi)</span>' : ''}</span>
                         ${!isMe ? `
                             <button onclick="openDirectMessage('${escapeHtml(u.uid)}');closeOnlineModal();" class="text-[#949ba4] hover:text-white p-2" title="Message"><i class="fa-solid fa-comment"></i></button>
-                            <button onclick="closeOnlineModal();requestJoinVoice(getDmId(currentUser.uid,'${escapeHtml(u.uid)}'), 'Appel avec ${escapeHtml(u.name)}')" class="text-[#949ba4] hover:text-emerald-400 p-2" title="Appeler"><i class="fa-solid fa-phone"></i></button>
+                            <button onclick="closeOnlineModal();callUser('${escapeHtml(u.uid)}')" class="text-[#949ba4] hover:text-emerald-400 p-2" title="Appeler"><i class="fa-solid fa-phone"></i></button>
                         ` : ''}
                     </div>`;
             }).join('') : `<div class="text-center text-xs text-[#80848e] py-8">Personne d'autre n'est en ligne pour le moment.</div>`;
-            document.getElementById('online-modal').classList.remove('hidden');
+            $('online-modal').classList.remove('hidden');
         };
-        window.closeOnlineModal = () => document.getElementById('online-modal').classList.add('hidden');
+        window.closeOnlineModal = () => $('online-modal').classList.add('hidden');
         window.getDmId = getDmId;
 
         /* ---------- Profil / Auth ---------- */
 
         window.setTheme = (themeClass) => {
             userProfile.theme = themeClass;
-            document.getElementById('body-theme').className = `bg-[#1e1f22] text-[#f2f3f5] h-[100dvh] flex flex-col overflow-hidden font-sans ${themeClass}`;
-        }
+            $('body-theme').className = `bg-[#1e1f22] text-[#f2f3f5] h-[100dvh] flex flex-col overflow-hidden font-sans ${themeClass}`;
+        };
 
         window.loginAnonymously = async () => {
             try { await signInAnonymously(auth); } catch (e) { showToast("Erreur: " + e.message); }
@@ -1151,39 +1381,53 @@
             try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { showToast("Erreur: " + e.message); }
         };
 
+        function updateOnlineCount() {
+            $('online-count').textContent = allUsersList.filter(isOnline).length;
+        }
+
         onAuthStateChanged(auth, async (user) => {
             currentUser = user;
             if (!user) {
-                document.getElementById('auth-screen').classList.remove('hidden');
-                document.getElementById('app-screen').classList.add('hidden');
-                document.getElementById('mobile-bottom-nav').classList.add('hidden');
-                [unsubscribeMessages, unsubscribeTyping, unsubscribeUsers, unsubscribeChannels, unsubscribeGroups, unsubConvVoice, unsubInbox]
+                messagesToken++; typingToken++;
+                $('auth-screen').classList.remove('hidden');
+                $('app-screen').classList.add('hidden');
+                $('mobile-bottom-nav').classList.add('hidden');
+                [unsubscribeMessages, unsubscribeTyping, unsubscribeUsers, unsubscribeChannels, unsubscribeGroups, unsubConvVoice, unsubInbox, ...voiceUnsubs]
                     .forEach(fn => fn && fn());
+                voiceUnsubs = [];
                 if (heartbeatTimer) clearInterval(heartbeatTimer);
+                convCache.clear(); msgData.clear(); renderedKey = null;
+                $('messages-list').innerHTML = '';
+                hideSplash();
                 return;
             }
 
-            document.getElementById('auth-screen').classList.add('hidden');
-            document.getElementById('app-screen').classList.remove('hidden');
-            if (window.innerWidth < 768) document.getElementById('mobile-bottom-nav').classList.remove('hidden');
-            document.getElementById('my-uid').textContent = user.uid;
+            $('auth-screen').classList.add('hidden');
+            $('app-screen').classList.remove('hidden');
+            if (window.innerWidth < 768) $('mobile-bottom-nav').classList.remove('hidden');
+            $('my-uid').textContent = user.uid;
 
             const userRef = doc(db, "users", user.uid);
-            const snap = await getDoc(userRef);
-            if (snap.exists()) {
-                // Profil déjà enregistré : on garde le pseudo et l'avatar tels quels,
-                // on ne les régénère JAMAIS automatiquement.
-                userProfile = { ...snap.data() };
-                if (userProfile.theme) setTheme(userProfile.theme);
-            } else {
-                // Premier passage seulement : un nom par défaut.
-                userProfile = {
-                    name: user.displayName || (user.isAnonymous ? "Invité_" + user.uid.slice(0, 4) : "Utilisateur"),
-                    avatar: user.photoURL || "", theme: "theme-violet"
-                };
+            try {
+                const snap = await getDoc(userRef);
+                if (snap.exists()) {
+                    // Profil déjà enregistré : on garde le pseudo et l'avatar tels quels,
+                    // on ne les régénère JAMAIS automatiquement.
+                    userProfile = { ...snap.data() };
+                    if (userProfile.theme) setTheme(userProfile.theme);
+                } else {
+                    // Premier passage seulement : un nom par défaut.
+                    userProfile = {
+                        name: user.displayName || (user.isAnonymous ? "Invité_" + user.uid.slice(0, 4) : "Utilisateur"),
+                        avatar: user.photoURL || "", theme: "theme-violet"
+                    };
+                }
+                userProfile.uid = user.uid;
+                await setDoc(userRef, { ...userProfile, lastSeen: serverTimestamp() }, { merge: true });
+            } catch (e) {
+                showToast("Profil indisponible : " + e.message);
+                userProfile = { ...userProfile, name: userProfile.name || user.displayName || "Utilisateur", uid: user.uid };
             }
-            userProfile.uid = user.uid;
-            await setDoc(userRef, { ...userProfile, lastSeen: serverTimestamp() }, { merge: true });
 
             updateProfileUI();
             updateAdminUI();
@@ -1192,13 +1436,19 @@
             listenChannels();
             listenGroups();
             listenInbox();
+            resetMessageView(convKey());
             loadMessages();
             loadTypingIndicators();
             listenVoiceChannels();
+            hideSplash();
+
+            // Précharge les décors des salons pour qu'ils s'affichent sans délai au changement de salon
+            Object.values(LOCAL_BACKGROUNDS).forEach(src => { const i = new Image(); i.src = src; });
         });
 
         window.addEventListener('resize', () => {
-            document.getElementById('mobile-bottom-nav').classList.toggle('hidden', !currentUser || window.innerWidth >= 768);
+            $('mobile-bottom-nav').classList.toggle('hidden', !currentUser || window.innerWidth >= 768);
+            if (window.innerWidth >= 768 && sidebarOpen) setSidebar(false);
         });
 
         function startHeartbeat() {
@@ -1207,19 +1457,25 @@
                 if (currentUser) updateDoc(doc(db, "users", currentUser.uid), { lastSeen: serverTimestamp() }).catch(() => {});
             }, 30000);
         }
+        // Retour sur l'onglet / l'appli : on se signale tout de suite en ligne
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && currentUser) updateDoc(doc(db, "users", currentUser.uid), { lastSeen: serverTimestamp() }).catch(() => {});
+        });
+        // Le statut "en ligne" expire avec le temps même sans nouvel évènement : on le rafraîchit régulièrement
+        setInterval(() => { if (currentUser) { updateOnlineCount(); initSidebarUI(); } }, 20000);
 
         function listenUsers() {
             if (unsubscribeUsers) unsubscribeUsers();
             unsubscribeUsers = onSnapshot(collection(db, "users"), (snap) => {
                 allUsersList = snap.docs.map(d => ({ ...d.data(), uid: d.id }));
-                document.getElementById('online-count').textContent = allUsersList.filter(isOnline).length;
+                updateOnlineCount();
                 initSidebarUI();
             });
         }
 
         function updateProfileUI() {
-            document.getElementById('user-name').textContent = userProfile.name;
-            const box = document.getElementById('user-avatar-container');
+            $('user-name').textContent = userProfile.name;
+            const box = $('user-avatar-container');
             const av = safeUrl(userProfile.avatar);
             box.innerHTML = av
                 ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">`
@@ -1227,16 +1483,16 @@
         }
 
         window.openProfileModal = () => {
-            document.getElementById('edit-username').value = userProfile.name || "";
-            document.getElementById('edit-avatar').value = userProfile.avatar || "";
-            document.getElementById('profile-modal').classList.remove('hidden');
-        }
-        window.closeProfileModal = () => document.getElementById('profile-modal').classList.add('hidden');
+            $('edit-username').value = userProfile.name || "";
+            $('edit-avatar').value = userProfile.avatar || "";
+            $('profile-modal').classList.remove('hidden');
+        };
+        window.closeProfileModal = () => $('profile-modal').classList.add('hidden');
 
         // Seul endroit qui change le pseudo : un clic explicite sur "Enregistrer".
         window.saveProfile = async () => {
-            const newName = document.getElementById('edit-username').value.trim();
-            const newAvatar = document.getElementById('edit-avatar').value.trim();
+            const newName = $('edit-username').value.trim();
+            const newAvatar = $('edit-avatar').value.trim();
             if (!newName) return showToast("Le pseudo ne peut pas être vide.");
             if (!nameAllowed(newName)) return showToast("⛔ Ce pseudo est réservé.");
             const taken = allUsersList.some(u => u.uid !== currentUser.uid && normalizeName(u.name) === normalizeName(newName));
@@ -1249,59 +1505,62 @@
             updateProfileUI();
             closeProfileModal();
             showToast("Profil mis à jour !");
-        }
+        };
 
         /* ---------- GIFs ---------- */
 
         window.openMediaModal = () => {
-            document.getElementById('media-modal').classList.remove('hidden');
-            if (!document.getElementById('gif-results').dataset.loaded) loadTrendingGifs();
+            $('media-modal').classList.remove('hidden');
+            if (!$('gif-results').dataset.loaded) loadTrendingGifs();
         };
-        window.closeMediaModal = () => document.getElementById('media-modal').classList.add('hidden');
+        window.closeMediaModal = () => $('media-modal').classList.add('hidden');
 
         function renderGifs(items) {
-            const box = document.getElementById('gif-results');
+            const box = $('gif-results');
             box.dataset.loaded = "1";
             if (!items.length) { box.innerHTML = `<div class="col-span-3 text-center text-xs text-[#80848e] py-6">Aucun GIF trouvé.</div>`; return; }
             box.innerHTML = items.map(g => {
                 const preview = g.images?.fixed_height_small?.url || g.images?.fixed_height?.url;
                 const full = g.images?.original?.url || preview;
                 if (!preview || !full) return '';
-                return `<img src="${escapeHtml(preview)}" data-full="${escapeHtml(full)}" onclick="sendPresetGif(this.dataset.full)" onerror="this.remove()" class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-[#3f4147]">`;
+                return `<img src="${escapeHtml(preview)}" data-full="${escapeHtml(full)}" loading="lazy" onclick="sendPresetGif(this.dataset.full)" onerror="this.remove()" class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-[#3f4147]">`;
             }).join('');
         }
 
         async function fetchGiphy(url) {
-            const box = document.getElementById('gif-results');
+            const box = $('gif-results');
             box.innerHTML = `<div class="col-span-3 text-center text-xs text-[#80848e] py-6">Chargement...</div>`;
             try { const res = await fetch(url); renderGifs((await res.json()).data || []); }
             catch { box.innerHTML = `<div class="col-span-3 text-center text-xs text-rose-400 py-6">GIFs indisponibles. Colle une URL à la main.</div>`; }
         }
         const loadTrendingGifs = () => fetchGiphy(`https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_KEY}&limit=24&rating=pg-13`);
         window.searchGifs = () => {
-            const q = document.getElementById('gif-search-input').value.trim();
+            const q = $('gif-search-input').value.trim();
             if (!q) return loadTrendingGifs();
             fetchGiphy(`https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(q)}&limit=24&rating=pg-13`);
         };
-        document.getElementById('gif-search-input').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); searchGifs(); } });
+        $('gif-search-input').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); searchGifs(); } });
 
         window.sendMediaMessage = async () => {
-            const url = document.getElementById('media-url-input').value.trim();
+            const url = $('media-url-input').value.trim();
             if (url) await postMedia(url);
-        }
+        };
         window.sendPresetGif = async (url) => postMedia(url);
 
         async function postMedia(url) {
             const clean = safeUrl(url);
             if (!clean) return showToast("URL invalide.");
+            // On fige la conversation au moment de l'envoi
+            const path = messagesPath();
+            const conv = currentConv();
+            $('media-url-input').value = '';
+            closeMediaModal();
             try {
-                await addDoc(collection(db, messagesPath()), {
+                await addDoc(collection(db, path), {
                     mediaUrl: clean, uid: currentUser.uid, displayName: userProfile.name,
                     avatar: userProfile.avatar || "", createdAt: serverTimestamp(), reactions: {}
                 });
-                document.getElementById('media-url-input').value = '';
-                closeMediaModal();
-                notifyConversationPeers("📷 a envoyé une image/GIF");
+                notifyConversationPeers("📷 a envoyé une image/GIF", conv);
             } catch (e) { showToast("Erreur: " + e.message); }
         }
 
@@ -1322,11 +1581,11 @@
         }
 
         function attachRemoteAudio(uid, stream) {
-            let el = document.getElementById(`audio-${uid}`);
+            let el = $(`audio-${uid}`);
             if (!el) {
                 el = document.createElement('audio');
                 el.id = `audio-${uid}`; el.autoplay = true; el.playsInline = true;
-                document.getElementById('remote-audios').appendChild(el);
+                $('remote-audios').appendChild(el);
             }
             el.srcObject = stream;
             el.muted = isDeafened;
@@ -1385,39 +1644,39 @@
             if (!p) return;
             p.unsubs.forEach(fn => { try { fn(); } catch {} });
             try { p.pc.close(); } catch {}
-            document.getElementById(`audio-${uid}`)?.remove();
+            $(`audio-${uid}`)?.remove();
             delete peers[uid];
             updateVoicePanel();
         }
 
         function updateVoicePanel() {
             const n = Object.keys(peers).length;
-            document.getElementById('voice-peer-count').textContent = n ? `${n} connexion(s)` : "en attente...";
+            $('voice-peer-count').textContent = n ? `${n} connexion(s)` : "en attente...";
         }
 
         function hideVoicePanel() {
-            const p = document.getElementById('active-voice-panel');
+            const p = $('active-voice-panel');
             p.classList.add('hidden'); p.classList.remove('flex');
         }
 
         window.requestJoinVoice = (id, name) => {
             if (activeVoiceId === id) return showToast("Tu es déjà dans ce vocal.");
             pendingVoice = { id, name };
-            document.getElementById('voice-confirm-title').textContent = `Rejoindre "${name}" ?`;
-            document.getElementById('voice-confirm-modal').classList.remove('hidden');
+            $('voice-confirm-title').textContent = `Rejoindre "${name}" ?`;
+            $('voice-confirm-modal').classList.remove('hidden');
         };
-        window.closeVoiceConfirm = () => { pendingVoice = null; document.getElementById('voice-confirm-modal').classList.add('hidden'); };
+        window.closeVoiceConfirm = () => { pendingVoice = null; $('voice-confirm-modal').classList.add('hidden'); };
 
         window.confirmJoinVoice = async () => {
             if (!pendingVoice) return;
             const { id, name } = pendingVoice;
-            const btn = document.getElementById('voice-confirm-btn');
+            const btn = $('voice-confirm-btn');
             btn.disabled = true;
             btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Connexion...`;
             await doJoinVoice(id, name);
             btn.disabled = false;
             btn.innerHTML = `<i class="fa-solid fa-phone"></i> Rejoindre`;
-            document.getElementById('voice-confirm-modal').classList.add('hidden');
+            $('voice-confirm-modal').classList.add('hidden');
             pendingVoice = null;
         };
 
@@ -1425,10 +1684,10 @@
             if (activeVoiceId === voiceId) return;
             if (activeVoiceId) await leaveVoiceChannel();
 
-            const panel = document.getElementById('active-voice-panel');
+            const panel = $('active-voice-panel');
             panel.classList.remove('hidden'); panel.classList.add('flex');
-            document.getElementById('active-voice-name').textContent = `Connexion à ${friendlyName}...`;
-            document.getElementById('voice-panel-controls').classList.add('opacity-40', 'pointer-events-none');
+            $('active-voice-name').textContent = `Connexion à ${friendlyName}...`;
+            $('voice-panel-controls').classList.add('opacity-40', 'pointer-events-none');
 
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
@@ -1440,13 +1699,13 @@
             activeVoiceId = voiceId;
             isMicMuted = false; isDeafened = false;
             updateMicUI();
-            document.getElementById('voice-panel-controls').classList.remove('opacity-40', 'pointer-events-none');
+            $('voice-panel-controls').classList.remove('opacity-40', 'pointer-events-none');
 
             await setDoc(doc(db, "voice_rooms", voiceId, "participants", currentUser.uid), {
                 name: userProfile.name, avatar: userProfile.avatar || "", muted: false, joinedAt: serverTimestamp()
             });
 
-            document.getElementById('active-voice-name').textContent = `🔊 ${friendlyName}`;
+            $('active-voice-name').textContent = `🔊 ${friendlyName}`;
             updateVoicePanel();
             showToast("Connecté !");
 
@@ -1489,13 +1748,13 @@
             if (!activeVoiceId) return;
             isDeafened = !isDeafened;
             document.querySelectorAll('#remote-audios audio').forEach(a => a.muted = isDeafened);
-            document.getElementById('deafen-icon').className = isDeafened ? "fa-solid fa-headphones-simple text-rose-400" : "fa-solid fa-headphones text-emerald-400";
+            $('deafen-icon').className = isDeafened ? "fa-solid fa-headphones-simple text-rose-400" : "fa-solid fa-headphones text-emerald-400";
             if (isDeafened && !isMicMuted) toggleMuteMic();
             showToast(isDeafened ? "🔇 Son coupé" : "🔊 Son rétabli");
         };
 
         function updateMicUI() {
-            const icon = document.getElementById('mic-icon'), text = document.getElementById('mic-text'), btn = document.getElementById('mute-mic-btn');
+            const icon = $('mic-icon'), text = $('mic-text'), btn = $('mute-mic-btn');
             if (isMicMuted) {
                 icon.className = "fa-solid fa-microphone-slash text-rose-400"; text.textContent = "Coupé";
                 btn.className = "bg-rose-950/60 border border-rose-800 text-rose-200 px-3 py-2.5 rounded-xl transition font-medium text-sm flex items-center justify-center gap-2 flex-1";
@@ -1506,12 +1765,13 @@
         }
 
         function listenVoiceChannels() {
-            voiceChannelsList.forEach(v => {
+            voiceUnsubs.forEach(fn => fn && fn());
+            voiceUnsubs = voiceChannelsList.map(v =>
                 onSnapshot(collection(db, "voice_rooms", v.id, "participants"), (snap) => {
                     voiceParticipants[v.id] = snap.docs.map(d => d.data());
                     initSidebarUI();
-                });
-            });
+                })
+            );
         }
 
         window.addEventListener('beforeunload', () => {
@@ -1520,26 +1780,41 @@
 
         /* ---------- Saisie ---------- */
 
-        let typingTimeout;
-        const msgInput = document.getElementById('message-input');
-        msgInput.addEventListener('input', async () => {
+        let typingTimeout, typingRef = null, lastTypingSent = 0;
+        const msgInput = $('message-input');
+
+        function stopTyping() {
+            clearTimeout(typingTimeout);
+            if (typingRef) { deleteDoc(typingRef).catch(() => {}); typingRef = null; }
+            lastTypingSent = 0;
+        }
+
+        msgInput.addEventListener('input', () => {
             handleMentionAutocomplete();
             if (!currentUser) return;
-            const ref = doc(db, typingPath(), currentUser.uid);
-            try { await setDoc(ref, { name: userProfile.name }); } catch {}
+            typingRef = doc(db, typingPath(), currentUser.uid);
+            // Une écriture toutes les 1,5 s au maximum (au lieu d'une par touche)
+            const now = Date.now();
+            if (now - lastTypingSent > 1500) {
+                lastTypingSent = now;
+                setDoc(typingRef, { name: userProfile.name }).catch(() => {});
+            }
             clearTimeout(typingTimeout);
-            typingTimeout = setTimeout(() => deleteDoc(ref).catch(() => {}), 2000);
+            typingTimeout = setTimeout(stopTyping, 2500);
         });
         document.addEventListener('click', (e) => {
-            const box = document.getElementById('mention-suggestions');
+            const box = $('mention-suggestions');
             if (!box.classList.contains('hidden') && !box.contains(e.target) && e.target !== msgInput) box.classList.add('hidden');
         });
 
         function loadTypingIndicators() {
             if (unsubscribeTyping) unsubscribeTyping();
+            const token = ++typingToken;
+            $('typing-indicator').textContent = '';
             unsubscribeTyping = onSnapshot(collection(db, typingPath()), (snap) => {
+                if (token !== typingToken) return;
                 const typers = snap.docs.filter(d => d.id !== currentUser?.uid).map(d => d.data().name);
-                document.getElementById('typing-indicator').textContent = typers.length ? `${typers.join(', ')} écrit...` : "";
+                $('typing-indicator').textContent = typers.length ? `${typers.join(', ')} écrit...` : "";
             });
         }
 
@@ -1565,19 +1840,26 @@
                 return;
             }
 
+            // On fige la conversation, on vide le champ tout de suite (sensation instantanée) et on garde le clavier ouvert.
+            const path = messagesPath();
+            const conv = currentConv();
+            msgInput.value = '';
+            $('mention-suggestions').classList.add('hidden');
+            stopTyping();
+            msgInput.focus();
+
             try {
-                await addDoc(collection(db, messagesPath()), {
+                await addDoc(collection(db, path), {
                     text, uid: currentUser.uid, displayName: userProfile.name,
                     avatar: userProfile.avatar || "", createdAt: serverTimestamp(), reactions: {}
                 });
-                msgInput.value = '';
-                document.getElementById('mention-suggestions').classList.add('hidden');
-                deleteDoc(doc(db, typingPath(), currentUser.uid)).catch(() => {});
-
                 const preview = text.length > 60 ? text.slice(0, 57) + '…' : text;
-                notifyConversationPeers(preview);
-                notifyMentions(text);
-            } catch (error) { showToast("Erreur: " + error.message); }
+                notifyConversationPeers(preview, conv);
+                notifyMentions(text, conv);
+            } catch (error) {
+                if (!msgInput.value) msgInput.value = text;   // on rend le texte à l'utilisateur en cas d'échec
+                showToast("Erreur: " + error.message);
+            }
         };
 
         window.deleteMessage = async (id) => {
@@ -1588,33 +1870,60 @@
         window.addReaction = async (id, emoji) => {
             if (!currentUser) return;
             const ref = doc(db, messagesPath(), id);
-            const snap = await getDoc(ref);
-            if (!snap.exists()) return;
-            let reactions = snap.data().reactions || {};
+            let base = msgData.get(id)?.reactions;
+            if (!base) {
+                const snap = await getDoc(ref);
+                if (!snap.exists()) return;
+                base = snap.data().reactions || {};
+            }
+            const reactions = {};
+            for (const [k, v] of Object.entries(base)) reactions[k] = Array.isArray(v) ? [...v] : [];
             if (!reactions[emoji]) reactions[emoji] = [];
             if (reactions[emoji].includes(currentUser.uid)) {
                 reactions[emoji] = reactions[emoji].filter(u => u !== currentUser.uid);
                 if (!reactions[emoji].length) delete reactions[emoji];
             } else reactions[emoji].push(currentUser.uid);
-            await updateDoc(ref, { reactions });
+            await updateDoc(ref, { reactions }).catch(e => showToast("Erreur : " + e.message));
+        };
+        window.reactFromEl = (el) => addReaction(el.dataset.id, el.dataset.emoji);
+
+        /* ---------- Défilement / remonter dans le temps ---------- */
+
+        const msgContainer = $('messages-container');
+        const msgList = $('messages-list');
+
+        function scrollToBottom() {
+            msgContainer.scrollTop = msgContainer.scrollHeight;
+            pinned = true;
         }
 
-        const EMOJIS = ['👍', '❤️', '😂', '🔥', '💀', '👑', '🚀', '🎮', '😎'];
+        // Une image/GIF qui finit de charger agrandit le chat : si on était en bas, on y reste.
+        msgContainer.addEventListener('load', (e) => {
+            if (pinned && e.target && e.target.tagName === 'IMG') msgContainer.scrollTop = msgContainer.scrollHeight;
+        }, true);
 
-        /* ---------- Remonter dans le temps (salons publics comme MP/groupes) ---------- */
-
-        window.toggleJumpMenu = () => document.getElementById('jump-menu').classList.toggle('hidden');
+        window.toggleJumpMenu = () => $('jump-menu').classList.toggle('hidden');
         document.addEventListener('click', (e) => {
-            const menu = document.getElementById('jump-menu');
-            const btn = document.getElementById('jump-btn');
+            const menu = $('jump-menu');
+            const btn = $('jump-btn');
             if (!menu.classList.contains('hidden') && !menu.contains(e.target) && !btn.contains(e.target)) menu.classList.add('hidden');
         });
 
-        window.jumpBack = (hours) => {
-            document.getElementById('jump-menu').classList.add('hidden');
-            const rows = [...document.querySelectorAll('#messages-container .message-row[data-ts]')].filter(r => Number(r.dataset.ts) > 0);
+        window.jumpBack = (hours, afterLoad = false) => {
+            $('jump-menu').classList.add('hidden');
+            const rows = [...msgList.children].filter(r => Number(r.dataset.ts) > 0);
             if (!rows.length) return showToast("Aucun message à afficher.");
             const targetTs = Date.now() - hours * 3600 * 1000;
+
+            // L'historique demandé est plus ancien que ce qui est chargé : on charge davantage puis on saute.
+            if (!afterLoad && hasMore && Number(rows[0].dataset.ts) > targetTs) {
+                pendingJumpHours = hours;
+                messageLimit = Math.max(messageLimit, 1000);
+                showToast("Chargement de l'historique…");
+                loadMessages({ keepScroll: true });
+                return;
+            }
+
             let target = null;
             for (let i = rows.length - 1; i >= 0; i--) {
                 if (Number(rows[i].dataset.ts) <= targetTs) { target = rows[i]; break; }
@@ -1627,9 +1936,14 @@
         };
 
         window.jumpToBottom = () => {
-            document.getElementById('jump-menu').classList.add('hidden');
-            const container = document.getElementById('messages-container');
-            container.scrollTop = container.scrollHeight;
+            $('jump-menu').classList.add('hidden');
+            msgContainer.scrollTo({ top: msgContainer.scrollHeight, behavior: 'smooth' });
+        };
+
+        window.loadOlderMessages = () => {
+            $('load-more-btn').innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5"></i>Chargement...`;
+            messageLimit += 200;
+            loadMessages({ keepScroll: true });
         };
 
         function relativeTimeLabel(ts) {
@@ -1645,15 +1959,26 @@
             return `${d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} · ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
         }
 
-        // Montre où on en est pendant un défilement manuel, puis s'efface.
-        let scrollIndicatorTimer;
-        document.getElementById('messages-container').addEventListener('scroll', function () {
-            const indicator = document.getElementById('scroll-time-indicator');
-            const rows = [...this.querySelectorAll('.message-row[data-ts]')].filter(r => Number(r.dataset.ts) > 0);
-            if (!rows.length) return;
-            const containerTop = this.getBoundingClientRect().top;
-            let topRow = rows.find(r => r.getBoundingClientRect().bottom > containerTop + 6) || rows[rows.length - 1];
-            indicator.textContent = relativeTimeLabel(Number(topRow.dataset.ts));
+        // Recherche binaire de la première ligne visible (rapide même avec beaucoup de messages)
+        function topVisibleRow() {
+            const rows = msgList.children;
+            if (!rows.length) return null;
+            const y = msgContainer.scrollTop + 6;
+            let lo = 0, hi = rows.length - 1, ans = rows.length - 1;
+            while (lo <= hi) {
+                const mid = (lo + hi) >> 1, r = rows[mid];
+                if (r.offsetTop + r.offsetHeight > y) { ans = mid; hi = mid - 1; } else lo = mid + 1;
+            }
+            return rows[ans];
+        }
+
+        let scrollRaf = 0, scrollIndicatorTimer;
+        function updateScrollIndicator() {
+            const row = topVisibleRow();
+            const ts = row ? Number(row.dataset.ts) : 0;
+            if (!ts) return;
+            const indicator = $('scroll-time-indicator');
+            indicator.textContent = relativeTimeLabel(ts);
             indicator.classList.remove('hidden');
             indicator.style.opacity = '1';
             clearTimeout(scrollIndicatorTimer);
@@ -1661,63 +1986,190 @@
                 indicator.style.opacity = '0';
                 setTimeout(() => indicator.classList.add('hidden'), 200);
             }, 1300);
+        }
+
+        msgContainer.addEventListener('scroll', () => {
+            const dist = msgContainer.scrollHeight - msgContainer.scrollTop - msgContainer.clientHeight;
+            pinned = dist < 120;
+            $('scroll-bottom-btn').classList.toggle('hidden', dist < 400);
+            if (dist < 250 || scrollRaf) return;   // pas d'indicateur quand on est déjà près du présent
+            scrollRaf = requestAnimationFrame(() => { scrollRaf = 0; updateScrollIndicator(); });
         }, { passive: true });
 
-        function loadMessages() {
-            if (unsubscribeMessages) unsubscribeMessages();
-            const q = query(collection(db, messagesPath()), orderBy("createdAt", "asc"));
-            const targetAtLoad = currentTargetId;
+        /* ---------- Affichage des messages ---------- */
+
+        // Squelette de chargement (affiché uniquement pendant l'attente des messages d'un salon jamais visité)
+        (function buildSkeleton() {
+            const widths = [[70, 40], [55, 30], [80, 55], [45, 25], [65, 35]];
+            $('messages-skeleton').innerHTML = widths.map(([a, b]) => `
+                <div class="flex gap-3 animate-pulse">
+                    <div class="w-10 h-10 rounded-full bg-[#35373c] shrink-0"></div>
+                    <div class="flex-1 space-y-2 pt-1">
+                        <div class="h-3 rounded bg-[#35373c]" style="width:${b}%;max-width:180px"></div>
+                        <div class="h-3 rounded bg-[#35373c]/70" style="width:${a}%"></div>
+                    </div>
+                </div>`).join('');
+        })();
+
+        function rowHtml(id, msg) {
+            const isMe = !!currentUser && msg.uid === currentUser.uid;
+            const canDelete = isMe || isAdmin();
+            const name = msg.displayName || 'Anonyme';
+            const letter = escapeHtml(String(msg.displayName || 'A').charAt(0).toUpperCase());
+            const av = safeUrl(msg.avatar);
+            const avatarHtml = `<div class="w-10 h-10 rounded-full bg-[#35373c] flex items-center justify-center text-sm font-bold overflow-hidden">${
+                av ? `<img src="${escapeHtml(av)}" data-l="${letter}" loading="lazy" decoding="async" class="w-full h-full object-cover" onerror="this.replaceWith(document.createTextNode(this.dataset.l))">` : letter
+            }</div>`;
+
+            const media = safeUrl(msg.mediaUrl);
+            const content = media
+                ? `<img src="${escapeHtml(media)}" decoding="async" class="rounded-xl max-h-60 object-cover mt-1" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'text-xs italic opacity-70',textContent:'[GIF indisponible]'}))">`
+                : highlightMentions(msg.text || '');
+            const time = formatTime(msg.createdAt);
+
+            const reactions = (msg.reactions && typeof msg.reactions === 'object')
+                ? Object.entries(msg.reactions).filter(([, l]) => Array.isArray(l) && l.length) : [];
+            const reactionsHtml = reactions.length
+                ? `<div class="flex flex-wrap gap-1 mt-1.5">` + reactions.map(([em, list]) => {
+                    const mine = !!currentUser && list.includes(currentUser.uid);
+                    return `<button data-id="${escapeHtml(id)}" data-emoji="${escapeHtml(em)}" onclick="reactFromEl(this)" class="text-xs px-2 py-0.5 rounded-lg border flex items-center gap-1 ${mine ? 'bg-[var(--theme-color)]/20 border-[var(--theme-color)] text-white' : 'bg-[#2b2d31] border-[#3f4147] text-[#949ba4]'}"><span>${escapeHtml(em)}</span><span class="font-medium">${list.length}</span></button>`;
+                }).join('') + `</div>`
+                : '';
+
+            const ts = (msg.createdAt && typeof msg.createdAt.toMillis === 'function') ? msg.createdAt.toMillis() : 0;
+
+            // La barre d'actions (réactions / suppression) est remplie au survol : deux fois moins d'éléments dans la page.
+            return `
+                <div class="message-row group flex gap-3 px-2 py-1.5 hover:bg-white/[0.035] rounded-md relative" data-id="${escapeHtml(id)}" data-ts="${ts}" data-del="${canDelete ? 1 : 0}">
+                    <div class="shrink-0 mt-0.5">${avatarHtml}</div>
+                    <div class="min-w-0 flex-1 msg-bubble-bg">
+                        <div class="flex items-baseline gap-2 flex-wrap">
+                            <span class="text-sm font-semibold" style="color:${isMe ? 'var(--theme-color)' : '#f2f3f5'}">${escapeHtml(name)}</span>
+                            <span class="msg-time text-[11px] text-[#80848e]">${time}</span>
+                        </div>
+                        <div class="text-sm text-[#dbdee1] break-words leading-snug">${content}</div>
+                        ${reactionsHtml}
+                    </div>
+                    <div class="msg-actions hidden absolute right-2 -top-3 bg-[#2b2d31] border border-[#3f4147] rounded-lg p-1 shadow-lg items-center gap-1 z-10"></div>
+                </div>`;
+        }
+
+        const sigOf = (m) => JSON.stringify([m.text, m.mediaUrl, m.displayName, m.avatar, m.reactions || {}]);
+
+        function buildRow(id, msg) {
+            const t = document.createElement('template');
+            t.innerHTML = rowHtml(id, msg).trim();
+            const el = t.content.firstElementChild;
+            el.dataset.sig = sigOf(msg);
+            return el;
+        }
+
+        function fillActions(row) {
+            const box = row.querySelector('.msg-actions');
+            if (!box || box.childElementCount) return;
+            const id = escapeHtml(row.dataset.id);
+            box.innerHTML = EMOJIS.map(e => `<button data-id="${id}" data-emoji="${e}" onclick="reactFromEl(this)" class="hover:bg-[#35373c] px-1 py-0.5 rounded text-xs">${e}</button>`).join('')
+                + (row.dataset.del === '1' ? `<button onclick="deleteMessage('${id}')" class="hover:bg-rose-900/60 px-1.5 py-0.5 rounded text-xs text-rose-400"><i class="fa-solid fa-trash"></i></button>` : '');
+        }
+        ['mouseover', 'touchstart'].forEach(ev => msgList.addEventListener(ev, (e) => {
+            const row = e.target.closest && e.target.closest('.message-row');
+            if (row) fillActions(row);
+        }, { passive: true }));
+
+        const rowEl = (id) => msgList.querySelector(`[data-id="${CSS.escape(id)}"]`);
+
+        function refreshListChrome(snapshotSize) {
+            hasMore = snapshotSize >= messageLimit;
+            const wrap = $('load-more-wrap');
+            wrap.classList.toggle('hidden', !hasMore);
+            if (hasMore) $('load-more-btn').innerHTML = `<i class="fa-solid fa-clock-rotate-left mr-1.5"></i>Charger les messages plus anciens`;
+            $('messages-empty').classList.toggle('hidden', msgList.children.length > 0);
+        }
+
+        function loadMessages({ keepScroll = false } = {}) {
+            if (unsubscribeMessages) { unsubscribeMessages(); unsubscribeMessages = null; }
+            if (!currentUser) return;
+
+            const token = ++messagesToken;       // toute réponse portant un autre token est ignorée
+            const key = convKey();
+            const q = query(collection(db, messagesPath()), orderBy("createdAt", "asc"), limitToLast(messageLimit));
+            const prev = keepScroll ? { h: msgContainer.scrollHeight, t: msgContainer.scrollTop } : null;
+            let first = true;
 
             unsubscribeMessages = onSnapshot(q, (snapshot) => {
-                if (targetAtLoad !== currentTargetId) return;
-                const container = document.getElementById('messages-container');
-                const stick = container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+                if (token !== messagesToken) return;
 
-                container.innerHTML = snapshot.docs.map(docSnap => {
-                    const id = docSnap.id, msg = docSnap.data();
-                    const isMe = currentUser && msg.uid === currentUser.uid;
-                    const canDelete = isMe || isAdmin();
-                    const av = safeUrl(msg.avatar);
-                    const avatarHtml = av
-                        ? `<img src="${escapeHtml(av)}" class="w-10 h-10 rounded-full object-cover" onerror="this.remove()">`
-                        : `<div class="w-10 h-10 rounded-full bg-[#35373c] flex items-center justify-center text-sm font-bold">${escapeHtml(String(msg.displayName || 'A').charAt(0).toUpperCase())}</div>`;
-                    const media = safeUrl(msg.mediaUrl);
-                    const content = media
-                        ? `<img src="${escapeHtml(media)}" class="rounded-xl max-h-60 object-cover mt-1" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'text-xs italic opacity-70',textContent:'[GIF indisponible]'}))">`
-                        : highlightMentions(msg.text || '');
-                    const time = formatTime(msg.createdAt);
+                if (first) {
+                    // Instantané vide venant uniquement du cache local : on attend la vraie réponse du serveur.
+                    if (snapshot.metadata.fromCache && snapshot.empty) return;
+                    first = false;
 
-                    let reactionsHtml = '';
-                    if (msg.reactions && Object.keys(msg.reactions).length) {
-                        reactionsHtml = `<div class="flex flex-wrap gap-1 mt-1.5">` + Object.entries(msg.reactions).map(([em, list]) => {
-                            const mine = list.includes(currentUser?.uid);
-                            return `<button onclick="addReaction('${id}','${em}')" class="text-xs px-2 py-0.5 rounded-lg border flex items-center gap-1 ${mine ? 'bg-[var(--theme-color)]/20 border-[var(--theme-color)] text-white' : 'bg-[#2b2d31] border-[#3f4147] text-[#949ba4]'}"><span>${em}</span><span class="font-medium">${list.length}</span></button>`;
-                        }).join('') + `</div>`;
+                    msgData.clear();
+                    msgList.innerHTML = snapshot.docs.map(d => {
+                        const data = d.data({ serverTimestamps: 'estimate' });
+                        msgData.set(d.id, data);
+                        return rowHtml(d.id, data);
+                    }).join('');
+                    renderedKey = key;
+                    $('messages-skeleton').classList.add('hidden');
+                    refreshListChrome(snapshot.size);
+
+                    if (prev) {
+                        msgContainer.scrollTop = msgContainer.scrollHeight - prev.h + prev.t;
+                        pinned = false;
+                    } else {
+                        scrollToBottom();
+                    }
+                    if (pendingJumpHours != null) {
+                        const h = pendingJumpHours; pendingJumpHours = null;
+                        requestAnimationFrame(() => jumpBack(h, true));
+                    }
+                    return;
+                }
+
+                // Mises à jour suivantes : on ne touche qu'aux messages qui ont changé
+                // (plus de reconstruction complète, donc plus de clignotement des GIF ni de survol perdu).
+                const wasPinned = pinned;
+                snapshot.docChanges().forEach((change) => {
+                    const id = change.doc.id;
+                    if (change.type === 'removed') {
+                        msgData.delete(id);
+                        rowEl(id)?.remove();
+                        return;
+                    }
+                    const data = change.doc.data({ serverTimestamps: 'estimate' });
+                    msgData.set(id, data);
+                    const old = rowEl(id);
+
+                    if (change.type === 'modified' && old) {
+                        if (old.dataset.sig === sigOf(data)) {
+                            // Seul l'horodatage a changé (confirmation du serveur) : on met juste l'heure à jour
+                            const ts = (data.createdAt && typeof data.createdAt.toMillis === 'function') ? data.createdAt.toMillis() : 0;
+                            old.dataset.ts = String(ts);
+                            const tEl = old.querySelector('.msg-time');
+                            if (tEl) tEl.textContent = formatTime(data.createdAt);
+                            return;
+                        }
+                        const el = buildRow(id, data);
+                        if (change.oldIndex === change.newIndex) old.replaceWith(el);
+                        else { old.remove(); msgList.insertBefore(el, msgList.children[change.newIndex] || null); }
+                        return;
                     }
 
-                    const ts = (msg.createdAt && typeof msg.createdAt.toMillis === 'function') ? msg.createdAt.toMillis() : 0;
+                    if (old) old.remove();
+                    const el = buildRow(id, data);
+                    el.classList.add('msg-row-enter');
+                    el.addEventListener('animationend', () => el.classList.remove('msg-row-enter'), { once: true });
+                    msgList.insertBefore(el, msgList.children[change.newIndex] || null);
+                });
 
-                    return `
-                        <div class="message-row group flex gap-3 px-2 py-1.5 hover:bg-white/[0.035] rounded-md relative" data-ts="${ts}">
-                            <div class="shrink-0 mt-0.5">${avatarHtml}</div>
-                            <div class="min-w-0 flex-1 msg-bubble-bg">
-                                <div class="flex items-baseline gap-2 flex-wrap">
-                                    <span class="text-sm font-semibold" style="color:${isMe ? 'var(--theme-color)' : '#f2f3f5'}">${escapeHtml(msg.displayName || 'Anonyme')}</span>
-                                    ${time ? `<span class="text-[11px] text-[#80848e]">${time}</span>` : ''}
-                                </div>
-                                <div class="text-sm text-[#dbdee1] break-words leading-snug">${content}</div>
-                                ${reactionsHtml}
-                            </div>
-                            <div class="msg-actions hidden absolute right-2 -top-3 bg-[#2b2d31] border border-[#3f4147] rounded-lg p-1 shadow-lg items-center gap-1 z-10">
-                                ${EMOJIS.map(e => `<button onclick="addReaction('${id}','${e}')" class="hover:bg-[#35373c] px-1 py-0.5 rounded text-xs">${e}</button>`).join('')}
-                                ${canDelete ? `<button onclick="deleteMessage('${id}')" class="hover:bg-rose-900/60 px-1.5 py-0.5 rounded text-xs text-rose-400"><i class="fa-solid fa-trash"></i></button>` : ''}
-                            </div>
-                        </div>`;
-                }).join('');
-
-                if (stick) container.scrollTop = container.scrollHeight;
+                refreshListChrome(snapshot.size);
+                if (wasPinned) scrollToBottom();
             }, (err) => {
-                document.getElementById('messages-container').innerHTML =
+                if (token !== messagesToken) return;
+                $('messages-skeleton').classList.add('hidden');
+                renderedKey = null;
+                msgList.innerHTML =
                     `<div class="text-center text-sm text-rose-400 py-8">Lecture impossible : ${escapeHtml(err.message)}<br><span class="text-xs text-[#80848e]">Vérifie tes règles Firestore.</span></div>`;
             });
         }
