@@ -17,6 +17,19 @@
         .theme-rose { --theme-color: #f43f5e; --theme-dark: #e11d48; }
         .theme-amber { --theme-color: #f59e0b; --theme-dark: #d97706; }
         .message-row:hover .msg-actions { display: flex; }
+        #chat-bg { background-size: cover; background-position: center 20%; }
+        @media (min-width: 768px) {
+            #chat-bg { background-size: 150% auto; background-position: center 12%; }
+        }
+        .has-bg .message-row .msg-bubble-bg {
+            background: rgba(30,31,34,.62);
+            backdrop-filter: blur(3px);
+            -webkit-backdrop-filter: blur(3px);
+            border-radius: 8px;
+            padding: 4px 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,.35);
+        }
+        .has-bg .message-row:hover .msg-bubble-bg { background: rgba(30,31,34,.74); }
         .chan-row:hover .chan-edit { opacity: 1; }
         input, select, textarea { font-size: 16px !important; }
         .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
@@ -124,9 +137,22 @@
             </div>
 
             <div class="relative flex-1 overflow-hidden flex flex-col">
-                <div id="chat-bg" class="absolute inset-0 bg-cover bg-center transition-opacity duration-300"></div>
-                <div id="chat-bg-overlay" class="absolute inset-0 bg-[#313338]/88 hidden"></div>
+                <div id="chat-bg" class="absolute inset-0 transition-opacity duration-300"></div>
+                <div id="chat-bg-overlay" class="absolute inset-0 bg-[#313338]/93 hidden"></div>
                 <div id="messages-container" class="relative z-10 flex-1 overflow-y-auto px-2 md:px-4 py-3 space-y-0.5"></div>
+                <div id="scroll-time-indicator" class="hidden absolute top-2 left-1/2 -translate-x-1/2 bg-[#1e1f22]/90 text-[#dbdee1] text-xs font-medium px-3 py-1.5 rounded-full shadow-lg z-20 pointer-events-none transition-opacity duration-200">--</div>
+                <div class="absolute top-2 right-2 z-20">
+                    <button onclick="toggleJumpMenu()" id="jump-btn" class="w-9 h-9 rounded-full bg-[#1e1f22]/85 hover:bg-[#1e1f22] text-[#dbdee1] flex items-center justify-center shadow-lg transition" title="Remonter dans le temps">
+                        <i class="fa-solid fa-clock-rotate-left text-sm"></i>
+                    </button>
+                    <div id="jump-menu" class="hidden mt-2 bg-[#2b2d31] border border-[#3f4147] rounded-xl shadow-2xl overflow-hidden w-44">
+                        <button onclick="jumpBack(1)" class="w-full text-left px-3 py-2.5 text-sm text-[#dbdee1] hover:bg-[#35373c] transition">Il y a 1 heure</button>
+                        <button onclick="jumpBack(5)" class="w-full text-left px-3 py-2.5 text-sm text-[#dbdee1] hover:bg-[#35373c] transition border-t border-[#3f4147]">Il y a 5 heures</button>
+                        <button onclick="jumpBack(12)" class="w-full text-left px-3 py-2.5 text-sm text-[#dbdee1] hover:bg-[#35373c] transition border-t border-[#3f4147]">Il y a 12 heures</button>
+                        <button onclick="jumpBack(24)" class="w-full text-left px-3 py-2.5 text-sm text-[#dbdee1] hover:bg-[#35373c] transition border-t border-[#3f4147]">Plus de 24h</button>
+                        <button onclick="jumpToBottom()" class="w-full text-left px-3 py-2.5 text-sm text-emerald-400 hover:bg-[#35373c] transition border-t border-[#3f4147]"><i class="fa-solid fa-arrow-down mr-1.5"></i>Revenir au présent</button>
+                    </div>
+                </div>
             </div>
             <div id="typing-indicator" class="px-4 py-0.5 text-xs text-[#80848e] italic h-5 shrink-0"></div>
 
@@ -540,13 +566,16 @@
         function applyChannelBackground(channel) {
             const bgEl = document.getElementById('chat-bg');
             const overlay = document.getElementById('chat-bg-overlay');
+            const container = document.getElementById('messages-container');
             const url = channel && safeUrl(channel.bg);
             if (url) {
                 bgEl.style.backgroundImage = `url("${url}")`;
                 overlay.classList.remove('hidden');
+                container.classList.add('has-bg');
             } else {
                 bgEl.style.backgroundImage = '';
                 overlay.classList.add('hidden');
+                container.classList.remove('has-bg');
             }
         }
 
@@ -1538,6 +1567,68 @@
 
         const EMOJIS = ['👍', '❤️', '😂', '🔥', '💀', '👑', '🚀', '🎮', '😎'];
 
+        /* ---------- Remonter dans le temps (salons publics comme MP/groupes) ---------- */
+
+        window.toggleJumpMenu = () => document.getElementById('jump-menu').classList.toggle('hidden');
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('jump-menu');
+            const btn = document.getElementById('jump-btn');
+            if (!menu.classList.contains('hidden') && !menu.contains(e.target) && !btn.contains(e.target)) menu.classList.add('hidden');
+        });
+
+        window.jumpBack = (hours) => {
+            document.getElementById('jump-menu').classList.add('hidden');
+            const rows = [...document.querySelectorAll('#messages-container .message-row[data-ts]')].filter(r => Number(r.dataset.ts) > 0);
+            if (!rows.length) return showToast("Aucun message à afficher.");
+            const targetTs = Date.now() - hours * 3600 * 1000;
+            let target = null;
+            for (let i = rows.length - 1; i >= 0; i--) {
+                if (Number(rows[i].dataset.ts) <= targetTs) { target = rows[i]; break; }
+            }
+            if (!target) target = rows[0];
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            target.classList.add('ring-2');
+            target.style.setProperty('--tw-ring-color', 'var(--theme-color)');
+            setTimeout(() => target.classList.remove('ring-2'), 1600);
+        };
+
+        window.jumpToBottom = () => {
+            document.getElementById('jump-menu').classList.add('hidden');
+            const container = document.getElementById('messages-container');
+            container.scrollTop = container.scrollHeight;
+        };
+
+        function relativeTimeLabel(ts) {
+            const diffMin = Math.floor((Date.now() - ts) / 60000);
+            if (diffMin < 1) return "À l'instant";
+            if (diffMin < 60) return `Il y a ${diffMin} min`;
+            const diffH = Math.floor(diffMin / 60);
+            const d = new Date(ts);
+            if (diffH < 24) return `Il y a ${diffH} h`;
+            const diffDays = Math.floor(diffH / 24);
+            if (diffDays === 1) return `Hier ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+            if (diffDays < 7) return `${d.toLocaleDateString('fr-FR', { weekday: 'long' })} ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+            return `${d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} · ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+        }
+
+        // Montre où on en est pendant un défilement manuel, puis s'efface.
+        let scrollIndicatorTimer;
+        document.getElementById('messages-container').addEventListener('scroll', function () {
+            const indicator = document.getElementById('scroll-time-indicator');
+            const rows = [...this.querySelectorAll('.message-row[data-ts]')].filter(r => Number(r.dataset.ts) > 0);
+            if (!rows.length) return;
+            const containerTop = this.getBoundingClientRect().top;
+            let topRow = rows.find(r => r.getBoundingClientRect().bottom > containerTop + 6) || rows[rows.length - 1];
+            indicator.textContent = relativeTimeLabel(Number(topRow.dataset.ts));
+            indicator.classList.remove('hidden');
+            indicator.style.opacity = '1';
+            clearTimeout(scrollIndicatorTimer);
+            scrollIndicatorTimer = setTimeout(() => {
+                indicator.style.opacity = '0';
+                setTimeout(() => indicator.classList.add('hidden'), 200);
+            }, 1300);
+        }, { passive: true });
+
         function loadMessages() {
             if (unsubscribeMessages) unsubscribeMessages();
             const q = query(collection(db, messagesPath()), orderBy("createdAt", "asc"));
@@ -1570,10 +1661,12 @@
                         }).join('') + `</div>`;
                     }
 
+                    const ts = (msg.createdAt && typeof msg.createdAt.toMillis === 'function') ? msg.createdAt.toMillis() : 0;
+
                     return `
-                        <div class="message-row group flex gap-3 px-2 py-1.5 hover:bg-white/[0.035] rounded-md relative">
+                        <div class="message-row group flex gap-3 px-2 py-1.5 hover:bg-white/[0.035] rounded-md relative" data-ts="${ts}">
                             <div class="shrink-0 mt-0.5">${avatarHtml}</div>
-                            <div class="min-w-0 flex-1">
+                            <div class="min-w-0 flex-1 msg-bubble-bg">
                                 <div class="flex items-baseline gap-2 flex-wrap">
                                     <span class="text-sm font-semibold" style="color:${isMe ? 'var(--theme-color)' : '#f2f3f5'}">${escapeHtml(msg.displayName || 'Anonyme')}</span>
                                     ${time ? `<span class="text-[11px] text-[#80848e]">${time}</span>` : ''}
