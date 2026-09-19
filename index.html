@@ -23,6 +23,7 @@
         #sidebar { transition: transform .25s ease-out; }
         .modal-pop { animation: modalPop .18s ease-out; }
         @keyframes modalPop { from { opacity:0; transform: scale(.96); } to { opacity:1; transform: scale(1); } }
+        .dropzone-active { border-color: var(--theme-color) !important; background: rgba(139,92,246,.08); }
     </style>
 </head>
 <body id="body-theme" class="bg-slate-950 text-slate-100 h-[100dvh] flex flex-col overflow-hidden font-sans theme-violet">
@@ -106,6 +107,10 @@
                     <button id="header-call-btn" onclick="callCurrentConversation()" class="hidden bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-600/40 px-2.5 py-1.5 rounded-lg text-xs font-medium items-center gap-1.5 transition">
                         <i class="fa-solid fa-phone"></i> <span class="hidden sm:inline">Appeler</span>
                     </button>
+                    <button onclick="openNotificationsModal()" class="relative flex items-center justify-center bg-slate-800/60 hover:bg-slate-800 w-9 h-9 rounded-full border border-slate-700/50 transition" title="Notifications">
+                        <i class="fa-solid fa-bell text-slate-300 text-sm"></i>
+                        <span id="notif-badge" class="hidden absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold w-4 h-4 rounded-full items-center justify-center">0</span>
+                    </button>
                     <button onclick="openOnlineModal()" class="flex items-center gap-1.5 bg-slate-800/60 hover:bg-slate-800 px-2.5 py-1.5 rounded-full border border-slate-700/50 text-xs transition" title="Voir qui est en ligne">
                         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                         <span id="online-count" class="text-slate-300 font-medium">0</span>
@@ -121,7 +126,6 @@
             <div id="messages-container" class="flex-1 overflow-y-auto p-3 md:p-6 space-y-4"></div>
             <div id="typing-indicator" class="px-4 py-0.5 text-xs text-slate-500 italic h-5 shrink-0"></div>
 
-            <!-- Bandeau vocal actif : gros bouton raccrocher bien visible -->
             <div id="active-voice-panel" class="bg-emerald-950/50 border-t border-emerald-900/50 px-3 md:px-4 py-3 hidden flex-col gap-2 shrink-0">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2 truncate">
@@ -146,14 +150,17 @@
             <div class="p-2 md:p-4 pb-[calc(0.5rem+64px)] md:pb-4 border-t border-slate-800 bg-slate-900/80 backdrop-blur shrink-0 safe-bottom">
                 <form id="message-form" onsubmit="sendMessage(event)" class="flex gap-2 items-center">
                     <button type="button" onclick="openMediaModal()" class="text-slate-400 hover:text-slate-200 p-2 transition text-lg shrink-0" title="GIF / Image"><i class="fa-regular fa-image"></i></button>
-                    <input type="text" id="message-input" placeholder="Envoyer un message..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 md:py-3 text-sm focus:outline-none focus:border-[var(--theme-color)] text-slate-100 min-w-0">
+                    <button type="button" onclick="openPingPicker()" class="text-slate-400 hover:text-slate-200 p-2 transition text-lg shrink-0" title="Ping quelqu'un"><i class="fa-solid fa-at"></i></button>
+                    <div class="relative flex-1 min-w-0">
+                        <div id="mention-suggestions" class="hidden absolute bottom-full mb-2 left-0 right-0 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl max-h-48 overflow-y-auto z-20"></div>
+                        <input type="text" id="message-input" placeholder="Envoyer un message... (@ pour ping)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 md:py-3 text-sm focus:outline-none focus:border-[var(--theme-color)] text-slate-100">
+                    </div>
                     <button type="submit" class="bg-[var(--theme-color)] hover:opacity-90 text-white px-4 md:px-5 py-2.5 md:py-3 rounded-xl transition font-medium text-sm flex items-center justify-center shadow-lg shrink-0"><i class="fa-solid fa-paper-plane"></i></button>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Barre de navigation mobile façon Discord -->
     <div id="mobile-bottom-nav" class="md:hidden hidden fixed bottom-0 inset-x-0 bg-slate-900/95 backdrop-blur border-t border-slate-800 flex items-stretch z-40 safe-bottom">
         <button onclick="focusSidebarSection('channels')" class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-slate-400 hover:text-white active:text-[var(--theme-color)] transition">
             <i class="fa-solid fa-hashtag"></i><span class="text-[10px] font-medium">Salons</span>
@@ -175,7 +182,6 @@
 
     <div id="remote-audios" class="hidden"></div>
 
-    <!-- Confirmation avant de rejoindre un vocal -->
     <div id="voice-confirm-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4">
         <div class="modal-pop bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full text-center space-y-4">
             <div class="w-14 h-14 mx-auto rounded-full bg-emerald-500/15 flex items-center justify-center text-2xl text-emerald-400"><i class="fa-solid fa-phone"></i></div>
@@ -188,7 +194,6 @@
         </div>
     </div>
 
-    <!-- Panneau des personnes en ligne -->
     <div id="online-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4">
         <div class="modal-pop bg-slate-900 border border-slate-800 p-5 rounded-2xl max-w-sm w-full space-y-3 shadow-2xl max-h-[80vh] flex flex-col">
             <h3 class="font-bold text-lg flex items-center gap-2 shrink-0"><i class="fa-solid fa-circle-user text-emerald-400"></i> En ligne</h3>
@@ -197,16 +202,43 @@
         </div>
     </div>
 
+    <!-- Notifications : tout ce qui t'a été envoyé en MP/groupe, ou tout ping -->
+    <div id="notifications-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4">
+        <div class="modal-pop bg-slate-900 border border-slate-800 p-5 rounded-2xl max-w-sm w-full space-y-3 shadow-2xl max-h-[80vh] flex flex-col">
+            <div class="flex items-center justify-between shrink-0">
+                <h3 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-bell text-[var(--theme-color)]"></i> Notifications</h3>
+                <button onclick="markAllNotificationsRead()" class="text-xs text-slate-400 hover:text-white">Tout marquer lu</button>
+            </div>
+            <div id="notifications-list" class="space-y-0.5 overflow-y-auto"></div>
+            <button onclick="closeNotificationsModal()" class="shrink-0 px-4 py-2 rounded-xl text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 transition">Fermer</button>
+        </div>
+    </div>
+
+    <!-- Ping rapide : choisis qui pinger, connecté ou non -->
+    <div id="ping-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4">
+        <div class="modal-pop bg-slate-900 border border-slate-800 p-5 rounded-2xl max-w-sm w-full space-y-3 shadow-2xl max-h-[80vh] flex flex-col">
+            <h3 class="font-bold text-lg flex items-center gap-2 shrink-0"><i class="fa-solid fa-at text-[var(--theme-color)]"></i> Pinger quelqu'un</h3>
+            <p class="text-xs text-slate-400 shrink-0">Il recevra une notification même s'il n'est pas connecté.</p>
+            <div id="ping-list" class="space-y-0.5 overflow-y-auto"></div>
+            <button onclick="closePingPicker()" class="shrink-0 px-4 py-2 rounded-xl text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 transition">Fermer</button>
+        </div>
+    </div>
+
     <div id="create-channel-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4">
-        <div class="modal-pop bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-md w-full space-y-4 shadow-2xl">
+        <div class="modal-pop bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-md w-full space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <h3 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-hashtag text-[var(--theme-color)]"></i> Créer un salon textuel</h3>
             <div>
                 <label class="text-xs text-slate-400 block mb-1">Nom du salon</label>
                 <input type="text" id="new-channel-name" placeholder="ex: fortnite-team" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm">
             </div>
             <div>
-                <label class="text-xs text-slate-400 block mb-1">Image du salon (optionnel)</label>
-                <input type="text" id="new-channel-image" placeholder="assets/fortnite.png ou https://..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm">
+                <label class="text-xs text-slate-400 block mb-1">Image du salon</label>
+                <input type="text" id="new-channel-image" placeholder="https://... (ou utilise la zone ci-dessous)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm mb-2">
+                <div id="new-channel-dropzone" class="border-2 border-dashed border-slate-700 rounded-xl p-4 text-center text-xs text-slate-500 hover:border-[var(--theme-color)] transition cursor-pointer" onclick="document.getElementById('new-channel-file').click()">
+                    <i class="fa-solid fa-cloud-arrow-up text-lg mb-1"></i><br>
+                    Glisse une image ici, ou une URL, ou clique pour choisir un fichier
+                    <input type="file" id="new-channel-file" accept="image/*" class="hidden">
+                </div>
             </div>
             <div class="flex justify-end gap-2 pt-2">
                 <button onclick="closeCreateChannelModal()" class="px-4 py-2.5 rounded-xl text-sm bg-slate-800 hover:bg-slate-700 text-slate-300">Annuler</button>
@@ -216,10 +248,14 @@
     </div>
 
     <div id="edit-channel-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4">
-        <div class="modal-pop bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-md w-full space-y-4 shadow-2xl">
+        <div class="modal-pop bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-md w-full space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <h3 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-image text-[var(--theme-color)]"></i> Image du salon</h3>
-            <p class="text-xs text-slate-400">Dépose tes logos dans un dossier <code class="text-amber-400">assets/</code> de ton dépôt, puis écris <code class="text-amber-400">assets/brawl-stars.png</code>.</p>
-            <input type="text" id="edit-channel-image" placeholder="assets/brawl-stars.png" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm">
+            <input type="text" id="edit-channel-image" placeholder="https://... (ou utilise la zone ci-dessous)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm">
+            <div id="edit-channel-dropzone" class="border-2 border-dashed border-slate-700 rounded-xl p-4 text-center text-xs text-slate-500 hover:border-[var(--theme-color)] transition cursor-pointer" onclick="document.getElementById('edit-channel-file').click()">
+                <i class="fa-solid fa-cloud-arrow-up text-lg mb-1"></i><br>
+                Glisse une image ici, ou une URL, ou clique pour choisir un fichier
+                <input type="file" id="edit-channel-file" accept="image/*" class="hidden">
+            </div>
             <div class="flex justify-between gap-2 pt-2">
                 <button onclick="deleteChannel()" id="delete-channel-btn" class="px-4 py-2.5 rounded-xl text-sm bg-rose-950/60 border border-rose-800 text-rose-300 hover:bg-rose-900/60">Supprimer</button>
                 <div class="flex gap-2">
@@ -312,8 +348,9 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, collection, addDoc, query, where, orderBy, onSnapshot, serverTimestamp, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, writeBatch, arrayRemove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB9P5Y1ywmsbQt_PMCNsiRkryppVI1421o",
@@ -328,6 +365,10 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        const storage = getStorage(app);
+
+        // Le compte reste connecté d'une visite à l'autre (corrige la réinitialisation de pseudo).
+        setPersistence(auth, browserLocalPersistence).catch(() => {});
 
         /* =========================================================
            À CONFIGURER : colle ton UID ici (Profil > Mon identifiant)
@@ -351,8 +392,11 @@
         let pendingVoice = null;
 
         let unsubscribeMessages = null, unsubscribeTyping = null, unsubscribeUsers = null,
-            unsubscribeChannels = null, unsubscribeGroups = null, unsubRoomParticipants = null, unsubConvVoice = null;
+            unsubscribeChannels = null, unsubscribeGroups = null, unsubRoomParticipants = null,
+            unsubConvVoice = null, unsubInbox = null;
         let heartbeatTimer = null;
+        let inboxReady = false;
+        let myInboxList = [];
 
         const DEFAULT_CHANNELS = [
             { id: "général", name: "Général", icon: "fa-solid fa-fire text-amber-500", image: "assets/general.png" },
@@ -458,18 +502,194 @@
             </span>`;
         }
 
+        /* ---------- Mentions ("pings") ---------- */
+
+        function findMentionedUsers(text) {
+            if (!text) return [];
+            const matches = [...text.matchAll(/@([^\s@]{2,32})/g)].map(m => m[1]);
+            if (!matches.length) return [];
+            const seen = new Set(), result = [];
+            for (const raw of matches) {
+                const norm = normalizeName(raw);
+                const user = allUsersList.find(u => normalizeName(u.name) === norm);
+                if (user && user.uid !== currentUser?.uid && !seen.has(user.uid)) { seen.add(user.uid); result.push(user); }
+            }
+            return result;
+        }
+
+        function highlightMentions(text) {
+            return escapeHtml(text).replace(/@([^\s@]{2,32})/g, (whole, raw) => {
+                const norm = normalizeName(raw);
+                const user = allUsersList.find(u => normalizeName(u.name) === norm);
+                if (!user) return whole;
+                const isMe = user.uid === currentUser?.uid;
+                return `<span class="${isMe ? 'bg-amber-500/30 text-amber-300' : 'bg-[var(--theme-color)]/20 text-[var(--theme-color)]'} px-1 rounded font-medium">@${escapeHtml(user.name)}</span>`;
+            });
+        }
+
+        window.openPingPicker = () => {
+            const box = document.getElementById('ping-list');
+            const sorted = allUsersList.filter(u => u.uid && u.uid !== currentUser.uid)
+                .sort((a, b) => (isOnline(b) - isOnline(a)) || String(a.name).localeCompare(String(b.name)));
+            box.innerHTML = sorted.length ? sorted.map(u => {
+                const av = safeUrl(u.avatar);
+                return `
+                    <button onclick="pingUser('${escapeHtml(u.uid)}')" class="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-800 transition flex items-center gap-2.5">
+                        <div class="w-7 h-7 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-xs font-bold overflow-hidden shrink-0">
+                            ${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((u.name || '?').charAt(0))}
+                        </div>
+                        <span class="text-sm truncate flex-1">${escapeHtml(u.name)}</span>
+                        <span class="w-2 h-2 rounded-full ${isOnline(u) ? 'bg-emerald-500' : 'bg-slate-600'} shrink-0" title="${isOnline(u) ? 'En ligne' : 'Hors ligne'}"></span>
+                    </button>`;
+            }).join('') : `<div class="text-xs text-slate-500 italic text-center py-6">Personne d'autre n'est inscrit.</div>`;
+            document.getElementById('ping-modal').classList.remove('hidden');
+        };
+        window.closePingPicker = () => document.getElementById('ping-modal').classList.add('hidden');
+        window.pingUser = (uid) => {
+            const u = allUsersList.find(x => x.uid === uid);
+            if (!u) return;
+            const cur = msgInput.value;
+            msgInput.value = cur + (cur && !cur.endsWith(' ') ? ' ' : '') + `@${u.name} `;
+            closePingPicker();
+            msgInput.focus();
+        };
+
+        function handleMentionAutocomplete() {
+            const val = msgInput.value;
+            const at = val.lastIndexOf('@');
+            const box = document.getElementById('mention-suggestions');
+            if (at === -1 || /\s/.test(val.slice(at + 1))) { box.classList.add('hidden'); return; }
+            const partial = normalizeName(val.slice(at + 1));
+            const matches = allUsersList.filter(u => u.uid !== currentUser?.uid && normalizeName(u.name).includes(partial)).slice(0, 6);
+            if (!matches.length) { box.classList.add('hidden'); return; }
+            box.innerHTML = matches.map(u => `
+                <button type="button" onmousedown="event.preventDefault();insertMention('${escapeHtml(u.uid)}')" class="w-full text-left px-3 py-2 hover:bg-slate-800 flex items-center gap-2 text-sm">
+                    <span class="w-2 h-2 rounded-full ${isOnline(u) ? 'bg-emerald-500' : 'bg-slate-600'} shrink-0"></span>
+                    <span class="truncate">${escapeHtml(u.name)}</span>
+                </button>`).join('');
+            box.classList.remove('hidden');
+        }
+        window.insertMention = (uid) => {
+            const u = allUsersList.find(x => x.uid === uid);
+            if (!u) return;
+            const val = msgInput.value;
+            const at = val.lastIndexOf('@');
+            msgInput.value = val.slice(0, at) + `@${u.name} `;
+            document.getElementById('mention-suggestions').classList.add('hidden');
+            msgInput.focus();
+        };
+
+        /* ---------- Notifications / boîte de réception ---------- */
+
+        const inboxKey = (forUid, convType, convId) => `${forUid}_${convType}_${convId}`;
+
+        async function notifyUsers(targetUsers, payload) {
+            const uids = [...new Set(targetUsers.map(u => typeof u === 'string' ? u : u.uid).filter(uid => uid && uid !== currentUser.uid))];
+            for (const uid of uids) {
+                try {
+                    await setDoc(doc(db, "inbox", inboxKey(uid, payload.convType, payload.convId)), {
+                        forUid: uid, convType: payload.convType, convId: payload.convId, convName: payload.convName,
+                        fromUid: currentUser.uid, fromName: userProfile.name, lastText: payload.text,
+                        isMention: !!payload.isMention, unread: true, lastAt: serverTimestamp()
+                    }, { merge: true });
+                } catch {}
+            }
+        }
+
+        function notifyConversationPeers(previewText) {
+            if (currentTargetType === 'dm') {
+                const otherUid = currentTargetId.replace(/^dm_/, '').split('_').find(p => p !== currentUser.uid);
+                if (otherUid) notifyUsers([otherUid], { convType: 'dm', convId: currentTargetId, convName: userProfile.name, text: previewText });
+            } else if (currentTargetType === 'group') {
+                const g = myGroups.find(g => g.id === currentTargetId);
+                const members = (g?.members || []).filter(u => u !== currentUser.uid);
+                if (members.length) notifyUsers(members, { convType: 'group', convId: currentTargetId, convName: currentConvName, text: previewText });
+            }
+        }
+        function notifyMentions(text) {
+            const mentioned = findMentionedUsers(text);
+            if (mentioned.length) notifyUsers(mentioned, {
+                convType: currentTargetType, convId: currentTargetId, convName: currentConvName,
+                text: text.length > 60 ? text.slice(0, 57) + '…' : text, isMention: true
+            });
+        }
+
+        function listenInbox() {
+            if (unsubInbox) unsubInbox();
+            inboxReady = false;
+            const q = query(collection(db, "inbox"), where("forUid", "==", currentUser.uid));
+            unsubInbox = onSnapshot(q, (snap) => {
+                myInboxList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                const unreadCount = myInboxList.filter(n => n.unread).length;
+                const badge = document.getElementById('notif-badge');
+                if (unreadCount > 0) { badge.textContent = unreadCount > 9 ? '9+' : unreadCount; badge.classList.remove('hidden'); badge.classList.add('flex'); }
+                else { badge.classList.add('hidden'); badge.classList.remove('flex'); }
+
+                if (inboxReady) {
+                    snap.docChanges().forEach(c => {
+                        const n = c.doc.data();
+                        if ((c.type === 'added' || c.type === 'modified') && n.unread) {
+                            const isCurrent = currentTargetType === n.convType && currentTargetId === n.convId;
+                            if (!isCurrent) showToast(`${n.isMention ? '📣' : '💬'} ${n.fromName} : ${n.lastText}`.slice(0, 90));
+                        }
+                    });
+                }
+                inboxReady = true;
+
+                initSidebarUI();
+                if (!document.getElementById('notifications-modal').classList.contains('hidden')) renderNotificationsList();
+            });
+        }
+
+        window.openNotificationsModal = () => { renderNotificationsList(); document.getElementById('notifications-modal').classList.remove('hidden'); };
+        window.closeNotificationsModal = () => document.getElementById('notifications-modal').classList.add('hidden');
+
+        function renderNotificationsList() {
+            const box = document.getElementById('notifications-list');
+            const sorted = [...myInboxList].sort((a, b) => (b.lastAt?.toMillis?.() || 0) - (a.lastAt?.toMillis?.() || 0));
+            box.innerHTML = sorted.length ? sorted.map(n => `
+                <button onclick="openNotification('${escapeHtml(n.id)}')" class="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-800 transition flex items-start gap-2.5 ${n.unread ? 'bg-slate-800/60' : ''}">
+                    <div class="w-8 h-8 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">${escapeHtml((n.fromName || '?').charAt(0))}</div>
+                    <div class="min-w-0 flex-1">
+                        <div class="text-sm font-medium truncate flex items-center gap-1.5">
+                            ${escapeHtml(n.fromName)} ${n.isMention ? '<span class="text-[10px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full">ping</span>' : ''}
+                            ${n.unread ? '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 ml-auto shrink-0"></span>' : ''}
+                        </div>
+                        <div class="text-xs text-slate-400 truncate">${n.convType === 'group' ? '👥 ' : n.convType === 'channel' ? '# ' : '💬 '}${escapeHtml(n.convName || '')} — ${escapeHtml(n.lastText || '')}</div>
+                    </div>
+                </button>`).join('') : `<div class="text-center text-xs text-slate-500 py-8">Aucune notification pour le moment.</div>`;
+        }
+
+        window.openNotification = (id) => {
+            const n = myInboxList.find(x => x.id === id);
+            if (!n) return;
+            closeNotificationsModal();
+            updateDoc(doc(db, "inbox", id), { unread: false }).catch(() => {});
+            switchTarget(n.convType, n.convId, n.convName);
+        };
+
+        window.markAllNotificationsRead = () => {
+            myInboxList.filter(n => n.unread).forEach(n => updateDoc(doc(db, "inbox", n.id), { unread: false }).catch(() => {}));
+        };
+
         /* ---------- Sidebar ---------- */
+
+        function hasUnreadFor(type, id) {
+            return myInboxList.some(n => n.convType === type && n.convId === id && n.unread);
+        }
 
         function initSidebarUI() {
             updateAdminUI();
 
             document.getElementById('channels-list').innerHTML = textChannels.map(c => {
                 const isActive = currentTargetType === 'channel' && currentTargetId === c.id;
+                const unread = hasUnreadFor('channel', c.id) && !isActive;
                 return `
                     <div class="chan-row relative group">
                         <button onclick="switchTarget('channel', '${escapeHtml(c.id)}', '${escapeHtml(c.name)}')" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2.5 transition ${isActive ? 'bg-[var(--theme-color)] text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
                             ${channelIconHtml(c)}
                             <span class="truncate">${escapeHtml(c.name)}</span>
+                            ${unread ? '<span class="w-2 h-2 rounded-full bg-rose-500 ml-auto shrink-0"></span>' : ''}
                         </button>
                         ${isAdmin() ? `<button onclick="openEditChannelModal('${escapeHtml(c.id)}')" class="chan-edit md:opacity-0 opacity-70 transition absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-white bg-slate-900/80 rounded p-1.5" title="Image du salon"><i class="fa-solid fa-pen text-[10px]"></i></button>` : ''}
                     </div>`;
@@ -507,11 +727,13 @@
             gBox.innerHTML = myGroups.length ? myGroups.map(g => {
                 const isActive = currentTargetType === 'group' && currentTargetId === g.id;
                 const count = (g.members || []).length;
+                const unread = hasUnreadFor('group', g.id) && !isActive;
                 return `
                     <div class="chan-row relative group">
                         <button onclick="switchTarget('group','${escapeHtml(g.id)}','${escapeHtml(g.name)}')" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2.5 transition ${isActive ? 'bg-[var(--theme-color)] text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
                             <i class="fa-solid fa-users w-4 text-center shrink-0"></i>
                             <span class="truncate">${escapeHtml(g.name)}</span>
+                            ${unread ? '<span class="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>' : ''}
                             <span class="text-[10px] text-slate-500 ml-auto shrink-0">${count}</span>
                         </button>
                         <button onclick="leaveGroup('${escapeHtml(g.id)}')" class="chan-edit md:opacity-0 opacity-70 transition absolute right-1 top-1/2 -translate-y-1/2 text-rose-400 hover:text-rose-300 bg-slate-900/80 rounded p-1.5" title="Quitter"><i class="fa-solid fa-right-from-bracket text-[10px]"></i></button>
@@ -525,6 +747,7 @@
             dmBox.innerHTML = others.length ? others.map(u => {
                 const dmId = getDmId(currentUser.uid, u.uid);
                 const isActive = currentTargetType === 'dm' && currentTargetId === dmId;
+                const unread = hasUnreadFor('dm', dmId) && !isActive;
                 const av = safeUrl(u.avatar);
                 return `
                     <button onclick="openDirectMessage('${escapeHtml(u.uid)}')" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2.5 transition ${isActive ? 'bg-[var(--theme-color)] text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
@@ -532,15 +755,17 @@
                             ${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((u.name || '?').charAt(0))}
                         </div>
                         <span class="truncate">${escapeHtml(u.name)}</span>
-                        <span class="w-2 h-2 rounded-full ${isOnline(u) ? 'bg-emerald-500' : 'bg-slate-600'} ml-auto shrink-0"></span>
+                        ${unread ? '<span class="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>' : ''}
+                        <span class="w-2 h-2 rounded-full ${isOnline(u) ? 'bg-emerald-500' : 'bg-slate-600'} ${unread ? '' : 'ml-auto'} shrink-0"></span>
                     </button>`;
             }).join('') : `<div class="px-3 py-2 text-xs text-slate-500 italic">Aucun autre utilisateur.</div>`;
         }
 
-        /* ---------- Salons (admin uniquement) ---------- */
+        /* ---------- Salons (admin uniquement) + upload d'image ---------- */
 
         window.openCreateChannelModal = () => {
             if (!isAdmin()) return showToast("⛔ Réservé à l'administrateur.");
+            document.getElementById('new-channel-image').value = '';
             document.getElementById('create-channel-modal').classList.remove('hidden');
         };
         window.closeCreateChannelModal = () => document.getElementById('create-channel-modal').classList.add('hidden');
@@ -599,6 +824,43 @@
             }, () => { textChannels = [...DEFAULT_CHANNELS]; initSidebarUI(); });
         }
 
+        // Glisser-déposer une image ou une URL, ou choisir un fichier : envoyé sur Firebase Storage.
+        async function handleImageFile(file, targetInput) {
+            if (!isAdmin()) return showToast("⛔ Réservé à l'administrateur.");
+            if (!file.type.startsWith('image/')) return showToast("Ce fichier n'est pas une image.");
+            if (file.size > 4 * 1024 * 1024) return showToast("Image trop lourde (4 Mo max).");
+            showToast("Téléversement en cours...");
+            try {
+                const path = `channel-icons/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+                const r = storageRef(storage, path);
+                await uploadBytes(r, file);
+                const url = await getDownloadURL(r);
+                targetInput.value = url;
+                showToast("Image téléversée !");
+            } catch (e) {
+                showToast("Erreur d'envoi : " + e.message + " — vérifie Firebase Storage.");
+            }
+        }
+
+        function wireDropzone(zoneId, fileId, targetId) {
+            const zone = document.getElementById(zoneId);
+            const fileInput = document.getElementById(fileId);
+            const target = document.getElementById(targetId);
+            fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleImageFile(fileInput.files[0], target); fileInput.value = ''; });
+            zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dropzone-active'); });
+            zone.addEventListener('dragleave', () => zone.classList.remove('dropzone-active'));
+            zone.addEventListener('drop', e => {
+                e.preventDefault();
+                zone.classList.remove('dropzone-active');
+                const file = e.dataTransfer.files?.[0];
+                if (file) { handleImageFile(file, target); return; }
+                const uri = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+                if (uri) { target.value = uri.trim(); showToast("Image liée !"); }
+            });
+        }
+        wireDropzone('new-channel-dropzone', 'new-channel-file', 'new-channel-image');
+        wireDropzone('edit-channel-dropzone', 'edit-channel-file', 'edit-channel-image');
+
         /* ---------- Navigation ---------- */
 
         window.switchTarget = function(type, id, title = "") {
@@ -620,6 +882,10 @@
                 listenConversationVoice(id);
             }
 
+            // On vient de consulter cette conversation : on efface son indicateur non-lu.
+            const key = inboxKey(currentUser.uid, type, id);
+            if (myInboxList.some(n => n.id === key && n.unread)) updateDoc(doc(db, "inbox", key), { unread: false }).catch(() => {});
+
             initSidebarUI();
             loadMessages();
             loadTypingIndicators();
@@ -634,8 +900,6 @@
             switchTarget('dm', dmId, peer ? peer.name : "Utilisateur");
         }
 
-        // Prévient si un appel a déjà lieu dans cette conversation (visible seulement ici,
-        // pour les personnes qui la consultent).
         function listenConversationVoice(id) {
             unsubConvVoice = onSnapshot(collection(db, "voice_rooms", id, "participants"), (snap) => {
                 const others = snap.docs.filter(d => d.id !== currentUser?.uid);
@@ -758,7 +1022,7 @@
                 document.getElementById('auth-screen').classList.remove('hidden');
                 document.getElementById('app-screen').classList.add('hidden');
                 document.getElementById('mobile-bottom-nav').classList.add('hidden');
-                [unsubscribeMessages, unsubscribeTyping, unsubscribeUsers, unsubscribeChannels, unsubscribeGroups, unsubConvVoice]
+                [unsubscribeMessages, unsubscribeTyping, unsubscribeUsers, unsubscribeChannels, unsubscribeGroups, unsubConvVoice, unsubInbox]
                     .forEach(fn => fn && fn());
                 if (heartbeatTimer) clearInterval(heartbeatTimer);
                 return;
@@ -772,15 +1036,17 @@
             const userRef = doc(db, "users", user.uid);
             const snap = await getDoc(userRef);
             if (snap.exists()) {
+                // Profil déjà enregistré : on garde le pseudo et l'avatar tels quels,
+                // on ne les régénère JAMAIS automatiquement.
                 userProfile = { ...snap.data() };
                 if (userProfile.theme) setTheme(userProfile.theme);
             } else {
+                // Premier passage seulement : un nom par défaut.
                 userProfile = {
                     name: user.displayName || (user.isAnonymous ? "Invité_" + user.uid.slice(0, 4) : "Utilisateur"),
                     avatar: user.photoURL || "", theme: "theme-violet"
                 };
             }
-            if (!nameAllowed(userProfile.name)) userProfile.name = "Joueur_" + user.uid.slice(0, 4);
             userProfile.uid = user.uid;
             await setDoc(userRef, { ...userProfile, lastSeen: serverTimestamp() }, { merge: true });
 
@@ -790,6 +1056,7 @@
             listenUsers();
             listenChannels();
             listenGroups();
+            listenInbox();
             loadMessages();
             loadTypingIndicators();
             listenVoiceChannels();
@@ -831,6 +1098,7 @@
         }
         window.closeProfileModal = () => document.getElementById('profile-modal').classList.add('hidden');
 
+        // Seul endroit qui change le pseudo : un clic explicite sur "Enregistrer".
         window.saveProfile = async () => {
             const newName = document.getElementById('edit-username').value.trim();
             const newAvatar = document.getElementById('edit-avatar').value.trim();
@@ -898,6 +1166,7 @@
                 });
                 document.getElementById('media-url-input').value = '';
                 closeMediaModal();
+                notifyConversationPeers("📷 a envoyé une image/GIF");
             } catch (e) { showToast("Erreur: " + e.message); }
         }
 
@@ -996,7 +1265,6 @@
             p.classList.add('hidden'); p.classList.remove('flex');
         }
 
-        // Étape 1 : on demande confirmation avant d'activer le micro.
         window.requestJoinVoice = (id, name) => {
             if (activeVoiceId === id) return showToast("Tu es déjà dans ce vocal.");
             pendingVoice = { id, name };
@@ -1018,7 +1286,6 @@
             pendingVoice = null;
         };
 
-        // Étape 2 : connexion réelle, avec un état "connexion..." visible tout de suite (fluide).
         async function doJoinVoice(voiceId, friendlyName) {
             if (activeVoiceId === voiceId) return;
             if (activeVoiceId) await leaveVoiceChannel();
@@ -1058,8 +1325,6 @@
             initSidebarUI();
         }
 
-        // Raccrocher : interface optimiste, elle se ferme tout de suite,
-        // le nettoyage réseau continue en tâche de fond.
         window.leaveVoiceChannel = async () => {
             if (!activeVoiceId) return;
             const room = activeVoiceId;
@@ -1123,11 +1388,16 @@
         let typingTimeout;
         const msgInput = document.getElementById('message-input');
         msgInput.addEventListener('input', async () => {
+            handleMentionAutocomplete();
             if (!currentUser) return;
             const ref = doc(db, typingPath(), currentUser.uid);
             try { await setDoc(ref, { name: userProfile.name }); } catch {}
             clearTimeout(typingTimeout);
             typingTimeout = setTimeout(() => deleteDoc(ref).catch(() => {}), 2000);
+        });
+        document.addEventListener('click', (e) => {
+            const box = document.getElementById('mention-suggestions');
+            if (!box.classList.contains('hidden') && !box.contains(e.target) && e.target !== msgInput) box.classList.add('hidden');
         });
 
         function loadTypingIndicators() {
@@ -1166,7 +1436,12 @@
                     avatar: userProfile.avatar || "", createdAt: serverTimestamp(), reactions: {}
                 });
                 msgInput.value = '';
+                document.getElementById('mention-suggestions').classList.add('hidden');
                 deleteDoc(doc(db, typingPath(), currentUser.uid)).catch(() => {});
+
+                const preview = text.length > 60 ? text.slice(0, 57) + '…' : text;
+                notifyConversationPeers(preview);
+                notifyMentions(text);
             } catch (error) { showToast("Erreur: " + error.message); }
         };
 
@@ -1212,7 +1487,7 @@
                     const media = safeUrl(msg.mediaUrl);
                     const content = media
                         ? `<img src="${escapeHtml(media)}" class="rounded-xl max-h-60 object-cover mt-1" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'text-xs italic opacity-70',textContent:'[GIF indisponible]'}))">`
-                        : escapeHtml(msg.text || '');
+                        : highlightMentions(msg.text || '');
                     const time = formatTime(msg.createdAt);
 
                     let reactionsHtml = '';
