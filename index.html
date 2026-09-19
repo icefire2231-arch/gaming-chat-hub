@@ -53,15 +53,22 @@
         @media (min-width: 768px) {
             #chat-bg { background-size: cover; background-position: center center; }
         }
+        /* Salon avec image de fond : aucun flou, la bulle épouse le texte et reste bien lisible */
         .has-bg .message-row .msg-bubble-bg {
-            background: rgba(30,31,34,.62);
-            backdrop-filter: blur(3px);
-            -webkit-backdrop-filter: blur(3px);
+            flex: 0 1 auto;
+            max-width: calc(100% - 3.5rem);
+            background: rgba(17,18,20,.6);
             border-radius: 8px;
             padding: 4px 10px;
-            box-shadow: 0 1px 3px rgba(0,0,0,.35);
+            box-shadow: 0 1px 3px rgba(0,0,0,.4);
+            text-shadow: 0 1px 2px rgba(0,0,0,.9);
         }
-        .has-bg .message-row:hover .msg-bubble-bg { background: rgba(30,31,34,.74); }
+        .has-bg .message-row:hover .msg-bubble-bg { background: rgba(17,18,20,.74); }
+        .has-bg .msg-time { color: #c4c8cf; }
+        .has-bg .msg-empty-text {
+            background: rgba(17,18,20,.6); color: #f2f3f5; padding: 8px 14px; border-radius: 10px;
+            text-shadow: 0 1px 2px rgba(0,0,0,.9);
+        }
         .chan-row:hover .chan-edit { opacity: 1; }
         input, select, textarea { font-size: 16px !important; }
         .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
@@ -198,6 +205,14 @@
                 </div>
             </div>
 
+            <div id="rules-banner" class="hidden bg-amber-950/60 border-b border-amber-800/60 px-3 md:px-4 py-2 items-center justify-between gap-3 shrink-0">
+                <span class="text-xs text-amber-200 flex items-center gap-2 min-w-0"><i class="fa-solid fa-triangle-exclamation shrink-0"></i><span id="rules-banner-text"></span></span>
+                <div class="flex items-center gap-2 shrink-0">
+                    <button onclick="openRulesModal()" class="text-xs bg-amber-600 hover:bg-amber-500 text-white font-semibold px-3 py-1.5 rounded-lg transition">Voir quoi faire</button>
+                    <button onclick="closeRulesBanner()" class="text-amber-300 hover:text-white px-1" title="Masquer"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+
             <div id="conv-call-banner" class="hidden bg-emerald-950/50 border-b border-emerald-900/50 px-4 py-2 items-center justify-between shrink-0">
                 <span class="text-xs text-emerald-300 font-medium flex items-center gap-2"><i class="fa-solid fa-phone-volume animate-pulse"></i> <span id="conv-call-banner-text">Appel en cours</span></span>
                 <button onclick="callCurrentConversation()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition">Rejoindre</button>
@@ -213,11 +228,10 @@
                             <i class="fa-solid fa-clock-rotate-left mr-1.5"></i>Charger les messages plus anciens
                         </button>
                     </div>
-                    <div id="messages-skeleton" class="space-y-5 px-2 py-2" aria-hidden="true"></div>
+                    <div id="messages-skeleton" class="hidden" aria-hidden="true"></div>
                     <div id="messages-list" class="space-y-0.5"></div>
                     <div id="messages-empty" class="hidden flex flex-col items-center justify-center text-center py-16 gap-3 text-[#80848e]">
-                        <img data-logo alt="" class="w-24 h-24 object-contain opacity-60">
-                        <p class="text-sm">Aucun message ici pour l'instant.<br>Lance la conversation !</p>
+                        <p class="msg-empty-text text-sm">Aucun message ici pour l'instant.<br>Lance la conversation !</p>
                     </div>
                 </div>
 
@@ -276,7 +290,7 @@
                     <button type="button" onclick="openMediaModal()" class="text-[#949ba4] hover:text-[#dbdee1] p-2 transition text-lg shrink-0" title="GIF / Image"><i class="fa-regular fa-image"></i></button>
                     <button type="button" onclick="openPingPicker()" class="text-[#949ba4] hover:text-[#dbdee1] p-2 transition text-lg shrink-0" title="Ping quelqu'un"><i class="fa-solid fa-at"></i></button>
                     <div class="relative flex-1 min-w-0">
-                        <div id="mention-suggestions" class="hidden absolute bottom-full mb-2 left-0 right-0 bg-[#2b2d31] border border-[#3f4147] rounded-xl shadow-2xl max-h-48 overflow-y-auto z-20"></div>
+                        <div id="mention-suggestions" class="hidden absolute bottom-full mb-2 left-0 right-0 bg-[#2b2d31] border border-[#3f4147] rounded-xl shadow-2xl max-h-64 overflow-y-auto z-20"></div>
                         <input type="text" id="message-input" autocomplete="off" placeholder="Envoyer un message... (@ pour ping)" class="w-full bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3.5 py-2.5 md:py-3 text-sm focus:outline-none focus:border-[var(--theme-color)] text-[#f2f3f5]">
                     </div>
                     <!-- onmousedown/preventDefault : le bouton n'enlève plus le focus du champ, le clavier mobile reste ouvert -->
@@ -334,6 +348,7 @@
                 <h3 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-bell text-[var(--theme-color)]"></i> Notifications</h3>
                 <button onclick="markAllNotificationsRead()" class="text-xs text-[#949ba4] hover:text-white">Tout marquer lu</button>
             </div>
+            <button id="notif-permission-btn" onclick="enableBrowserNotifications()" class="hidden shrink-0 w-full text-xs bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] rounded-xl px-3 py-2 transition items-center justify-center gap-2"><i class="fa-solid fa-bell text-[var(--theme-color)]"></i> Activer les alertes du navigateur (quand l'onglet est en arrière-plan)</button>
             <div id="notifications-list" class="space-y-0.5 overflow-y-auto"></div>
             <button onclick="closeNotificationsModal()" class="shrink-0 px-4 py-2 rounded-xl text-sm bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] transition">Fermer</button>
         </div>
@@ -343,9 +358,13 @@
     <div id="ping-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4">
         <div class="modal-pop bg-[#2b2d31] border border-[#3f4147] p-5 rounded-2xl max-w-sm w-full space-y-3 shadow-2xl max-h-[80vh] flex flex-col">
             <h3 class="font-bold text-lg flex items-center gap-2 shrink-0"><i class="fa-solid fa-at text-[var(--theme-color)]"></i> Pinger quelqu'un</h3>
-            <p class="text-xs text-[#949ba4] shrink-0">Il recevra une notification même s'il n'est pas connecté : il la verra à son retour.</p>
+            <p class="text-xs text-[#949ba4] shrink-0">Clique sur une ou plusieurs personnes. Elles reçoivent une notification même si elles ne sont pas connectées : elles la verront à leur retour.</p>
+            <input type="text" id="ping-search" placeholder="Rechercher un pseudo..." autocomplete="off" class="shrink-0 w-full bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3 py-2.5 text-sm">
             <div id="ping-list" class="space-y-0.5 overflow-y-auto"></div>
-            <button onclick="closePingPicker()" class="shrink-0 px-4 py-2 rounded-xl text-sm bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] transition">Fermer</button>
+            <div class="flex gap-2 shrink-0">
+                <button onclick="closePingPicker()" class="flex-1 px-4 py-2.5 rounded-xl text-sm bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] transition">Fermer</button>
+                <button id="ping-confirm-btn" onclick="confirmPing()" disabled class="flex-1 px-4 py-2.5 rounded-xl text-sm bg-[var(--theme-color)] text-white font-medium transition disabled:opacity-40">Ajouter</button>
+            </div>
         </div>
     </div>
 
@@ -528,6 +547,28 @@
         </div>
     </div>
 
+    <div id="rules-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4">
+        <div class="modal-pop bg-[#2b2d31] border border-[#3f4147] p-6 rounded-2xl max-w-lg w-full space-y-3 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-shield-halved text-amber-400"></i> Autoriser les notifications</h3>
+            <p class="text-sm text-[#b5bac1]">Firebase bloque l'écriture des notifications (pings, non-lus). Il faut l'autoriser une seule fois, dans la console Firebase :</p>
+            <ol class="text-xs text-[#949ba4] list-decimal pl-5 space-y-1">
+                <li>Ouvre <b class="text-[#dbdee1]">console.firebase.google.com</b> → ton projet → <b class="text-[#dbdee1]">Firestore Database</b> → onglet <b class="text-[#dbdee1]">Règles</b>.</li>
+                <li>Colle ces deux blocs <b class="text-[#dbdee1]">à l'intérieur</b> de <code>match /databases/{database}/documents { ... }</code>.</li>
+                <li>Clique sur <b class="text-[#dbdee1]">Publier</b>, puis recharge le site.</li>
+            </ol>
+            <pre id="rules-code" class="text-[11px] leading-relaxed text-amber-200 bg-[#1e1f22] border border-[#3f4147] rounded-xl p-3 overflow-x-auto select-all">match /channels/{channelId} {
+  allow read, write: if request.auth != null;
+}
+match /inbox/{inboxId} {
+  allow read, write: if request.auth != null;
+}</pre>
+            <div class="flex justify-end gap-2 pt-1">
+                <button onclick="copyRules()" class="px-4 py-2.5 rounded-xl text-sm bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1]"><i class="fa-regular fa-copy mr-1.5"></i>Copier</button>
+                <button onclick="closeRulesModal()" class="px-4 py-2.5 rounded-xl text-sm bg-[var(--theme-color)] text-white font-medium">Fermer</button>
+            </div>
+        </div>
+    </div>
+
     <div id="toast" class="fixed bottom-20 md:bottom-5 right-5 left-5 md:left-auto bg-[#2b2d31] border border-[var(--theme-color)] text-[#dbdee1] px-4 py-3 rounded-xl shadow-2xl hidden z-[60] text-sm flex items-center gap-3">
         <i class="fa-solid fa-bell text-[var(--theme-color)]"></i>
         <span id="toast-message">Message</span>
@@ -695,12 +736,12 @@
         }
 
         let toastTimer;
-        window.showToast = (msg) => {
+        window.showToast = (msg, ms = 3000) => {
             const t = $('toast');
             $('toast-message').textContent = msg;
             t.classList.remove('hidden');
             clearTimeout(toastTimer);
-            toastTimer = setTimeout(() => t.classList.add('hidden'), 3000);
+            toastTimer = setTimeout(() => t.classList.add('hidden'), ms);
         };
 
         function hideSplash() {
@@ -721,8 +762,16 @@
         function warnRules(what) {
             if (warnedRules) return;
             warnedRules = true;
-            showToast(`⚠️ ${what} : vérifie tes règles Firestore.`);
+            $('rules-banner-text').textContent = `${what}. Les pings et les non-lus ne marcheront pas tant que les règles Firestore ne sont pas mises à jour.`;
+            const b = $('rules-banner'); b.classList.remove('hidden'); b.classList.add('flex');
         }
+        window.closeRulesBanner = () => { const b = $('rules-banner'); b.classList.add('hidden'); b.classList.remove('flex'); };
+        window.openRulesModal = () => $('rules-modal').classList.remove('hidden');
+        window.closeRulesModal = () => $('rules-modal').classList.add('hidden');
+        window.copyRules = async () => {
+            try { await navigator.clipboard.writeText($('rules-code').textContent); showToast("Règles copiées !"); }
+            catch { showToast("Sélectionne le texte et copie-le à la main."); }
+        };
 
         /* ---------- Menu latéral + glissement (swipe) ----------
            Le menu suit le doigt en temps réel, puis se pose à l'ouverture ou à la
@@ -939,62 +988,131 @@
             });
         }
 
-        window.openPingPicker = () => {
-            const box = $('ping-list');
-            const sorted = allUsersList.filter(u => u.uid && u.uid !== currentUser.uid)
-                .sort((a, b) => (isOnline(b) - isOnline(a)) || String(a.name).localeCompare(String(b.name)));
-            box.innerHTML = sorted.length ? sorted.map(u => {
-                const av = safeUrl(u.avatar);
-                return `
-                    <button onclick="pingUser('${escapeHtml(u.uid)}')" class="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[#35373c] transition flex items-center gap-2.5">
-                        <div class="w-7 h-7 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-xs font-bold overflow-hidden shrink-0">
-                            ${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((u.name || '?').charAt(0))}
-                        </div>
-                        <span class="text-sm truncate flex-1">${escapeHtml(u.name)}</span>
-                        <span class="text-[10px] text-[#80848e] shrink-0">${isOnline(u) ? 'en ligne' : 'hors ligne'}</span>
-                        <span class="w-2 h-2 rounded-full ${isOnline(u) ? 'bg-emerald-500' : 'bg-slate-600'} shrink-0"></span>
-                    </button>`;
-            }).join('') : `<div class="text-xs text-[#80848e] italic text-center py-6">Personne d'autre n'est inscrit.</div>`;
-            $('ping-modal').classList.remove('hidden');
-        };
-        window.closePingPicker = () => $('ping-modal').classList.add('hidden');
-        window.pingUser = (uid) => {
-            const u = allUsersList.find(x => x.uid === uid);
-            if (!u) return;
-            const cur = msgInput.value;
-            msgInput.value = cur + (cur && !cur.endsWith(' ') ? ' ' : '') + `@${u.name} `;
-            closePingPicker();
-            msgInput.focus();
-        };
+        /* ---- Suggestions quand on tape "@" : liste cliquable, personnes en ligne d'abord ---- */
+
+        let mentionMatches = [];
+        let mentionIdx = 0;
+        let pingSelected = new Set();
+
+        function avatarBubble(u, size) {
+            const av = safeUrl(u.avatar);
+            return `<div class="relative shrink-0">
+                <div class="${size} rounded-full bg-[var(--theme-color)] flex items-center justify-center text-xs font-bold overflow-hidden">
+                    ${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((u.name || '?').charAt(0))}
+                </div>
+                <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#2b2d31] ${isOnline(u) ? 'bg-emerald-500' : 'bg-slate-600'}"></span>
+            </div>`;
+        }
+
+        // En ligne d'abord, puis ceux dont le pseudo commence par ce qui est tapé, puis ordre alphabétique
+        const sortPeople = (partial) => (a, b) =>
+            (isOnline(b) - isOnline(a)) ||
+            (normalizeName(b.name).startsWith(partial) - normalizeName(a.name).startsWith(partial)) ||
+            String(a.name).localeCompare(String(b.name));
+
+        const groupHeader = (online, n) => `<div class="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[#80848e]">${online ? `En ligne — ${n}` : 'Hors ligne — notifiés à leur retour'}</div>`;
+
+        function closeMentionBox() {
+            $('mention-suggestions').classList.add('hidden');
+            mentionMatches = []; mentionIdx = 0;
+        }
+
+        function renderMentionBox() {
+            const box = $('mention-suggestions');
+            if (!mentionMatches.length) { box.classList.add('hidden'); return; }
+            const nOn = mentionMatches.filter(isOnline).length;
+            let html = '', group = null;
+            mentionMatches.forEach((u, i) => {
+                const on = isOnline(u);
+                if (on !== group) { group = on; html += groupHeader(on, nOn); }
+                const active = i === mentionIdx;
+                html += `<button type="button" data-uid="${escapeHtml(u.uid)}" ${active ? 'data-active="1"' : ''} onmousedown="event.preventDefault()" onclick="insertMention(this.dataset.uid)" class="w-full text-left px-3 py-2 flex items-center gap-2.5 text-sm transition ${active ? 'bg-[#35373c]' : 'hover:bg-[#35373c]'}">
+                    ${avatarBubble(u, 'w-6 h-6')}
+                    <span class="truncate flex-1">${escapeHtml(u.name)}</span>
+                </button>`;
+            });
+            box.innerHTML = html;
+            box.classList.remove('hidden');
+            box.querySelector('[data-active]')?.scrollIntoView({ block: 'nearest' });
+        }
 
         function handleMentionAutocomplete() {
             const val = msgInput.value;
             const at = val.lastIndexOf('@');
-            const box = $('mention-suggestions');
-            if (at === -1 || (at > 0 && !/\s/.test(val[at - 1]))) { box.classList.add('hidden'); return; }
+            if (at === -1 || (at > 0 && !/\s/.test(val[at - 1]))) return closeMentionBox();
             const partialRaw = val.slice(at + 1);
-            if (partialRaw.length > 32) { box.classList.add('hidden'); return; }
+            if (partialRaw.length > 32) return closeMentionBox();
             const partial = normalizeName(partialRaw);
-            const matches = allUsersList
-                .filter(u => u.uid !== currentUser?.uid && u.name && normalizeName(u.name).includes(partial))
-                .sort((a, b) => (normalizeName(b.name).startsWith(partial) - normalizeName(a.name).startsWith(partial)) || (isOnline(b) - isOnline(a)) || String(a.name).localeCompare(String(b.name)))
-                .slice(0, 6);
-            if (!matches.length) { box.classList.add('hidden'); return; }
-            box.innerHTML = matches.map(u => `
-                <button type="button" onmousedown="event.preventDefault();insertMention('${escapeHtml(u.uid)}')" class="w-full text-left px-3 py-2 hover:bg-[#35373c] flex items-center gap-2 text-sm">
-                    <span class="w-2 h-2 rounded-full ${isOnline(u) ? 'bg-emerald-500' : 'bg-slate-600'} shrink-0"></span>
-                    <span class="truncate">${escapeHtml(u.name)}</span>
-                    ${isOnline(u) ? '' : '<span class="text-[10px] text-[#80848e] ml-auto shrink-0">hors ligne · notifié à son retour</span>'}
-                </button>`).join('');
-            box.classList.remove('hidden');
+            mentionMatches = allUsersList
+                .filter(u => u.uid && u.uid !== currentUser?.uid && u.name && normalizeName(u.name).includes(partial))
+                .sort(sortPeople(partial));
+            mentionIdx = 0;
+            renderMentionBox();
         }
+
+        // Clavier : flèches pour naviguer, Entrée ou Tab pour choisir, Échap pour fermer
+        function handleMentionKeys(e) {
+            if ($('mention-suggestions').classList.contains('hidden') || !mentionMatches.length) return false;
+            if (e.key === 'ArrowDown') { e.preventDefault(); mentionIdx = (mentionIdx + 1) % mentionMatches.length; renderMentionBox(); return true; }
+            if (e.key === 'ArrowUp') { e.preventDefault(); mentionIdx = (mentionIdx - 1 + mentionMatches.length) % mentionMatches.length; renderMentionBox(); return true; }
+            if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); insertMention(mentionMatches[mentionIdx].uid); return true; }
+            if (e.key === 'Escape') { e.preventDefault(); closeMentionBox(); return true; }
+            return false;
+        }
+
         window.insertMention = (uid) => {
             const u = allUsersList.find(x => x.uid === uid);
             if (!u) return;
             const val = msgInput.value;
             const at = val.lastIndexOf('@');
-            msgInput.value = val.slice(0, at) + `@${u.name} `;
-            $('mention-suggestions').classList.add('hidden');
+            msgInput.value = (at === -1 ? val : val.slice(0, at)) + `@${u.name} `;
+            closeMentionBox();
+            msgInput.focus();
+        };
+
+        /* ---- Bouton @ : fenêtre avec recherche, en ligne d'abord, plusieurs personnes possibles ---- */
+
+        function renderPingList() {
+            const q = normalizeName($('ping-search').value);
+            const list = allUsersList
+                .filter(u => u.uid && u.uid !== currentUser?.uid && u.name && normalizeName(u.name).includes(q))
+                .sort(sortPeople(q));
+            const nOn = list.filter(isOnline).length;
+            let html = '', group = null;
+            list.forEach(u => {
+                const on = isOnline(u);
+                if (on !== group) { group = on; html += groupHeader(on, nOn); }
+                const sel = pingSelected.has(u.uid);
+                html += `<button type="button" data-uid="${escapeHtml(u.uid)}" onclick="togglePing(this.dataset.uid)" class="w-full text-left px-3 py-2.5 rounded-xl transition flex items-center gap-2.5 ${sel ? 'bg-[var(--theme-color)]/20' : 'hover:bg-[#35373c]'}">
+                    ${avatarBubble(u, 'w-8 h-8')}
+                    <span class="text-sm truncate flex-1">${escapeHtml(u.name)}</span>
+                    <i class="fa-solid ${sel ? 'fa-circle-check text-[var(--theme-color)]' : 'fa-circle text-[#4e5058]'} shrink-0"></i>
+                </button>`;
+            });
+            $('ping-list').innerHTML = html || `<div class="text-xs text-[#80848e] italic text-center py-6">Aucun résultat.</div>`;
+            const btn = $('ping-confirm-btn');
+            btn.disabled = pingSelected.size === 0;
+            btn.textContent = pingSelected.size ? `Ajouter (${pingSelected.size})` : 'Ajouter';
+        }
+        $('ping-search').addEventListener('input', renderPingList);
+
+        window.openPingPicker = () => {
+            pingSelected.clear();
+            $('ping-search').value = '';
+            renderPingList();
+            $('ping-modal').classList.remove('hidden');
+        };
+        window.closePingPicker = () => $('ping-modal').classList.add('hidden');
+        window.togglePing = (uid) => {
+            if (pingSelected.has(uid)) pingSelected.delete(uid); else pingSelected.add(uid);
+            renderPingList();
+        };
+        window.confirmPing = () => {
+            const names = [...pingSelected].map(uid => allUsersList.find(u => u.uid === uid)).filter(Boolean).map(u => `@${u.name}`);
+            if (!names.length) return;
+            const cur = msgInput.value;
+            msgInput.value = cur + (cur && !cur.endsWith(' ') ? ' ' : '') + names.join(' ') + ' ';
+            closePingPicker();
             msgInput.focus();
         };
 
@@ -1075,6 +1193,7 @@
                 checkSummary();
             }, (err) => {
                 console.warn("lecture des salons refusée", err);
+                warnRules("Non-lus des salons refusés (documents channels/…)");
                 channelMeta = {}; metaReady = true; checkSummary();
             });
         }
@@ -1102,7 +1221,7 @@
                 if (n && n.lastReadAt) return;
                 setDoc(doc(db, "inbox", inboxKey(currentUser.uid, 'channel', c.id)), {
                     forUid: currentUser.uid, convType: 'channel', convId: c.id, lastReadAt: serverTimestamp()
-                }, { merge: true }).catch(() => {});
+                }, { merge: true }).catch((e) => { console.warn(e); warnRules("Écriture des notifications refusée (collection inbox)"); });
             });
         }
 
@@ -1176,6 +1295,19 @@
             }, 900);
         }
 
+        function notifText(n) {
+            const where = n.convType === 'channel' ? ` dans #${n.convName}` : (n.convType === 'group' ? ` dans ${n.convName}` : '');
+            if (n.kind === 'reply') return `↩️ ${n.fromName} t'a répondu${where} : ${n.lastText}`;
+            if (n.isMention) return `📣 ${n.fromName} t'a mentionné${where} : ${n.lastText}`;
+            return `💬 ${n.fromName} : ${n.lastText}`;
+        }
+
+        // Alerte système quand l'onglet est en arrière-plan (si tu as accepté les alertes)
+        function browserNotify(body) {
+            if (!('Notification' in window) || Notification.permission !== 'granted' || !document.hidden) return;
+            try { new Notification('NexusChat', { body, icon: window.NEXUS_LOGO }); } catch {}
+        }
+
         function listenInbox() {
             if (unsubInbox) unsubInbox();
             inboxReady = false;
@@ -1186,9 +1318,11 @@
                 if (inboxReady) {
                     snap.docChanges().forEach(c => {
                         const n = c.doc.data();
-                        if ((c.type === 'added' || c.type === 'modified') && n.unread && n.lastText && !isCurrentConv(n.convType, n.convId)) {
-                            const icon = n.kind === 'reply' ? '↩️' : (n.isMention ? '📣' : '💬');
-                            showToast(`${icon} ${n.fromName} : ${n.lastText}`.slice(0, 90));
+                        // Un ping ou une réponse prévient toujours, même si tu es déjà dans le salon
+                        if ((c.type === 'added' || c.type === 'modified') && n.unread && n.lastText && (n.isMention || !isCurrentConv(n.convType, n.convId))) {
+                            const msg = notifText(n);
+                            showToast(msg.slice(0, 120), n.isMention ? 5000 : 3000);
+                            browserNotify(msg);
                         }
                     });
                 }
@@ -1197,10 +1331,23 @@
                 if (first) initReadBaselines();
                 refreshUnreadUI();
                 checkSummary();
-            }, (err) => { console.warn("boîte de réception illisible", err); inboxReady = true; checkSummary(); });
+            }, (err) => { console.warn("boîte de réception illisible", err); warnRules("Lecture des notifications refusée (collection inbox)"); inboxReady = true; checkSummary(); });
         }
 
-        window.openNotificationsModal = () => { renderNotificationsList(); $('notifications-modal').classList.remove('hidden'); };
+        window.openNotificationsModal = () => {
+            renderNotificationsList();
+            const pb = $('notif-permission-btn');
+            const canAsk = ('Notification' in window) && Notification.permission === 'default';
+            pb.classList.toggle('hidden', !canAsk); pb.classList.toggle('flex', canAsk);
+            $('notifications-modal').classList.remove('hidden');
+        };
+        window.enableBrowserNotifications = async () => {
+            try {
+                const p = await Notification.requestPermission();
+                showToast(p === 'granted' ? '✅ Alertes du navigateur activées' : 'Alertes refusées par le navigateur');
+            } catch {}
+            const pb = $('notif-permission-btn'); pb.classList.add('hidden'); pb.classList.remove('flex');
+        };
         window.closeNotificationsModal = () => $('notifications-modal').classList.add('hidden');
 
         function renderNotificationsList() {
@@ -1469,7 +1616,6 @@
             } else {
                 list.innerHTML = '';
                 renderedKey = null;
-                $('messages-skeleton').classList.remove('hidden');
                 $('messages-container').scrollTop = 0;
             }
         }
@@ -1748,6 +1894,8 @@
             setSidebar(false);
             const badge = $('notif-badge'); badge.classList.add('hidden'); badge.classList.remove('flex');
             document.title = BASE_TITLE;
+            warnedRules = false; closeRulesBanner();
+            mentionMatches = []; pingSelected.clear();
         }
 
         let usersReadyResolve = null;
@@ -2182,8 +2330,11 @@
             clearTimeout(typingTimeout);
             typingTimeout = setTimeout(stopTyping, 2500);
         });
-        // Échap : annule la réponse en cours
-        msgInput.addEventListener('keydown', (e) => { if (e.key === 'Escape' && replyTo) cancelReply(); });
+        // Clavier : navigation dans les suggestions @, Échap annule la réponse en cours
+        msgInput.addEventListener('keydown', (e) => {
+            if (handleMentionKeys(e)) return;
+            if (e.key === 'Escape' && replyTo) cancelReply();
+        });
         document.addEventListener('click', (e) => {
             const box = $('mention-suggestions');
             if (!box.classList.contains('hidden') && !box.contains(e.target) && e.target !== msgInput) box.classList.add('hidden');
@@ -2226,6 +2377,15 @@
             msgInput.focus();
         };
         window.replyFromEl = (el) => startReply(el.dataset.id);
+
+        // Clic sur le pseudo d'un message : ajoute son @ dans le champ
+        window.mentionFromEl = (el) => {
+            const u = allUsersList.find(x => x.uid === el.dataset.uid);
+            if (!u || u.uid === currentUser?.uid) return;
+            const cur = msgInput.value;
+            msgInput.value = cur + (cur && !cur.endsWith(' ') ? ' ' : '') + `@${u.name} `;
+            msgInput.focus();
+        };
 
         /* ---------- Messages ---------- */
 
@@ -2415,19 +2575,6 @@
 
         /* ---------- Affichage des messages ---------- */
 
-        // Squelette de chargement (affiché uniquement pendant l'attente des messages d'un salon jamais visité)
-        (function buildSkeleton() {
-            const widths = [[70, 40], [55, 30], [80, 55], [45, 25], [65, 35]];
-            $('messages-skeleton').innerHTML = widths.map(([a, b]) => `
-                <div class="flex gap-3 animate-pulse">
-                    <div class="w-10 h-10 rounded-full bg-[#35373c] shrink-0"></div>
-                    <div class="flex-1 space-y-2 pt-1">
-                        <div class="h-3 rounded bg-[#35373c]" style="width:${b}%;max-width:180px"></div>
-                        <div class="h-3 rounded bg-[#35373c]/70" style="width:${a}%"></div>
-                    </div>
-                </div>`).join('');
-        })();
-
         function rowHtml(id, msg) {
             const isMe = !!currentUser && msg.uid === currentUser.uid;
             const canDelete = isMe || isAdmin();
@@ -2475,7 +2622,9 @@
                     <div class="min-w-0 flex-1 msg-bubble-bg">
                         ${replyHtml}
                         <div class="flex items-baseline gap-2 flex-wrap">
-                            <span class="text-sm font-semibold" style="color:${isMe ? 'var(--theme-color)' : '#f2f3f5'}">${escapeHtml(name)}</span>
+                            ${(isMe || !msg.uid)
+                                ? `<span class="text-sm font-semibold" style="color:${isMe ? 'var(--theme-color)' : '#f2f3f5'}">${escapeHtml(name)}</span>`
+                                : `<button type="button" data-uid="${escapeHtml(msg.uid)}" onclick="mentionFromEl(this)" class="text-sm font-semibold hover:underline cursor-pointer" style="color:#f2f3f5" title="Cliquer pour mentionner">${escapeHtml(name)}</button>`}
                             <span class="msg-time text-[11px] text-[#80848e]">${time}</span>
                         </div>
                         <div class="text-sm text-[#dbdee1] break-words leading-snug">${content}</div>
