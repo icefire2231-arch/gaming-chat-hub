@@ -43,7 +43,6 @@
         #app-screen { touch-action: pan-y; }
         #messages-container, #sidebar .overflow-y-auto { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 
-        .message-row:hover .msg-actions { display: flex; }
         #chat-bg {
             background-size: cover;
             background-position: center center;
@@ -1169,6 +1168,39 @@ match /inbox/{inboxId} {
             });
         }
 
+        // Prévient les autres qu'un appel vocal démarre (MP ou groupe)
+        function notifyCall(roomId) {
+            const me = currentUser.uid;
+            let recipients = [], convType, convName;
+            if (roomId.startsWith('dm_')) {
+                const other = roomId.replace(/^dm_/, '').split('_').find(p => p !== me);
+                if (!other) return;
+                convType = 'dm'; recipients = [other]; convName = userProfile.name;
+            } else {
+                const g = myGroups.find(g => g.id === roomId);
+                if (!g) return;
+                convType = 'group'; recipients = (g.members || []).filter(u => u !== me); convName = g.name;
+            }
+            notifyUsers(recipients, { convType, convId: roomId, convName,
+                text: '📞 appel vocal en cours', isMention: true, kind: 'call' });
+        }
+
+        // Petite sonnerie (aucun fichier audio nécessaire)
+        function playRing() {
+            try {
+                const ctx = ensureAudioCtx(); if (!ctx) return;
+                [0, 0.45].forEach(t => {
+                    const o = ctx.createOscillator(), g = ctx.createGain();
+                    o.type = 'sine'; o.frequency.value = 880;
+                    g.gain.setValueAtTime(0.0001, ctx.currentTime + t);
+                    g.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + t + 0.05);
+                    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.35);
+                    o.connect(g).connect(ctx.destination);
+                    o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.4);
+                });
+            } catch {}
+        }
+
         // Retient le dernier message d'un salon pour que les autres voient "nouveau" à leur retour
         function touchChannelMeta(conv, preview) {
             if (conv.type !== 'channel') return;
@@ -1300,6 +1332,7 @@ match /inbox/{inboxId} {
 
         function notifText(n) {
             const where = n.convType === 'channel' ? ` dans #${n.convName}` : (n.convType === 'group' ? ` dans ${n.convName}` : '');
+            if (n.kind === 'call') return `📞 ${n.fromName} t'appelle${where}`;
             if (n.kind === 'reply') return `↩️ ${n.fromName} t'a répondu${where} : ${n.lastText}`;
             if (n.isMention) return `📣 ${n.fromName} t'a mentionné${where} : ${n.lastText}`;
             return `💬 ${n.fromName} : ${n.lastText}`;
@@ -1324,7 +1357,8 @@ match /inbox/{inboxId} {
                         // Un ping ou une réponse prévient toujours, même si tu es déjà dans le salon
                         if ((c.type === 'added' || c.type === 'modified') && n.unread && n.lastText && (n.isMention || !isCurrentConv(n.convType, n.convId))) {
                             const msg = notifText(n);
-                            showToast(msg.slice(0, 120), n.isMention ? 5000 : 3000);
+                            if (n.kind === 'call') { playRing(); showToast(msg, 8000); }
+                            else showToast(msg.slice(0, 120), n.isMention ? 5000 : 3000);
                             browserNotify(msg);
                         }
                     });
@@ -1600,6 +1634,7 @@ match /inbox/{inboxId} {
         // Vide tout de suite l'affichage du salon précédent : soit le contenu déjà vu de ce salon
         // (retour instantané), soit un squelette de chargement. Jamais les messages d'un autre salon.
         function resetMessageView(key) {
+            if (typeof hideActions === 'function') hideActions();
             messageLimit = MESSAGE_PAGE;
             hasMore = false;
             pendingJumpHours = null;
@@ -2538,6 +2573,16 @@ match /inbox/{inboxId} {
                 return;
             }
 
+            // MP / groupe : je préviens les autres, mais seulement si c'est moi qui lance l'appel
+            if (voiceId.startsWith('dm_') || myGroups.some(g => g.id === voiceId)) {
+                try {
+                    const s = await getDocs(collection(db, "voice_rooms", voiceId, "participants"));
+                    const others = s.docs.filter(d => d.id !== currentUser.uid
+                        && isVoiceAlive(d.data({ serverTimestamps: 'estimate' })));
+                    if (!others.length) notifyCall(voiceId);
+                } catch {}
+            }
+
             watchSpeaker('me', localStream);
             lastPing = Date.now();
             startVoiceTimers();
@@ -2942,7 +2987,7 @@ match /inbox/{inboxId} {
             const reactionsHtml = reactions.length
                 ? `<div class="flex flex-wrap gap-1 mt-1.5">` + reactions.map(([em, list]) => {
                     const mine = !!currentUser && list.includes(currentUser.uid);
-                    return `<button data-id="${escapeHtml(id)}" data-emoji="${escapeHtml(em)}" onclick="reactFromEl(this)" class="text-xs px-2 py-0.5 rounded-lg border flex items-center gap-1 ${mine ? 'bg-[var(--theme-color)]/20 border-[var(--theme-color)] text-white' : 'bg-[#2b2d31] border-[#3f4147] text-[#949ba4]'}"><span>${escapeHtml(em)}</span><span class="font-medium">${list.length}</span></button>`;
+                    return `<button data-react-chip data-id="${escapeHtml(id)}" data-emoji="${escapeHtml(em)}" class="text-xs px-2 py-0.5 rounded-lg border flex items-center gap-1 ${mine ? 'bg-[var(--theme-color)]/20 border-[var(--theme-color)] text-white' : 'bg-[#2b2d31] border-[#3f4147] text-[#949ba4]'}"><span>${escapeHtml(em)}</span><span class="font-medium">${list.length}</span></button>`;
                 }).join('') + `</div>`
                 : '';
 
@@ -2976,7 +3021,6 @@ match /inbox/{inboxId} {
                         <div class="text-sm text-[#dbdee1] break-words leading-snug">${content}</div>
                         ${reactionsHtml}
                     </div>
-                    <div class="msg-actions hidden absolute right-2 -top-3 bg-[#2b2d31] border border-[#3f4147] rounded-lg p-1 shadow-lg items-center gap-1 z-10"></div>
                 </div>`;
         }
 
@@ -2990,18 +3034,63 @@ match /inbox/{inboxId} {
             return el;
         }
 
-        function fillActions(row) {
-            const box = row.querySelector('.msg-actions');
-            if (!box || box.childElementCount) return;
-            const id = escapeHtml(row.dataset.id);
-            box.innerHTML = `<button data-id="${id}" onclick="replyFromEl(this)" class="hover:bg-[#35373c] px-1.5 py-0.5 rounded text-xs text-[#dbdee1]" title="Répondre"><i class="fa-solid fa-reply"></i></button>`
-                + EMOJIS.map(e => `<button data-id="${id}" data-emoji="${e}" onclick="reactFromEl(this)" class="hover:bg-[#35373c] px-1 py-0.5 rounded text-xs">${e}</button>`).join('')
-                + (row.dataset.del === '1' ? `<button onclick="deleteMessage('${id}')" class="hover:bg-rose-900/60 px-1.5 py-0.5 rounded text-xs text-rose-400"><i class="fa-solid fa-trash"></i></button>` : '');
+        // Une seule barre d'actions réutilisée pour tous les messages (au lieu d'une par ligne)
+        const actionsBar = document.createElement('div');
+        actionsBar.className = 'hidden absolute right-2 bg-[#2b2d31] border border-[#3f4147] rounded-lg p-1 shadow-lg items-center gap-1 z-20';
+        actionsBar.innerHTML =
+            `<button data-act="reply" class="hover:bg-[#35373c] px-1.5 py-0.5 rounded text-xs text-[#dbdee1]" title="Répondre"><i class="fa-solid fa-reply"></i></button>`
+            + EMOJIS.map(e => `<button data-act="react" data-emoji="${e}" class="hover:bg-[#35373c] px-1 py-0.5 rounded text-xs">${e}</button>`).join('')
+            + `<button data-act="del" class="hover:bg-rose-900/60 px-1.5 py-0.5 rounded text-xs text-rose-400" title="Supprimer"><i class="fa-solid fa-trash"></i></button>`;
+        msgContainer.appendChild(actionsBar);
+
+        let actionsFor = null;
+        function showActions(row) {
+            if (!row) return;
+            actionsFor = row.dataset.id;
+            actionsBar.querySelector('[data-act="del"]').style.display = row.dataset.del === '1' ? '' : 'none';
+            actionsBar.style.top = Math.max(0, row.offsetTop - 14) + 'px';
+            actionsBar.classList.remove('hidden'); actionsBar.classList.add('flex');
         }
-        ['mouseover', 'touchstart'].forEach(ev => msgList.addEventListener(ev, (e) => {
-            const row = e.target.closest && e.target.closest('.message-row');
-            if (row) fillActions(row);
-        }, { passive: true }));
+        function hideActions() {
+            actionsFor = null;
+            actionsBar.classList.add('hidden'); actionsBar.classList.remove('flex');
+        }
+
+        actionsBar.addEventListener('click', (e) => {
+            const b = e.target.closest('button'); if (!b || !actionsFor) return;
+            const id = actionsFor;
+            if (b.dataset.act === 'reply') startReply(id);
+            else if (b.dataset.act === 'react') addReaction(id, b.dataset.emoji);
+            else if (b.dataset.act === 'del') deleteMessage(id);
+            hideActions();
+        });
+
+        // Ordinateur : survol — Téléphone : appui long
+        msgList.addEventListener('mouseover', (e) => {
+            if (window.matchMedia('(pointer: coarse)').matches) return;
+            const row = e.target.closest('.message-row');
+            if (row && row.dataset.id !== actionsFor) showActions(row);
+        });
+        msgContainer.addEventListener('mouseleave', hideActions);
+        msgContainer.addEventListener('scroll', hideActions, { passive: true });
+
+        let lpTimer = null;
+        msgList.addEventListener('touchstart', (e) => {
+            const row = e.target.closest('.message-row'); if (!row) return;
+            clearTimeout(lpTimer);
+            lpTimer = setTimeout(() => { showActions(row); navigator.vibrate?.(15); }, 450);
+        }, { passive: true });
+        ['touchmove', 'touchend', 'touchcancel'].forEach(ev =>
+            msgList.addEventListener(ev, () => clearTimeout(lpTimer), { passive: true }));
+
+        // Un seul écouteur pour toutes les pastilles de réaction
+        msgList.addEventListener('click', (e) => {
+            const chip = e.target.closest('[data-react-chip]');
+            if (chip) addReaction(chip.dataset.id, chip.dataset.emoji);
+        });
+        document.addEventListener('click', (e) => {
+            if (!actionsBar.contains(e.target) && !e.target.closest('.message-row')) hideActions();
+        });
 
         // Sur téléphone / tablette : double-tap sur un message = répondre
         msgList.addEventListener('dblclick', (e) => {
