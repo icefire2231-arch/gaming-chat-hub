@@ -571,25 +571,42 @@
         }
 
         function applyChannelBackground(channel) {
-            const bgEl = document.getElementById('chat-bg');
-            const overlay = document.getElementById('chat-bg-overlay');
-            const container = document.getElementById('messages-container');
+    const bgEl = document.getElementById('chat-bg');
+    const overlay = document.getElementById('chat-bg-overlay');
+    const container = document.getElementById('messages-container');
 
-            // Si Firebase contient déjà les salons, on récupère quand même le fond
-            // local correspondant au salon quand aucun bg n'a encore été enregistré.
-            const defaultChannel = DEFAULT_CHANNELS.find(c => c.id === channel?.id);
-            const url = safeUrl(channel?.bg) || safeUrl(defaultChannel?.bg);
+    if (!channel) {
+        bgEl.style.backgroundImage = '';
+        overlay.classList.add('hidden');
+        container.classList.remove('has-bg');
+        return;
+    }
 
-            if (url) {
-                bgEl.style.backgroundImage = `url("${url}")`;
-                overlay.classList.remove('hidden');
-                container.classList.add('has-bg');
-            } else {
-                bgEl.style.backgroundImage = '';
-                overlay.classList.add('hidden');
-                container.classList.remove('has-bg');
-            }
-        }
+    // Fonds locaux présents à la racine du dépôt GitHub
+    const localBackgrounds = {
+        "brawl-stars": "Brawl-star.png",
+        "clash-of-clans": "Clash-of-clan.png",
+        "clash-royale": "Clash-Royal.png",
+        "roblox": "Roblox.png"
+    };
+
+    const bgFile = localBackgrounds[channel.id];
+
+    if (bgFile) {
+        bgEl.style.backgroundImage = `url("${bgFile}")`;
+        bgEl.style.backgroundSize = "cover";
+        bgEl.style.backgroundPosition = "center center";
+        bgEl.style.backgroundRepeat = "no-repeat";
+
+        overlay.classList.remove('hidden');
+        container.classList.add('has-bg');
+    } else {
+        // Général et autres salons sans fond
+        bgEl.style.backgroundImage = '';
+        overlay.classList.add('hidden');
+        container.classList.remove('has-bg');
+    }
+}
 
         function channelIconHtml(c) {
             const img = safeUrl(c.image);
