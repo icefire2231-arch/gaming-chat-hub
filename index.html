@@ -93,7 +93,30 @@
         .logo-glow-sm { filter: drop-shadow(-2px 0 5px rgba(56,189,248,.4)) drop-shadow(2px 0 5px rgba(251,113,60,.4)); }
         .voice-speaking { color: #6ee7b7 !important; }
         .voice-speaking .v-av { box-shadow: 0 0 0 2px #10b981, 0 0 8px rgba(16,185,129,.7); }
-        
+        /* ===== Saisons / boutique : cosmétiques (couche autour de l'existant) ===== */
+        .cos-av { position: relative; display: block; width: max-content; flex-shrink: 0; }
+        .cos-av[data-frame]::before {
+            content: ""; position: absolute; inset: -4px; border-radius: 50%; padding: 3px; background: var(--fr-bg);
+            -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+            mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude;
+            pointer-events: none; z-index: 3;
+        }
+        .cos-av[data-frame]::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; box-shadow: 0 0 10px 1px var(--fr-glow, transparent); pointer-events: none; z-index: 2; }
+        .cos-av-sm[data-frame]::before { inset: -3px; padding: 2px; }
+        .cos-av-sm[data-frame]::after { inset: -3px; box-shadow: 0 0 6px 0 var(--fr-glow, transparent); }
+        .cos-av[data-fr-anim="spin"]::before { animation: cosSpin 3s linear infinite; }
+        .cos-av[data-fr-anim="pulse"]::after { animation: cosPulse 1.8s ease-in-out infinite; }
+        @keyframes cosSpin { to { transform: rotate(360deg); } }
+        @keyframes cosPulse { 50% { opacity: .3; } }
+        [data-nfx] { background: var(--nfx-bg); background-size: 100% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; text-shadow: none; }
+        [data-nfx][data-nfx-anim="shift"] { background-size: 200% auto; animation: cosShift 4s linear infinite; }
+        [data-nfx][data-nfx-anim="pulse"] { animation: cosGlow 2s ease-in-out infinite; }
+        [data-nfx][data-nfx-glow] { filter: drop-shadow(0 0 5px var(--nfx-glow, transparent)); }
+        @keyframes cosShift { to { background-position: 200% center; } }
+        @keyframes cosGlow { 50% { filter: brightness(1.7); } }
+        .cos-role { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 700; line-height: 1; padding: 3px 7px; border-radius: 9999px; border: 1px solid var(--role-c, #949ba4); color: var(--role-c, #949ba4); background: rgba(255,255,255,.05); white-space: nowrap; }
+        .cos-role[hidden] { display: none; }
+
         @media (prefers-reduced-motion: reduce) {
             * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
         }
@@ -176,11 +199,13 @@
 
             <div class="p-3 border-t border-[#3f4147] flex items-center justify-between bg-[#1e1f22]/50 shrink-0">
                 <div class="flex items-center gap-2 truncate cursor-pointer flex-1" onclick="openProfileModal()">
+                    <div id="user-frame-wrap" class="cos-av cos-av-sm" data-cos-av="">
                     <div id="user-avatar-container" class="w-9 h-9 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-sm font-bold overflow-hidden border border-[var(--theme-color)] shrink-0">
                         <span id="user-avatar-text">U</span>
                     </div>
+                    </div>
                     <div class="truncate">
-                        <span class="text-sm font-medium truncate block" id="user-name">Utilisateur</span>
+                        <span class="text-sm font-medium truncate block" id="user-name" data-cos-name="">Utilisateur</span>
                         <span id="user-status-label" onclick="event.stopPropagation();openStatusMenu()" class="text-xs text-[var(--theme-color)] cursor-pointer hover:underline">Paramètres</span>
                     </div>
                 </div>
@@ -214,6 +239,9 @@
                     </button>
                     <button onclick="openLeaderboardModal()" class="flex items-center justify-center bg-[#35373c]/60 hover:bg-[#35373c] w-9 h-9 rounded-full border border-[#4e5058]/50 transition" title="Classement">
                         <i class="fa-solid fa-trophy text-amber-400 text-sm"></i>
+                    </button>
+                    <button onclick="openHub('shop')" class="hidden md:flex items-center gap-1.5 bg-[#35373c]/60 hover:bg-[#35373c] h-9 px-3 rounded-full border border-[#4e5058]/50 text-xs font-bold text-amber-300 transition" title="Boutique &amp; saisons">
+                        <span>🪙</span><span id="coins-count">0</span>
                     </button>
                 </div>
             </div>
@@ -333,6 +361,9 @@
         <button onclick="openOnlineModal()" class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[#949ba4] hover:text-white active:text-[var(--theme-color)] transition">
             <i class="fa-solid fa-circle-user"></i><span class="text-[10px] font-medium">En ligne</span>
         </button>
+        <button onclick="openHub('shop')" class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[#949ba4] hover:text-white active:text-[var(--theme-color)] transition">
+            <i class="fa-solid fa-store"></i><span class="text-[10px] font-medium">🪙 <span id="mobile-coins-label">0</span></span>
+        </button>
         <button onclick="openProfileModal()" class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[#949ba4] hover:text-white active:text-[var(--theme-color)] transition">
             <i class="fa-solid fa-gear"></i><span class="text-[10px] font-medium">Profil</span>
         </button>
@@ -363,7 +394,29 @@
                 </div>
             </div>
             <div id="leaderboard-list" class="space-y-1 overflow-y-auto"></div>
+            <button onclick="closeLeaderboardModal();openHub('season')" class="shrink-0 px-4 py-2 rounded-xl text-sm bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 transition">🏆 Classement de la saison</button>
             <button onclick="closeLeaderboardModal()" class="shrink-0 px-4 py-2 rounded-xl text-sm bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] transition">Fermer</button>
+        </div>
+    </div>
+
+    <!-- Boutique · Collection · Saison (les données viennent de users/{uid}, settings/shop_catalog et seasons/*) -->
+    <div id="hub-modal" class="fixed inset-0 bg-black/70 flex items-end md:items-center justify-center z-50 hidden md:p-4" onclick="if(event.target===this)closeHub()">
+        <div class="modal-pop bg-[#2b2d31] border border-[#3f4147] w-full md:max-w-2xl rounded-t-2xl md:rounded-2xl shadow-2xl h-[92vh] md:h-auto md:max-h-[88vh] flex flex-col pb-[env(safe-area-inset-bottom)] md:pb-0">
+            <div class="p-4 pb-2 shrink-0 space-y-3">
+                <div class="flex items-center justify-between gap-3">
+                    <h3 class="font-bold text-lg flex items-center gap-2 min-w-0"><i class="fa-solid fa-store text-amber-400"></i><span class="truncate">Boutique &amp; Saisons</span></h3>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <span class="bg-[#1e1f22] border border-[#3f4147] rounded-full px-3 py-1 text-sm font-bold text-amber-300">🪙 <span id="hub-coins">0</span></span>
+                        <button type="button" onclick="closeHub()" class="w-8 h-8 rounded-full bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] text-sm" title="Fermer"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                </div>
+                <div class="flex bg-[#1e1f22] rounded-xl p-1 gap-1">
+                    <button id="hub-tab-shop" type="button" onclick="setHubTab('shop')">🛒 Boutique</button>
+                    <button id="hub-tab-collection" type="button" onclick="setHubTab('collection')">🎒 Collection</button>
+                    <button id="hub-tab-season" type="button" onclick="setHubTab('season')">🏆 Saison</button>
+                </div>
+            </div>
+            <div id="hub-body" class="px-4 pb-4 overflow-y-auto flex-1 min-h-0"></div>
         </div>
     </div>
 
@@ -567,6 +620,13 @@
                 </div>
             </div>
 
+            <div class="border-t border-[#3f4147] pt-3 space-y-2">
+                <label class="text-xs text-[#949ba4] block">Cosmétiques</label>
+                <button type="button" onclick="closeProfileModal();openHub('collection')" class="w-full bg-[#1e1f22] hover:bg-[#35373c] border border-[#3f4147] text-[#dbdee1] font-medium py-2.5 px-4 rounded-xl transition flex items-center justify-center gap-2 text-sm">
+                    <i class="fa-solid fa-wand-magic-sparkles text-amber-400"></i> Cadres, effets de pseudo et rôles
+                </button>
+            </div>
+
             <!-- Compte : type, mail, lien Google (invité) et déconnexion -->
             <div class="border-t border-[#3f4147] pt-3 space-y-2">
                 <label class="text-xs text-[#949ba4] block">Compte</label>
@@ -662,7 +722,7 @@ match /inbox/{inboxId} {
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, signInWithRedirect, linkWithPopup, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, where, orderBy, limitToLast, limit, onSnapshot, serverTimestamp, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, writeBatch, arrayRemove, arrayUnion, FieldPath, deleteField, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, where, orderBy, limitToLast, limit, onSnapshot, serverTimestamp, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, writeBatch, arrayRemove, arrayUnion, FieldPath, deleteField, increment, getDocFromServer } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
         const firebaseConfig = {
@@ -702,6 +762,13 @@ match /inbox/{inboxId} {
         const MSG_XP = 6, MSG_XP_COOLDOWN_MS = 45 * 1000, MSG_XP_DAILY_CAP = 40;
         const VOICE_XP = 6, VOICE_XP_COOLDOWN_MS = 5 * 60 * 1000, VOICE_XP_DAILY_CAP = 30;
         const DAILY_BONUS_XP = 20, DAILY_BONUS_COOLDOWN_MS = 20 * 3600 * 1000;
+
+        /* ---------- Pièces & saisons : ces valeurs doivent rester identiques à celles des règles Firestore ----------
+           Les pièces se gagnent AVEC chaque gain d'XP ci-dessus (mêmes cooldowns et mêmes plafonds quotidiens, revérifiés par le serveur) :
+           maximum ≈ 40×2 (messages) + 30×3 (vocal) + 50 (bonus quotidien) ≈ 220 pièces par jour.
+           Saison 0 = septembre 2026 (préparation). Le numéro de saison est CALCULÉ depuis la date, jamais saisi à la main. */
+        const MSG_COINS = 2, VOICE_COINS = 3, DAILY_COINS = 50;
+        const SEASON_ANCHOR_YEAR = 2026, SEASON_ANCHOR_MONTH = 9;   // septembre 2026 = Saison 0 (mois de 1 à 12, en UTC)
 
         // Nombre de messages chargés d'un coup (un bouton "Charger les messages plus anciens" permet d'en voir plus)
         const MESSAGE_PAGE = 150;
@@ -1081,9 +1148,9 @@ match /inbox/{inboxId} {
         function avatarBubble(u, size) {
             const av = safeUrl(u.avatar);
             return `<div class="relative shrink-0">
-                <div class="${size} rounded-full bg-[var(--theme-color)] flex items-center justify-center text-xs font-bold overflow-hidden">
+                ${cosAv(u.uid, `<div class="${size} rounded-full bg-[var(--theme-color)] flex items-center justify-center text-xs font-bold overflow-hidden">
                     ${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((u.name || '?').charAt(0))}
-                </div>
+                </div>`, true)}
                 <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#2b2d31] ${dotClass(u)}"></span>
             </div>`;
         }
@@ -1747,6 +1814,7 @@ match /inbox/{inboxId} {
             const cached = convCache.get(key);
             if (cached) {
                 list.innerHTML = cached;
+                refreshCosmeticsDom();
                 renderedKey = key;
                 $('messages-skeleton').classList.add('hidden');
                 scrollToBottom();
@@ -1891,12 +1959,12 @@ match /inbox/{inboxId} {
                 return `
                     <div class="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-[#35373c] transition">
                         <div class="relative shrink-0">
-                            <div class="w-9 h-9 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-sm font-bold overflow-hidden">
+                            ${cosAv(u.uid, `<div class="w-9 h-9 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-sm font-bold overflow-hidden">
                                 ${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((u.name || '?').charAt(0))}
-                            </div>
+                            </div>`, true)}
                             <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full ${dotClass(u)} border-2 border-slate-900"></span>
                         </div>
-                        <span onclick="closeOnlineModal();openUserCard('${escapeHtml(u.uid)}')" class="text-sm font-medium truncate flex-1 cursor-pointer hover:underline">${escapeHtml(u.name)}${isMe ? ' <span class="text-xs text-[#80848e]">(toi)</span>' : ''}</span>
+                        <span onclick="closeOnlineModal();openUserCard('${escapeHtml(u.uid)}')" class="text-sm font-medium truncate flex-1 cursor-pointer hover:underline"><span ${nameFx(u.uid)}>${escapeHtml(u.name)}</span>${isMe ? ' <span class="text-xs text-[#80848e]">(toi)</span>' : ''}</span>
                         ${!isMe ? `
                             <button onclick="openDirectMessage('${escapeHtml(u.uid)}');closeOnlineModal();" class="text-[#949ba4] hover:text-white p-2" title="Message"><i class="fa-solid fa-comment"></i></button>
                             ${friendRel(u.uid) === 'none' ? `<button onclick="friendAction('add','${escapeHtml(u.uid)}')" class="text-[#949ba4] hover:text-white p-2" title="Ajouter en ami"><i class="fa-solid fa-user-plus"></i></button>` : ''}
@@ -2036,6 +2104,7 @@ match /inbox/{inboxId} {
             document.title = BASE_TITLE;
             warnedRules = false; closeRulesBanner();
             mentionMatches = []; pingSelected.clear();
+            resetEconomyState();
         }
 
         let usersReadyResolve = null;
@@ -2076,6 +2145,7 @@ match /inbox/{inboxId} {
                 // Date d'arrivée = date réelle de création du compte (Firebase Auth), écrite une seule fois
                 if (!userProfile.joinedAt && user.metadata?.creationTime) { first.joinedAt = new Date(user.metadata.creationTime); userProfile.joinedAt = first.joinedAt; }
                 await setDoc(userRef, first, { merge: true });
+                await syncServerClock(userRef);   // heure du serveur : la saison ne dépend pas de l'horloge de l'appareil
             } catch (e) {
                 showToast("Profil indisponible : " + e.message);
                 userProfile = { ...userProfile, name: userProfile.name || user.displayName || "Utilisateur", uid: user.uid };
@@ -2133,6 +2203,8 @@ match /inbox/{inboxId} {
             const ready = new Promise(r => { usersReadyResolve = r; });
             unsubscribeUsers = onSnapshot(collection(db, "users"), (snap) => {
                 allUsersList = snap.docs.map(d => ({ ...d.data(), uid: d.id }));
+                if (indexUsers()) refreshCosmeticsDom();   // quelqu'un a changé de cadre / d'effet / de rôle
+                hubOnUsersUpdate();
                 updateOnlineCount();
                 initSidebarUI();
                 if (usersReadyResolve) usersReadyResolve();
@@ -2142,6 +2214,7 @@ match /inbox/{inboxId} {
 
         function updateProfileUI() {
             $('user-name').textContent = userProfile.name;
+            if (currentUser) { $('user-name').dataset.cosName = currentUser.uid; $('user-frame-wrap').dataset.cosAv = currentUser.uid; refreshCosmeticsDom(); updateCoinsUI(); }
             refreshMyStatusUI();
             const box = $('user-avatar-container');
             const av = safeUrl(userProfile.avatar);
@@ -2991,9 +3064,9 @@ match /inbox/{inboxId} {
             if (!currentUser) return;
             const now = Date.now();
             const CFG = {
-                msg:   { field: 'lastMsgXpAt',      cd: MSG_XP_COOLDOWN_MS,      dailyField: 'dailyMsgXpCount',   dateField: 'dailyMsgXpDate',   cap: MSG_XP_DAILY_CAP,   amount: MSG_XP },
-                voice: { field: 'lastVoiceXpAt',    cd: VOICE_XP_COOLDOWN_MS,    dailyField: 'dailyVoiceXpCount', dateField: 'dailyVoiceXpDate', cap: VOICE_XP_DAILY_CAP, amount: VOICE_XP },
-                daily: { field: 'lastDailyBonusAt', cd: DAILY_BONUS_COOLDOWN_MS, amount: DAILY_BONUS_XP }
+                msg:   { field: 'lastMsgXpAt',      cd: MSG_XP_COOLDOWN_MS,      dailyField: 'dailyMsgXpCount',   dateField: 'dailyMsgXpDate',   cap: MSG_XP_DAILY_CAP,   amount: MSG_XP,         coins: MSG_COINS },
+                voice: { field: 'lastVoiceXpAt',    cd: VOICE_XP_COOLDOWN_MS,    dailyField: 'dailyVoiceXpCount', dateField: 'dailyVoiceXpDate', cap: VOICE_XP_DAILY_CAP, amount: VOICE_XP,       coins: VOICE_COINS },
+                daily: { field: 'lastDailyBonusAt', cd: DAILY_BONUS_COOLDOWN_MS, amount: DAILY_BONUS_XP, coins: DAILY_COINS }
             }[kind];
 
             if (now - tsMillis(userProfile[CFG.field]) < CFG.cd) return;   // pas encore le moment (vérif locale ; le serveur revérifie de toute façon)
@@ -3002,6 +3075,10 @@ match /inbox/{inboxId} {
             const weekRolled = userProfile.weeklyWeekId !== weekId;
             const payload = { xp: increment(CFG.amount), weeklyWeekId: weekId, [CFG.field]: serverTimestamp() };
             payload.weeklyXp = weekRolled ? CFG.amount : increment(CFG.amount);
+            // Pièces + XP de saison : dans la MÊME écriture que l'XP, donc soumis au même cooldown et au même plafond (règles Firestore)
+            const sKey = seasonKey(currentSeason());
+            payload.coins = increment(CFG.coins);
+            payload['seasonXp.' + sKey] = increment(CFG.amount);
 
             let dayRolled = false;
             if (CFG.dailyField) {
@@ -3017,12 +3094,17 @@ match /inbox/{inboxId} {
             userProfile.xp = (userProfile.xp || 0) + CFG.amount;
             userProfile.weeklyWeekId = weekId;
             userProfile.weeklyXp = weekRolled ? CFG.amount : (userProfile.weeklyXp || 0) + CFG.amount;
+            userProfile.coins = (userProfile.coins || 0) + CFG.coins;
+            userProfile.seasonXp = { ...(userProfile.seasonXp || {}), [sKey]: ((userProfile.seasonXp || {})[sKey] || 0) + CFG.amount };
             if (CFG.dailyField) {
                 userProfile[CFG.dailyField] = dayRolled ? 1 : (userProfile[CFG.dailyField] || 0) + 1;
                 if (dayRolled) userProfile[CFG.dateField] = { toMillis: () => now };
             }
 
-            try { await updateDoc(doc(db, "users", currentUser.uid), payload); }
+            try {
+                await updateDoc(doc(db, "users", currentUser.uid), payload);
+                if (kind === 'daily') showToast(`🎁 Bonus quotidien : +${DAILY_BONUS_XP} XP · +${DAILY_COINS} 🪙`);
+            }
             catch (e) { /* refusé par le serveur (cooldown/plafond non écoulé) : rien d'anormal, on ignore */ }
         }
 
@@ -3057,11 +3139,11 @@ match /inbox/{inboxId} {
             const medal = u.rank === 1 ? '🥇' : u.rank === 2 ? '🥈' : u.rank === 3 ? '🥉' : `#${u.rank}`;
             return `<div class="flex items-center gap-2.5 px-2 py-2 rounded-xl ${isMe ? 'bg-[var(--theme-color)]/15' : ''}">
                 <span class="w-7 text-center text-sm font-bold shrink-0">${medal}</span>
-                <div class="w-8 h-8 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-xs font-bold overflow-hidden shrink-0">
+                ${cosAv(u.uid, `<div class="w-8 h-8 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-xs font-bold overflow-hidden">
                     ${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((u.name || '?').charAt(0))}
-                </div>
+                </div>`, true)}
                 <div class="min-w-0 flex-1">
-                    <div class="text-sm font-medium truncate">${escapeHtml(u.name || '?')}${isMe ? ' <span class="text-xs text-[#80848e]">(toi)</span>' : ''}</div>
+                    <div class="text-sm font-medium truncate"><span ${nameFx(u.uid)}>${escapeHtml(u.name || '?')}</span>${isMe ? ' <span class="text-xs text-[#80848e]">(toi)</span>' : ''}</div>
                     <div class="text-[11px] text-[#80848e]">Niveau ${lv.level}</div>
                 </div>
                 <span class="text-xs font-bold text-amber-400 shrink-0">${Math.max(0, Math.floor(Number(u[field]) || 0))} XP</span>
@@ -3080,7 +3162,11 @@ match /inbox/{inboxId} {
         }
 
         // Ce qu'on peut réécrire d'un bloc : jamais les compteurs (msgCount) ni la date d'arrivée
-        function profileWritable() { const { msgCount, joinedAt, ...rest } = userProfile; return rest; }
+        function profileWritable() {
+            const out = {};
+            for (const k of ['name', 'avatar', 'theme', 'uid', 'status', 'bio', 'favGames']) if (userProfile[k] !== undefined) out[k] = userProfile[k];
+            return out;
+        }
         function bumpMsgCount() {
             if (!currentUser) return;
             userProfile.msgCount = (userProfile.msgCount || 0) + 1;
@@ -3178,14 +3264,15 @@ match /inbox/{inboxId} {
                 </div>
                 <div class="px-5 pb-5 -mt-10 space-y-3">
                     <div class="relative w-20 h-20">
-                        <div class="w-20 h-20 rounded-full border-4 border-[#2b2d31] bg-[var(--theme-color)] flex items-center justify-center text-2xl font-bold overflow-hidden">${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml(String(u.name || '?').charAt(0).toUpperCase())}</div>
+                        ${cosAv(uid, `<div class="w-20 h-20 rounded-full border-4 border-[#2b2d31] bg-[var(--theme-color)] flex items-center justify-center text-2xl font-bold overflow-hidden">${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml(String(u.name || '?').charAt(0).toUpperCase())}</div>`)}
                         <span class="absolute bottom-0.5 right-0.5 w-5 h-5 rounded-full border-4 border-[#2b2d31] ${dot}"></span>
                     </div>
                     <div>
-                        <div class="text-xl font-bold break-words">${escapeHtml(u.name || 'Anonyme')}${isMe ? ' <span class="text-xs font-normal text-[#80848e]">(toi)</span>' : ''}</div>
+                        <div class="text-xl font-bold break-words"><span ${nameFx(uid)}>${escapeHtml(u.name || 'Anonyme')}</span>${isMe ? ' <span class="text-xs font-normal text-[#80848e]">(toi)</span>' : ''} ${roleTag(uid)}</div>
                         <div class="text-xs text-[#949ba4] flex items-center gap-1.5"><span class="w-2 h-2 rounded-full ${dot}"></span>${label}</div>
                     </div>
                     ${badges.length ? `<div class="flex flex-wrap gap-1.5">${badges.map(b => `<span class="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-1 rounded-full border ${b.c}"><i class="fa-solid ${b.i} text-[10px]"></i>${b.t}</span>`).join('')}</div>` : ''}
+                    ${seasonRewardsOwned(u).length ? `<div><div class="text-[10px] uppercase tracking-wider text-[#80848e] mb-1.5">Récompenses de saison</div><div class="flex flex-wrap gap-1.5">${seasonRewardsOwned(u).map(d => `<span class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-200">${escapeHtml(d.icon)} ${escapeHtml(d.name)}</span>`).join('')}</div></div>` : ''}
                     <div class="text-sm ${bio ? 'text-[#dbdee1]' : 'text-[#80848e] italic'} break-words">${bio ? escapeHtml(bio) : 'Aucune bio pour le moment.'}</div>
                     ${games.length ? `<div><div class="text-[10px] uppercase tracking-wider text-[#80848e] mb-1.5">Jeux favoris</div><div class="flex flex-wrap gap-1.5">${games.map(g => `<span class="px-2.5 py-1 rounded-full text-xs bg-[#35373c] text-[#dbdee1]">${escapeHtml(g)}</span>`).join('')}</div></div>` : ''}
                     <div class="bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3 py-2.5">
@@ -3200,6 +3287,562 @@ match /inbox/{inboxId} {
                 </div>`;
             $('user-card-modal').classList.remove('hidden');
         };
+
+        /* =========================================================
+           SAISONS · PIÈCES · BOUTIQUE · COSMÉTIQUES
+           ---------------------------------------------------------
+           Règle d'or : ce code ne fait que DEMANDER. C'est Firestore (les règles) qui vérifie et refuse :
+           gains de pièces, achats, équipement, clôture des saisons. Un joueur qui bidouille la console
+           ne peut ni se donner des pièces, ni un cosmétique, ni une récompense de saison.
+
+           AJOUTER UN COSMÉTIQUE : ajoute UNE ligne dans COSMETICS (plus bas), puis, si c'est un objet de
+           boutique, connecte-toi avec ton compte admin > Boutique > « Publier le catalogue ».
+           AJOUTER UNE RÉCOMPENSE DE SAISON : rien à faire, elles sont générées automatiquement
+           (season<N>_top1_frame ...). Pour les personnaliser : SEASON_REWARD_OVERRIDES.
+           ========================================================= */
+
+        /* ---------- Horloge serveur ----------
+           On lit l'heure réelle du serveur juste après l'écriture de connexion (champ lastSeen = serverTimestamp()),
+           donc une horloge d'ordinateur/téléphone déréglée ne change PAS la saison. */
+        let serverOffsetMs = 0;
+        const serverNow = () => Date.now() + serverOffsetMs;
+        async function syncServerClock(userRef) {
+            try {
+                const s = await getDocFromServer(userRef);
+                const ms = tsMillis(s.data()?.lastSeen);
+                if (ms) serverOffsetMs = ms - Date.now();
+            } catch { /* hors ligne : on garde l'heure de l'appareil, les règles Firestore restent juges */ }
+        }
+
+        /* ---------- Saisons : calculées à partir de la date, jamais saisies à la main ----------
+           Saison 0 = septembre 2026 (préparation), Saison 1 = octobre 2026, Saison 2 = novembre 2026, etc.
+           Les limites sont en UTC (comme dans les règles Firestore : fonction seasonNo). */
+        const seasonNumberAt = (ms) => { const d = new Date(ms); return (d.getUTCFullYear() - SEASON_ANCHOR_YEAR) * 12 + (d.getUTCMonth() + 1 - SEASON_ANCHOR_MONTH); };
+        const seasonStartMs = (n) => Date.UTC(SEASON_ANCHOR_YEAR, SEASON_ANCHOR_MONTH - 1 + n, 1);   // 1er du mois, 00:00:00 UTC
+        const currentSeason = () => seasonNumberAt(serverNow());
+        const seasonKey = (n) => 's' + n;                                                                // clé dans users/{uid}.seasonXp
+        const seasonXpOf = (u, n) => Math.max(0, Math.floor(Number(u?.seasonXp?.[seasonKey(n)]) || 0));
+        const fmtDateUtc = (ms) => new Date(ms).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+        function fmtCountdown(ms) {
+            ms = Math.max(0, ms);
+            const d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5), m = Math.floor(ms % 36e5 / 6e4);
+            return `${d} jour${d > 1 ? 's' : ''} ${h} heure${h > 1 ? 's' : ''} ${m} minute${m > 1 ? 's' : ''}`;
+        }
+        function seasonRanking(n) {
+            return allUsersList.map(u => ({ u, xp: seasonXpOf(u, n) })).filter(r => r.xp > 0)
+                .sort((a, b) => (b.xp - a.xp) || String(a.u.name).localeCompare(String(b.u.name)))
+                .map((r, i) => ({ ...r, rank: i + 1 }));
+        }
+
+        /* ---------- Catalogue des cosmétiques ----------
+           type : 'frame' (cadre d'avatar) | 'name' (effet de pseudo) | 'role' (rôle purement décoratif)
+           price : prix en pièces (0 ou absent = pas en boutique). Le PRIX FAIT FOI côté serveur : après avoir modifié
+                   un prix ici, l'admin clique « Publier le catalogue » (sinon l'achat est refusé par Firestore).
+           Cadre :  ring = fond CSS de l'anneau · glow = couleur du halo · anim = 'spin' | 'pulse' | ''
+           Pseudo : bg = dégradé CSS · glow = halo (optionnel) · anim = 'shift' (défile) | 'pulse' | ''
+           Rôle :   color = couleur de la pastille                                                                     */
+        const solid = (c) => `linear-gradient(${c},${c})`;
+        const COSMETICS = {
+            // ----- Cadres d'avatar -----
+            frame_rose:     { type: 'frame', name: 'Rose',              icon: '🌸', price: 350,  ring: 'conic-gradient(#fb7185,#f9a8d4,#fb7185)', glow: '#fb7185', anim: '' },
+            frame_fire:     { type: 'frame', name: 'Feu',               icon: '🔥', price: 400,  ring: 'conic-gradient(#f97316,#ef4444,#fde047,#f97316)', glow: '#f97316', anim: 'spin' },
+            frame_ice:      { type: 'frame', name: 'Glace',             icon: '❄️', price: 400,  ring: 'conic-gradient(#e0f2fe,#38bdf8,#0ea5e9,#e0f2fe)', glow: '#38bdf8', anim: 'spin' },
+            frame_emerald:  { type: 'frame', name: 'Émeraude',          icon: '💚', price: 450,  ring: 'conic-gradient(#10b981,#6ee7b7,#10b981)', glow: '#10b981', anim: '' },
+            frame_neon:     { type: 'frame', name: 'Néon',              icon: '💜', price: 500,  ring: 'conic-gradient(#22d3ee,#e879f9,#22d3ee)', glow: '#e879f9', anim: 'pulse' },
+            frame_shadow:   { type: 'frame', name: 'Ombre',             icon: '🌑', price: 500,  ring: 'conic-gradient(#111827,#6b7280,#111827)', glow: '#6b7280', anim: '' },
+            frame_brawl:    { type: 'frame', name: 'Brawl Stars',       icon: '💀', price: 600,  ring: 'conic-gradient(#facc15,#a855f7,#facc15)', glow: '#facc15', anim: 'spin' },
+            frame_gaming:   { type: 'frame', name: 'Gaming',            icon: '🎮', price: 600,  ring: 'conic-gradient(#22c55e,#3b82f6,#ef4444,#eab308,#22c55e)', glow: '#22c55e', anim: 'spin' },
+            frame_electric: { type: 'frame', name: 'Électrique',        icon: '⚡', price: 700,  ring: 'conic-gradient(#fde047,#38bdf8,#fde047)', glow: '#fde047', anim: 'spin' },
+            frame_toxic:    { type: 'frame', name: 'Toxique',           icon: '☣️', price: 700,  ring: 'conic-gradient(#a3e635,#365314,#a3e635)', glow: '#a3e635', anim: 'pulse' },
+            frame_sunset:   { type: 'frame', name: 'Coucher de soleil', icon: '🌇', price: 800,  ring: 'conic-gradient(#f97316,#ec4899,#8b5cf6,#f97316)', glow: '#ec4899', anim: 'spin' },
+            frame_gold:     { type: 'frame', name: 'Or',                icon: '🥇', price: 1000, ring: 'conic-gradient(#fde047,#f59e0b,#fef3c7,#f59e0b,#fde047)', glow: '#f59e0b', anim: '' },
+            frame_royal:    { type: 'frame', name: 'Royal',             icon: '🔱', price: 1000, ring: 'conic-gradient(#7c3aed,#fbbf24,#7c3aed)', glow: '#7c3aed', anim: 'spin' },
+            frame_galaxy:   { type: 'frame', name: 'Galaxie',           icon: '🌌', price: 1200, ring: 'conic-gradient(#6366f1,#a855f7,#ec4899,#1e1b4b,#6366f1)', glow: '#a855f7', anim: 'spin' },
+            frame_diamond:  { type: 'frame', name: 'Diamant',           icon: '💎', price: 1500, ring: 'conic-gradient(#e0f2fe,#a5f3fc,#ffffff,#93c5fd,#e0f2fe)', glow: '#a5f3fc', anim: 'spin' },
+
+            // ----- Effets de pseudo -----
+            nfx_gradient:   { type: 'name', name: 'Dégradé',      icon: '🎨', price: 200, bg: 'linear-gradient(90deg,#8b5cf6,#ec4899)', anim: '' },
+            nfx_ice:        { type: 'name', name: 'Glace',        icon: '❄️', price: 300, bg: 'linear-gradient(90deg,#e0f2fe,#38bdf8,#e0f2fe)', glow: '#38bdf8', anim: 'shift' },
+            nfx_neon:       { type: 'name', name: 'Néon',         icon: '💡', price: 350, bg: solid('#22d3ee'), glow: '#22d3ee', anim: 'pulse' },
+            nfx_toxic:      { type: 'name', name: 'Toxique',      icon: '☣️', price: 400, bg: 'linear-gradient(90deg,#a3e635,#22c55e,#a3e635)', glow: '#84cc16', anim: 'shift' },
+            nfx_multicolor: { type: 'name', name: 'Multicolore',  icon: '🌈', price: 450, bg: 'linear-gradient(90deg,#f43f5e,#f59e0b,#22c55e,#3b82f6,#f43f5e)', anim: 'shift' },
+            nfx_fire:       { type: 'name', name: 'Feu',          icon: '🔥', price: 500, bg: 'linear-gradient(90deg,#ef4444,#f97316,#fde047,#f97316,#ef4444)', glow: '#f97316', anim: 'shift' },
+            nfx_gold:       { type: 'name', name: 'Or',           icon: '🥇', price: 600, bg: 'linear-gradient(90deg,#b45309,#fde047,#f59e0b,#fde047,#b45309)', anim: 'shift' },
+            nfx_rainbow:    { type: 'name', name: 'Arc-en-ciel',  icon: '🌈', price: 800, bg: 'linear-gradient(90deg,#ef4444,#f59e0b,#eab308,#22c55e,#06b6d4,#8b5cf6,#ef4444)', anim: 'shift' },
+
+            // ----- Rôles cosmétiques (purement visuels : aucune permission, jamais) -----
+            role_gamer:           { type: 'role', name: 'Gamer',          icon: '🎮', price: 300,  color: '#22c55e' },
+            role_brawl:           { type: 'role', name: 'Brawl Stars',    icon: '💀', price: 500,  color: '#a855f7' },
+            role_clash_royale:    { type: 'role', name: 'Clash Royale',   icon: '👑', price: 500,  color: '#3b82f6' },
+            role_clash_of_clans:  { type: 'role', name: 'Clash of Clans', icon: '🛡️', price: 500,  color: '#eab308' },
+            role_roblox:          { type: 'role', name: 'Roblox',         icon: '🧱', price: 500,  color: '#38bdf8' },
+            role_100k:            { type: 'role', name: '100K',           icon: '💯', price: 2000, color: '#ef4444' },
+            role_super_donateur:  { type: 'role', name: 'Super Donateur', icon: '💎', price: 3000, color: '#f59e0b' }
+        };
+
+        /* ---------- Récompenses de saison : générées automatiquement pour TOUTES les saisons ----------
+           Identifiants : season<N>_top1_frame · season<N>_top1_role · season<N>_top2_... · season<N>_top3_... · season<N>_active_role
+           Elles sont toujours exclusives (jamais dans la boutique, jamais dans le catalogue serveur) : seul l'admin
+           peut les attribuer, une seule fois, à la clôture de la saison concernée.
+           Pour personnaliser une saison : SEASON_REWARD_OVERRIDES = { 1: { top1: { frameName: 'Roi', medal: '👑' } } }  */
+        const SEASON_TIERS = {
+            top1:   { frameName: 'Champion', roleName: 'Top 1', medal: '🏆', color: '#fbbf24', glow: '#fbbf24', anim: 'spin', ring: 'conic-gradient(#fde047,#f59e0b,#fff7c2,#f59e0b,#fde047)' },
+            top2:   { frameName: 'Élite',    roleName: 'Top 2', medal: '🥈', color: '#cbd5e1', glow: '#cbd5e1', anim: 'spin', ring: 'conic-gradient(#f1f5f9,#94a3b8,#ffffff,#94a3b8,#f1f5f9)' },
+            top3:   { frameName: 'Podium',   roleName: 'Top 3', medal: '🥉', color: '#fb923c', glow: '#fb923c', anim: '',     ring: 'conic-gradient(#fdba74,#c2410c,#fed7aa,#c2410c,#fdba74)' },
+            active: { roleName: 'Actif', medal: '⚡', color: '#34d399' }
+        };
+        const SEASON_REWARD_OVERRIDES = {};
+        const SEASON_REWARD_RE = /^season(\d{1,3})_(top1|top2|top3|active)_(frame|role)$/;
+
+        const cosCache = new Map();
+        function cosmeticOf(id) {
+            if (typeof id !== 'string' || id.length > 64) return null;
+            if (cosCache.has(id)) return cosCache.get(id);
+            let def = Object.prototype.hasOwnProperty.call(COSMETICS, id) ? { ...COSMETICS[id] } : null;
+            if (!def) {
+                const m = SEASON_REWARD_RE.exec(id);
+                const base = m && SEASON_TIERS[m[2]];
+                if (base && !(m[3] === 'frame' && !base.ring)) {
+                    const n = Number(m[1]);
+                    const o = { ...base, ...(SEASON_REWARD_OVERRIDES[n]?.[m[2]] || {}) };
+                    def = m[3] === 'frame'
+                        ? { type: 'frame', name: `${o.frameName} — Saison ${n}`, icon: o.medal, ring: o.ring, glow: o.glow, anim: o.anim || '' }
+                        : { type: 'role', name: `${o.roleName} — Saison ${n}`, pill: `${o.roleName} · S${n}`, icon: o.medal, color: o.color };
+                    Object.assign(def, { exclusive: true, season: n, tier: m[2] });
+                }
+            }
+            if (def) { def.id = id; cosCache.set(id, def); }
+            return def;
+        }
+        const seasonRewardsOwned = (u) => Object.keys(ownedOf(u)).map(cosmeticOf).filter(d => d && d.exclusive)
+            .sort((a, b) => (b.season - a.season) || String(a.tier).localeCompare(String(b.tier)) || a.type.localeCompare(b.type));
+        const SLOT = { frame: 'equippedAvatarFrame', name: 'equippedNameEffect', role: 'equippedRole' };
+        const TYPE_LABEL = { frame: 'Cadres', name: 'Pseudos', role: 'Rôles' };
+
+        /* ---------- Données publiques des joueurs (déjà en mémoire : aucune lecture Firestore en plus) ---------- */
+        let usersByUid = new Map(), cosSig = '';
+        function indexUsers() {
+            usersByUid = new Map(allUsersList.map(u => [u.uid, u]));
+            const sig = allUsersList.map(u => `${u.uid}|${u.equippedAvatarFrame || ''}|${u.equippedNameEffect || ''}|${u.equippedRole || ''}`).join('\n');
+            const changed = sig !== cosSig;
+            cosSig = sig;
+            return changed;
+        }
+        const ownedOf = (u) => (u && u.owned && typeof u.owned === 'object') ? u.owned : {};
+        const isAdminUid = (uid) => ADMIN_UIDS.includes(uid);     // affichage uniquement : la vraie sécurité est dans les règles Firestore
+        const userOf = (uid) => usersByUid.get(uid) || (currentUser && uid === currentUser.uid ? userProfile : null);
+        const coinsOf = (u) => Math.max(0, Math.floor(Number(u?.coins) || 0));
+        const ownsItem = (uid, id) => isAdminUid(uid) || !!ownedOf(userOf(uid))[id];
+        function equippedId(uid, type) {
+            const id = userOf(uid)?.[SLOT[type]];
+            return (typeof id === 'string' && id !== 'none') ? id : '';
+        }
+        function equippedDef(uid, type) {
+            const id = equippedId(uid, type);
+            const d = id ? cosmeticOf(id) : null;
+            return d && d.type === type ? d : null;
+        }
+
+        /* ---------- Affichage des cosmétiques (couche autour de l'avatar / du pseudo : l'existant n'est pas remplacé) ---------- */
+        const frameStyleVars = (d) => `--fr-bg:${d.ring};--fr-glow:${d.glow || 'transparent'}`;
+        function frameAttrs(d) {
+            return d ? `data-frame="${escapeHtml(d.id)}" data-fr-anim="${d.anim || ''}" style="${frameStyleVars(d)}"` : '';
+        }
+        // Entoure un avatar existant d'un cadre (si le joueur en porte un)
+        function cosAv(uid, inner, small) {
+            return `<div class="cos-av${small ? ' cos-av-sm' : ''}" data-cos-av="${escapeHtml(uid || '')}" ${frameAttrs(uid ? equippedDef(uid, 'frame') : null)}>${inner}</div>`;
+        }
+        // Attributs à mettre sur l'élément qui affiche le pseudo (extraStyle = style déjà présent sur cet élément)
+        function nameFx(uid, extraStyle = '') {
+            const d = uid ? equippedDef(uid, 'name') : null;
+            const style = [extraStyle, d ? `--nfx-bg:${d.bg};--nfx-glow:${d.glow || 'transparent'}` : ''].filter(Boolean).join(';');
+            return `data-cos-name="${escapeHtml(uid || '')}"`
+                + (d ? ` data-nfx="${escapeHtml(d.id)}" data-nfx-anim="${d.anim || ''}"${d.glow ? ' data-nfx-glow' : ''}` : '')
+                + (style ? ` style="${style}"` : '');
+        }
+        function roleTag(uid) {
+            const d = uid ? equippedDef(uid, 'role') : null;
+            return `<span class="cos-role" data-cos-role="${escapeHtml(uid || '')}" ${d ? `style="--role-c:${d.color}"` : 'hidden'}>${d ? `${d.icon} ${escapeHtml(d.pill || d.name)}` : ''}</span>`;
+        }
+        const roleChip = (d) => `<span class="cos-role" style="--role-c:${d.color}">${d.icon} ${escapeHtml(d.pill || d.name)}</span>`;
+
+        // Remet à jour ce qui est DÉJÀ affiché (messages en cache, listes...) quand quelqu'un change de cosmétique
+        function applyFrame(el, uid) {
+            const d = uid ? equippedDef(uid, 'frame') : null;
+            if (d) {
+                if (el.dataset.frame !== d.id) {
+                    el.dataset.frame = d.id; el.dataset.frAnim = d.anim || '';
+                    el.style.setProperty('--fr-bg', d.ring); el.style.setProperty('--fr-glow', d.glow || 'transparent');
+                }
+            } else if (el.dataset.frame) {
+                delete el.dataset.frame; delete el.dataset.frAnim;
+                el.style.removeProperty('--fr-bg'); el.style.removeProperty('--fr-glow');
+            }
+        }
+        function applyNameFx(el, uid) {
+            const d = uid ? equippedDef(uid, 'name') : null;
+            if (d) {
+                if (el.dataset.nfx !== d.id) {
+                    el.dataset.nfx = d.id; el.dataset.nfxAnim = d.anim || '';
+                    if (d.glow) el.setAttribute('data-nfx-glow', ''); else el.removeAttribute('data-nfx-glow');
+                    el.style.setProperty('--nfx-bg', d.bg); el.style.setProperty('--nfx-glow', d.glow || 'transparent');
+                }
+            } else if (el.dataset.nfx) {
+                delete el.dataset.nfx; delete el.dataset.nfxAnim; el.removeAttribute('data-nfx-glow');
+                el.style.removeProperty('--nfx-bg'); el.style.removeProperty('--nfx-glow');
+            }
+        }
+        function applyRole(el, uid) {
+            const d = uid ? equippedDef(uid, 'role') : null;
+            if (d) { el.style.setProperty('--role-c', d.color); el.textContent = `${d.icon} ${d.pill || d.name}`; el.hidden = false; }
+            else { el.hidden = true; el.textContent = ''; }
+        }
+        function refreshCosmeticsDom() {
+            document.querySelectorAll('[data-cos-av]').forEach(el => applyFrame(el, el.dataset.cosAv));
+            document.querySelectorAll('[data-cos-name]').forEach(el => applyNameFx(el, el.dataset.cosName));
+            document.querySelectorAll('[data-cos-role]').forEach(el => applyRole(el, el.dataset.cosRole));
+        }
+
+        /* ---------- Pièces (affichage) ---------- */
+        const fmtCoins = (n) => Number(n).toLocaleString('fr-FR');
+        function updateCoinsUI() {
+            if (!currentUser) return;
+            const txt = isAdmin() ? '∞' : fmtCoins(coinsOf(userOf(currentUser.uid)));
+            ['coins-count', 'mobile-coins-label', 'hub-coins'].forEach(id => { const el = $(id); if (el) el.textContent = txt; });
+        }
+
+        /* ---------- Catalogue serveur (prix officiels lus par les règles Firestore) ---------- */
+        let catalogDoc = null, catalogLoaded = false;
+        async function ensureShopCatalog(force) {
+            if (catalogLoaded && !force) return;
+            try { const s = await getDoc(doc(db, 'settings', 'shop_catalog')); catalogDoc = s.exists() ? s.data() : null; }
+            catch (e) { catalogDoc = null; }
+            catalogLoaded = true;
+            if (hubIsOpen() && hubTab === 'shop') renderHub();
+        }
+        const shopPrice = (id) => { const p = catalogDoc?.items?.[id]?.p; return (Number.isInteger(p) && p > 0) ? p : 0; };
+        const shopEntries = () => Object.keys(COSMETICS).map(cosmeticOf).filter(d => d && !d.exclusive && d.price > 0);
+        function catalogWanted() {
+            const items = {};
+            shopEntries().forEach(d => { items[d.id] = { t: d.type, p: d.price }; });
+            return items;
+        }
+        function catalogDiffers() {
+            const want = catalogWanted(), have = catalogDoc?.items || {};
+            const ids = new Set([...Object.keys(want), ...Object.keys(have)]);
+            for (const id of ids) if (!want[id] || !have[id] || want[id].p !== have[id].p || want[id].t !== have[id].t) return true;
+            return false;
+        }
+        window.publishCatalog = async () => {
+            if (!isAdmin()) return;
+            try {
+                await setDoc(doc(db, 'settings', 'shop_catalog'), { items: catalogWanted(), updatedAt: serverTimestamp() });
+                await ensureShopCatalog(true);
+                showToast('✅ Catalogue de la boutique publié.');
+            } catch (e) { showToast('Publication impossible : ' + e.message); }
+        };
+
+        /* ---------- Achat / équipement : le navigateur demande, les règles Firestore vérifient tout ---------- */
+        let buying = false;
+        window.buyItem = async (id) => {
+            if (!currentUser || buying) return;
+            const d = cosmeticOf(id), uid = currentUser.uid, price = shopPrice(id);
+            if (!d || d.exclusive) return showToast('Cet objet n’est pas en vente.');
+            if (ownsItem(uid, id)) return showToast('Tu possèdes déjà cet objet.');
+            if (!price) return showToast('Cet objet n’est pas encore disponible.');
+            if (coinsOf(userOf(uid)) < price) return showToast('Pas assez de pièces.');
+            const ok = await askConfirm('Acheter cet objet ?', `${escapeHtml(d.icon)} ${escapeHtml(d.name)} — ${fmtCoins(price)} 🪙`, 'Acheter');
+            if (!ok) return;
+            buying = true;
+            try {
+                await updateDoc(doc(db, 'users', uid), { coins: increment(-price), lastPurchase: id, ['owned.' + id]: serverTimestamp() });
+                showToast(`✅ ${d.name} acheté !`);
+            } catch (e) {
+                showToast('Achat refusé : solde insuffisant, objet déjà possédé ou catalogue non publié.');
+            } finally { buying = false; }
+        };
+        window.equipItem = async (id) => {
+            if (!currentUser) return;
+            const d = cosmeticOf(id);
+            if (!d || !SLOT[d.type]) return;
+            const next = equippedId(currentUser.uid, d.type) === id ? 'none' : id;
+            try { await updateDoc(doc(db, 'users', currentUser.uid), { [SLOT[d.type]]: next }); }
+            catch (e) { showToast('Équipement refusé : tu ne possèdes pas cet objet.'); }
+        };
+        window.unequipSlot = async (type) => {
+            if (!currentUser || !SLOT[type]) return;
+            try { await updateDoc(doc(db, 'users', currentUser.uid), { [SLOT[type]]: 'none' }); }
+            catch (e) { showToast('Modification impossible : ' + e.message); }
+        };
+
+        /* ---------- Historique des saisons (collection "seasons", écrite une seule fois par l'admin à la clôture) ---------- */
+        let seasonsHistory = [], seasonsLoaded = false, seasonsError = '', rewardLinks = {};
+        async function ensureSeasonsHistory(force) {
+            if (seasonsLoaded && !force) return;
+            try {
+                const snap = await getDocs(collection(db, 'seasons'));
+                seasonsHistory = snap.docs.map(d => d.data()).filter(s => Number.isInteger(s.number)).sort((a, b) => b.number - a.number);
+                seasonsError = '';
+                // Lien de récompense (privé) : lisible uniquement par les gagnants et l'admin
+                const mine = seasonsHistory.filter(s => (s.winnerUids || []).includes(currentUser.uid) || isAdmin());
+                await Promise.all(mine.map(async (s) => {
+                    try { const r = await getDoc(doc(db, 'seasons', 'season_' + s.number, 'private', 'reward')); rewardLinks[s.number] = r.exists() ? String(r.data().url || '') : ''; }
+                    catch { rewardLinks[s.number] = ''; }
+                }));
+            } catch (e) { seasonsError = e.message; }
+            seasonsLoaded = true;
+            if (hubIsOpen() && hubTab === 'season') renderHub();
+        }
+
+        // Administration : clôture d'une saison terminée = enregistre le classement + attribue les récompenses, en UNE écriture atomique.
+        let closingSeason = false;
+        window.closeSeason = async (n) => {
+            n = Number(n);
+            if (!isAdmin() || closingSeason) return;
+            if (!(n >= 1 && n < currentSeason())) return showToast('Cette saison n’est pas terminée.');
+            if (seasonsHistory.some(s => s.number === n)) return showToast('Cette saison est déjà clôturée.');
+            const top = seasonRanking(n).slice(0, 10).map(r => ({
+                uid: r.u.uid, name: String(r.u.name || '?').slice(0, 40), avatar: (safeUrl(r.u.avatar) || '').slice(0, 500), xp: r.xp, rank: r.rank
+            }));
+            const names = top.slice(0, 3).map((t, i) => `${['🥇', '🥈', '🥉'][i]} ${escapeHtml(t.name)}`).join('<br>') || 'Aucun joueur classé';
+            const ok = await askConfirm(`Clôturer la saison ${n} ?`, `${names}<br><br>Le classement sera enregistré et les récompenses attribuées <b>définitivement</b>.`, 'Clôturer');
+            if (!ok) return;
+            closingSeason = true;
+            try {
+                const batch = writeBatch(db);
+                const rw = {};
+                [1, 2, 3].forEach(k => { rw['top' + k] = { frame: `season${n}_top${k}_frame`, role: `season${n}_top${k}_role` }; });
+                rw.active = { role: `season${n}_active_role` };
+                batch.set(doc(db, 'seasons', 'season_' + n), {
+                    number: n, status: 'closed',
+                    startDate: new Date(seasonStartMs(n)), endDate: new Date(seasonStartMs(n + 1) - 1000),
+                    closedAt: serverTimestamp(),
+                    top1: top[0] || null, top2: top[1] || null, top3: top[2] || null,
+                    top10: top, winnerUids: top.slice(0, 3).map(t => t.uid), rewards: rw
+                });
+                top.forEach(t => {
+                    const ids = t.rank <= 3 ? [`season${n}_top${t.rank}_frame`, `season${n}_top${t.rank}_role`] : [`season${n}_active_role`];
+                    const upd = {};
+                    ids.forEach(id => { upd['owned.' + id] = serverTimestamp(); });
+                    batch.update(doc(db, 'users', t.uid), upd);
+                });
+                await batch.commit();
+                showToast(`🏆 Saison ${n} clôturée, récompenses distribuées.`);
+                await ensureSeasonsHistory(true);
+            } catch (e) { showToast('Clôture impossible : ' + e.message); }
+            finally { closingSeason = false; }
+        };
+        window.setSeasonRewardLink = async (n) => {
+            n = Number(n);
+            if (!isAdmin()) return;
+            const cur = rewardLinks[n] || '';
+            const url = window.prompt(`Lien de la récompense Brawl Stars (Top 1-3, saison ${n}). Il ne sera visible que par les gagnants. Laisse vide pour le retirer.`, cur);
+            if (url === null) return;
+            const clean = url.trim();
+            if (clean && !/^https:\/\/\S{3,480}$/i.test(clean)) return showToast('Le lien doit commencer par https://');
+            try {
+                await setDoc(doc(db, 'seasons', 'season_' + n, 'private', 'reward'), { url: clean, updatedAt: serverTimestamp() });
+                rewardLinks[n] = clean;
+                showToast('Lien enregistré.');
+                if (hubIsOpen()) renderHub();
+            } catch (e) { showToast('Enregistrement impossible : ' + e.message); }
+        };
+
+        /* ---------- Fenêtre « Boutique · Collection · Saison » ---------- */
+        let hubTab = 'shop', hubType = 'frame', hubTimer = null, hubMySig = '';
+        const hubIsOpen = () => !$('hub-modal').classList.contains('hidden');
+        function myEconomySig() {
+            const u = userOf(currentUser?.uid) || {};
+            return [coinsOf(u), Object.keys(ownedOf(u)).sort().join(','), u.equippedAvatarFrame, u.equippedNameEffect, u.equippedRole, seasonXpOf(u, currentSeason())].join('|');
+        }
+        window.openHub = (tab = 'shop') => {
+            if (!currentUser) return;
+            hubTab = tab;
+            $('hub-modal').classList.remove('hidden');
+            renderHub();
+            ensureShopCatalog();
+            if (tab === 'season') ensureSeasonsHistory();
+            clearInterval(hubTimer);
+            hubTimer = setInterval(tickHub, 15000);
+        };
+        window.closeHub = () => { $('hub-modal').classList.add('hidden'); clearInterval(hubTimer); hubTimer = null; };
+        window.setHubTab = (t) => { hubTab = t; renderHub(); if (t === 'season') ensureSeasonsHistory(); };
+        window.setHubType = (t) => { hubType = t; renderHub(); };
+        function tickHub() {
+            if (!hubIsOpen()) return;
+            if (hubTab === 'season') { updateCountdownEl(); const b = $('season-board'); if (b) b.innerHTML = seasonBoardHtml(currentSeason()); }
+        }
+        function updateCountdownEl() {
+            const el = $('season-countdown'); if (!el) return;
+            const n = currentSeason();
+            el.textContent = fmtCountdown(seasonStartMs(n + 1) - serverNow());
+        }
+        // Appelé à chaque instantané "users" : on ne redessine la fenêtre que si TES données ont changé
+        function hubOnUsersUpdate() {
+            updateCoinsUI();
+            if (!hubIsOpen() || !currentUser) return;
+            const sig = myEconomySig();
+            if (sig !== hubMySig) { hubMySig = sig; renderHub(); }
+            else if (hubTab === 'season') { const b = $('season-board'); if (b) b.innerHTML = seasonBoardHtml(currentSeason()); }
+        }
+
+        function avatarCircle(u, cls, textCls) {
+            const av = safeUrl(u?.avatar);
+            return `<div class="${cls} rounded-full bg-[var(--theme-color)] flex items-center justify-center ${textCls} font-bold overflow-hidden">${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml(String(u?.name || '?').charAt(0).toUpperCase())}</div>`;
+        }
+        function previewHtml(d) {
+            const me = userOf(currentUser.uid) || userProfile;
+            if (d.type === 'frame') return `<div class="cos-av" ${frameAttrs(d)}>${avatarCircle(me, 'w-14 h-14', 'text-lg')}</div>`;
+            if (d.type === 'name') return `<span class="text-base font-bold break-all" data-nfx="${escapeHtml(d.id)}" data-nfx-anim="${d.anim || ''}"${d.glow ? ' data-nfx-glow' : ''} style="--nfx-bg:${d.bg};--nfx-glow:${d.glow || 'transparent'}">${escapeHtml(me.name || 'Pseudo')}</span>`;
+            return roleChip(d);
+        }
+        function cosCard(d) {
+            const uid = currentUser.uid, owned = ownsItem(uid, d.id), equipped = equippedId(uid, d.type) === d.id;
+            const price = shopPrice(d.id), coins = coinsOf(userOf(uid));
+            const btn = (cls, onclick, label, dis) => `<button type="button" ${dis ? 'disabled' : `onclick="${onclick}"`} class="w-full px-2 py-2 rounded-xl text-xs font-semibold transition ${cls} ${dis ? 'opacity-60 cursor-not-allowed' : ''}">${label}</button>`;
+            let action;
+            if (equipped) action = btn('bg-emerald-600/20 text-emerald-300 border border-emerald-600/40', `equipItem('${d.id}')`, 'Équipé ✓ · Retirer');
+            else if (owned) action = btn('bg-[var(--theme-color)] text-white hover:opacity-90', `equipItem('${d.id}')`, 'Équiper');
+            else if (d.exclusive) action = `<div class="text-[11px] text-center text-[#80848e] py-1.5">🔒 Récompense de saison</div>`;
+            else if (!price) action = btn('bg-[#35373c] text-[#949ba4]', '', 'Bientôt', true);
+            else if (coins < price) action = btn('bg-[#35373c] text-[#b5bac1]', '', `Il manque ${fmtCoins(price - coins)} 🪙`, true);
+            else action = btn('bg-amber-500 text-black hover:bg-amber-400', `buyItem('${d.id}')`, 'Acheter');
+            const priceTxt = owned ? '<span class="text-emerald-400">Possédé</span>' : d.exclusive ? '<span class="text-amber-300">Exclusif</span>' : `<span class="text-amber-300">${fmtCoins(price || d.price || 0)} 🪙</span>`;
+            const details = d.exclusive ? `<details class="text-[11px] text-[#b5bac1] text-left"><summary class="cursor-pointer text-[#949ba4] select-none">Détails</summary>
+                    <div class="mt-1 space-y-0.5"><div class="font-semibold text-[#f2f3f5]">${escapeHtml(d.icon)} ${escapeHtml(d.name)}</div>
+                    <div>Récompense exclusive de la Saison ${d.season}.</div><div>Obtenue grâce au classement de fin de saison.</div><div class="text-amber-300">🔒 Exclusivité permanente</div></div></details>` : '';
+            return `<div class="bg-[#1e1f22] border ${d.exclusive ? 'border-amber-500/40' : 'border-[#3f4147]'} rounded-2xl p-3 flex flex-col items-center gap-2 text-center">
+                <div class="h-16 flex items-center justify-center">${previewHtml(d)}</div>
+                <div class="min-w-0 w-full"><div class="text-sm font-semibold truncate">${escapeHtml(d.icon)} ${escapeHtml(d.name)}</div><div class="text-xs font-bold">${priceTxt}</div></div>
+                ${details}${action}</div>`;
+        }
+
+        function renderShopTab() {
+            let html = '';
+            if (!catalogLoaded) html += `<div class="text-center text-xs text-[#80848e] py-3">Chargement de la boutique…</div>`;
+            else if (!catalogDoc) html += isAdmin()
+                ? `<div class="mb-3 p-3 rounded-xl border border-amber-500/40 bg-amber-500/10 text-xs text-amber-200 space-y-2"><div>Le catalogue n’est pas encore publié : personne ne peut acheter. Publie-le une fois (et à chaque changement de prix ou d’objet).</div><button type="button" onclick="publishCatalog()" class="px-3 py-2 rounded-lg bg-amber-500 text-black font-semibold">Publier le catalogue</button></div>`
+                : `<div class="mb-3 p-3 rounded-xl border border-[#3f4147] bg-[#1e1f22] text-xs text-[#b5bac1]">🛠️ La boutique ouvre bientôt. Continue à gagner des pièces !</div>`;
+            else if (isAdmin() && catalogDiffers()) html += `<div class="mb-3 p-3 rounded-xl border border-amber-500/40 bg-amber-500/10 text-xs text-amber-200 space-y-2"><div>Le catalogue du code diffère de celui du serveur (nouveaux objets ou prix modifiés).</div><button type="button" onclick="publishCatalog()" class="px-3 py-2 rounded-lg bg-amber-500 text-black font-semibold">Republier le catalogue</button></div>`;
+            html += `<div class="flex gap-1.5 mb-3">${Object.keys(TYPE_LABEL).map(t => `<button type="button" onclick="setHubType('${t}')" class="flex-1 px-2 py-1.5 rounded-lg text-xs font-semibold transition ${hubType === t ? 'bg-[var(--theme-color)] text-white' : 'bg-[#1e1f22] text-[#b5bac1] border border-[#3f4147]'}">${TYPE_LABEL[t]}</button>`).join('')}</div>`;
+            const items = shopEntries().filter(d => d.type === hubType).sort((a, b) => a.price - b.price);
+            html += `<div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">${items.map(cosCard).join('')}</div>`;
+            html += `<p class="text-[11px] text-[#80848e] mt-3">Les pièces se gagnent avec l’activité (connexion quotidienne, messages, vocal), avec un plafond par jour. Les cosmétiques sont purement visuels.</p>`;
+            return html;
+        }
+
+        function renderCollectionTab() {
+            const uid = currentUser.uid, admin = isAdmin();
+            const me = userOf(uid) || userProfile;
+            let all;
+            if (admin) {
+                all = shopEntries();
+                for (let n = 1; n <= Math.max(1, currentSeason()); n++) ['top1', 'top2', 'top3'].forEach(k => ['frame', 'role'].forEach(t => all.push(cosmeticOf(`season${n}_${k}_${t}`))));
+                for (let n = 1; n <= Math.max(1, currentSeason()); n++) all.push(cosmeticOf(`season${n}_active_role`));
+            } else all = Object.keys(ownedOf(me)).map(cosmeticOf).filter(Boolean);
+            const rewards = all.filter(d => d.exclusive).sort((a, b) => (b.season - a.season) || String(a.tier).localeCompare(String(b.tier)));
+            const shop = all.filter(d => !d.exclusive);
+            const equippedRow = Object.keys(SLOT).map(t => {
+                const d = equippedDef(uid, t);
+                return `<div class="bg-[#1e1f22] border border-[#3f4147] rounded-xl px-2.5 py-2 text-center"><div class="text-[10px] uppercase tracking-wider text-[#80848e]">${TYPE_LABEL[t]}</div>
+                    <div class="text-xs font-semibold truncate">${d ? `${escapeHtml(d.icon)} ${escapeHtml(d.name)}` : '<span class="text-[#80848e] font-normal">Aucun</span>'}</div>
+                    ${d ? `<button type="button" onclick="unequipSlot('${t}')" class="text-[10px] text-rose-400 hover:underline mt-0.5">Retirer</button>` : ''}</div>`;
+            }).join('');
+            let html = `<div class="text-xs text-[#949ba4] mb-2">Équipé actuellement</div><div class="grid grid-cols-3 gap-2 mb-4">${equippedRow}</div>`;
+            if (admin) html += `<div class="mb-3 p-2.5 rounded-xl border border-amber-500/30 bg-amber-500/5 text-[11px] text-amber-200">👑 Compte créateur : tous les cosmétiques sont débloqués gratuitement (vérifié par les règles Firestore).</div>`;
+            html += `<div class="text-sm font-bold mb-2 flex items-center gap-2">🏆 Récompenses de saison <span class="text-[10px] font-normal text-[#80848e]">exclusives · impossibles à obtenir après la fin de la saison</span></div>`;
+            html += rewards.length ? `<div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-4">${rewards.map(cosCard).join('')}</div>`
+                : `<div class="text-xs text-[#80848e] italic mb-4">Aucune pour l’instant. Termine dans le Top 3 d’une saison pour décrocher un cadre exclusif !</div>`;
+            html += `<div class="text-sm font-bold mb-2">🛍️ Cosmétiques de la boutique</div>`;
+            html += shop.length ? `<div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">${shop.sort((a, b) => a.type.localeCompare(b.type) || a.price - b.price).map(cosCard).join('')}</div>`
+                : `<div class="text-xs text-[#80848e] italic">Rien pour l’instant : va faire un tour à la boutique.</div>`;
+            return html;
+        }
+
+        function seasonRowHtml(r, meUid) {
+            const u = r.u, isMe = u.uid === meUid;
+            const medal = r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : r.rank === 3 ? '🥉' : `${r.rank}.`;
+            return `<div class="flex items-center gap-2.5 px-2 py-2 rounded-xl ${isMe ? 'bg-[var(--theme-color)]/15' : ''}">
+                <span class="w-7 text-center text-sm font-bold shrink-0">${medal}</span>
+                ${cosAv(u.uid, avatarCircle(u, 'w-8 h-8', 'text-xs'), true)}
+                <div class="min-w-0 flex-1 flex items-center gap-1.5 flex-wrap"><span class="text-sm font-medium truncate" ${nameFx(u.uid)}>${escapeHtml(u.name || '?')}</span>${isMe ? '<span class="text-xs text-[#80848e]">(toi)</span>' : ''}${roleTag(u.uid)}</div>
+                <span class="text-xs font-bold text-amber-400 shrink-0">${fmtCoins(r.xp)} XP</span></div>`;
+        }
+        function seasonBoardHtml(n) {
+            const me = currentUser?.uid, ranking = seasonRanking(n), top = ranking.slice(0, 10);
+            if (!top.length) return `<div class="text-center text-xs text-[#80848e] py-5">Personne n’a encore gagné d’XP cette saison. Sois le premier !</div>`;
+            let html = top.map(r => seasonRowHtml(r, me)).join('');
+            const mine = ranking.find(r => r.u.uid === me);
+            if (mine && mine.rank > 10) html += `<div class="text-center text-[11px] text-[#80848e] py-1">…</div>` + seasonRowHtml(mine, me);
+            else if (!mine) html += `<div class="text-center text-xs text-[#80848e] italic pt-2">Tu n’as pas encore d’XP cette saison.</div>`;
+            return html;
+        }
+        function seasonHistoryHtml() {
+            if (!seasonsLoaded) return `<div class="text-xs text-[#80848e]">Chargement de l’historique…</div>`;
+            if (seasonsError) return `<div class="text-xs text-rose-400">Historique indisponible : ${escapeHtml(seasonsError)}</div>`;
+            if (!seasonsHistory.length) return `<div class="text-xs text-[#80848e] italic">Aucune saison terminée pour l’instant.</div>`;
+            return seasonsHistory.map(s => {
+                const t = [s.top1, s.top2, s.top3].map((x, i) => x ? `${['🥇', '🥈', '🥉'][i]} ${escapeHtml(x.name || '?')}` : '').filter(Boolean).join(' · ');
+                const rows = (s.top10 || []).map(x => `<div class="flex items-center gap-2 text-xs py-0.5"><span class="w-6 text-center shrink-0">${x.rank <= 3 ? ['🥇', '🥈', '🥉'][x.rank - 1] : x.rank + '.'}</span><span class="truncate flex-1" ${nameFx(x.uid)}>${escapeHtml(x.name || '?')}</span><span class="text-amber-400 shrink-0">${fmtCoins(x.xp || 0)} XP</span></div>`).join('');
+                const won = (s.winnerUids || []).includes(currentUser.uid);
+                const link = rewardLinks[s.number];
+                const linkHtml = (won && link && safeUrl(link)) ? `<a href="${escapeHtml(safeUrl(link))}" target="_blank" rel="noopener noreferrer" class="block mt-2 text-xs font-semibold text-amber-300 underline">🎁 Ta récompense Brawl Stars (Top 3)</a>` : (won ? `<div class="mt-2 text-xs text-amber-300">🎁 Tu es dans le Top 3 : la récompense Brawl Stars te sera envoyée.</div>` : '');
+                return `<details class="bg-[#1e1f22] border border-[#3f4147] rounded-xl"><summary class="px-3 py-2.5 cursor-pointer select-none"><span class="text-sm font-bold">Saison ${s.number}</span><span class="block text-xs text-[#949ba4] truncate">${t || 'Aucun classé'}</span></summary><div class="px-3 pb-3">${rows}${linkHtml}</div></details>`;
+            }).join('');
+        }
+        function seasonAdminHtml() {
+            if (!isAdmin() || !seasonsLoaded) return '';
+            const cur = currentSeason(), done = new Set(seasonsHistory.map(s => s.number)), pending = [];
+            for (let n = 1; n < cur; n++) if (!done.has(n)) pending.push(n);
+            const winnersOf = (n) => seasonRanking(n).slice(0, 3).map((r, i) => `${['🥇', '🥈', '🥉'][i]} ${escapeHtml(r.u.name || '?')}`).join(' · ') || 'Aucun classé';
+            let html = `<div class="border border-amber-500/40 bg-amber-500/5 rounded-xl p-3 space-y-2"><div class="text-xs font-bold text-amber-300">🛠️ Administration des saisons</div>`;
+            html += pending.length ? pending.map(n => `<div class="bg-[#1e1f22] rounded-lg p-2.5 space-y-1.5"><div class="text-sm font-semibold">Saison ${n} terminée — à clôturer</div><div class="text-xs text-[#b5bac1]">${winnersOf(n)}</div><button type="button" onclick="closeSeason(${n})" class="w-full px-3 py-2 rounded-lg bg-amber-500 text-black text-xs font-semibold">Clôturer la saison ${n} et distribuer les récompenses</button></div>`).join('')
+                : `<div class="text-xs text-[#b5bac1]">Rien à clôturer pour le moment.</div>`;
+            html += seasonsHistory.map(s => `<div class="flex items-center justify-between gap-2 text-xs bg-[#1e1f22] rounded-lg px-2.5 py-2"><span class="min-w-0 truncate">Saison ${s.number} · lien récompense : ${rewardLinks[s.number] ? '✅ défini' : '— non défini'}</span><button type="button" onclick="setSeasonRewardLink(${s.number})" class="shrink-0 px-2.5 py-1.5 rounded-lg bg-[#35373c] text-[#dbdee1] font-semibold">Modifier</button></div>`).join('');
+            return html + `</div>`;
+        }
+        function renderSeasonTab() {
+            const n = currentSeason(), prep = n < 1;
+            const startMs = seasonStartMs(prep ? 1 : n), endMs = seasonStartMs(n + 1);
+            let html = `<div class="rounded-2xl p-4 mb-4 border border-[#3f4147]" style="background:linear-gradient(135deg,var(--theme-color),#1e1f22)">
+                <div class="text-xs uppercase tracking-widest text-[#b5bac1]">${prep ? 'Préparation' : 'Saison en cours'}</div>
+                <div class="text-2xl font-extrabold">SAISON ${Math.max(0, n)}</div>
+                <div class="text-xs text-[#b5bac1] mt-0.5">${prep ? `La Saison 1 démarre le ${fmtDateUtc(startMs)} à 00:00 (UTC).` : `Du ${fmtDateUtc(startMs)} au ${fmtDateUtc(endMs - 1000)} à 23:59:59 (UTC).`}</div>
+                <div class="mt-3 text-xs text-[#b5bac1]">${prep ? 'La Saison 1 commence dans :' : 'Fin de la saison dans :'}</div>
+                <div id="season-countdown" class="text-lg font-bold text-amber-300">${fmtCountdown(endMs - serverNow())}</div>
+                ${prep ? `<div class="text-[11px] text-[#949ba4] mt-2">Saison 0 = période de préparation : pas de récompenses de classement. L’XP gagnée ici compte déjà pour ton niveau.</div>` : ''}</div>`;
+            if (!prep) {
+                const r1 = cosmeticOf(`season${n}_top1_frame`), r2 = cosmeticOf(`season${n}_top2_frame`), r3 = cosmeticOf(`season${n}_top3_frame`);
+                html += `<div class="mb-4"><div class="text-sm font-bold mb-2">🎁 Récompenses de fin de saison</div><div class="grid grid-cols-3 gap-2">${[r1, r2, r3].map((d, i) => `<div class="bg-[#1e1f22] border border-amber-500/30 rounded-xl p-2 text-center"><div class="h-16 flex items-center justify-center">${previewHtml(d)}</div><div class="text-[11px] font-semibold truncate">${['🥇 Top 1', '🥈 Top 2', '🥉 Top 3'][i]}</div><div class="text-[10px] text-[#949ba4] truncate">${escapeHtml(d.name)}</div></div>`).join('')}</div>
+                    <div class="text-[11px] text-[#949ba4] mt-2">Top 1-3 : cadre + rôle exclusifs de la saison et une récompense Brawl Stars. Top 4-10 : rôle « Actif ». Ces récompenses ne sont plus jamais disponibles après la saison.</div></div>`;
+            }
+            html += `<div class="text-sm font-bold mb-1">🏆 Classement de la saison</div><div id="season-board" class="mb-4">${seasonBoardHtml(n)}</div>`;
+            html += `<div class="text-sm font-bold mb-2">📜 Saisons précédentes</div><div class="space-y-2 mb-4">${seasonHistoryHtml()}</div>`;
+            html += seasonAdminHtml();
+            return html;
+        }
+
+        function renderHub() {
+            if (!currentUser) return;
+            const body = $('hub-body'), scroll = body.scrollTop;
+            hubMySig = myEconomySig();
+            ['shop', 'collection', 'season'].forEach(t => {
+                $('hub-tab-' + t).className = `flex-1 px-2 py-2 rounded-lg text-xs font-semibold transition ${hubTab === t ? 'bg-[var(--theme-color)] text-white' : 'text-[#b5bac1]'}`;
+            });
+            body.innerHTML = hubTab === 'shop' ? renderShopTab() : hubTab === 'collection' ? renderCollectionTab() : renderSeasonTab();
+            body.scrollTop = scroll;
+            updateCoinsUI();
+        }
+
+        // Remet à zéro à la déconnexion (le prochain compte ne voit rien de l'ancien)
+        function resetEconomyState() {
+            usersByUid = new Map(); cosSig = ''; hubMySig = '';
+            catalogDoc = null; catalogLoaded = false;
+            seasonsHistory = []; seasonsLoaded = false; seasonsError = ''; rewardLinks = {};
+            serverOffsetMs = 0; buying = false; closingSeason = false;
+            clearInterval(hubTimer); hubTimer = null;
+            ['coins-count', 'mobile-coins-label', 'hub-coins'].forEach(id => { const el = $(id); if (el) el.textContent = '0'; });
+        }
 
         /* =========================================================
            AMIS : demandes avec acceptation (collection "friendships")
@@ -3280,10 +3923,10 @@ match /inbox/{inboxId} {
             const av = safeUrl(u.avatar);
             return `<div class="flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-[#35373c] transition">
                 <div class="relative shrink-0">
-                    <div class="w-9 h-9 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-sm font-bold overflow-hidden">${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((u.name || '?').charAt(0))}</div>
+                    ${cosAv(u.uid, `<div class="w-9 h-9 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-sm font-bold overflow-hidden">${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((u.name || '?').charAt(0))}</div>`, true)}
                     <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#2b2d31] ${dotClass(u)}"></span>
                 </div>
-                <span onclick="openUserCard('${escapeHtml(u.uid)}')" class="text-sm font-medium truncate flex-1 min-w-0 cursor-pointer hover:underline">${escapeHtml(u.name)}</span>${actions}</div>`;
+                <span onclick="openUserCard('${escapeHtml(u.uid)}')" class="text-sm font-medium truncate flex-1 min-w-0 cursor-pointer hover:underline"><span ${nameFx(u.uid)}>${escapeHtml(u.name)}</span></span>${actions}</div>`;
         }
         const fBtn = (act, uid, label, cls) => `<button type="button" data-fa="${act}" data-uid="${escapeHtml(uid)}" class="shrink-0 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition ${cls}">${label}</button>`;
 
@@ -3675,9 +4318,9 @@ match /inbox/{inboxId} {
             const name = msg.displayName || 'Anonyme';
             const letter = escapeHtml(String(msg.displayName || 'A').charAt(0).toUpperCase());
             const av = safeUrl(msg.avatar);
-            const avatarHtml = `<div class="w-10 h-10 rounded-full bg-[#35373c] flex items-center justify-center text-sm font-bold overflow-hidden">${
+            const avatarHtml = cosAv(msg.uid, `<div class="w-10 h-10 rounded-full bg-[#35373c] flex items-center justify-center text-sm font-bold overflow-hidden">${
                 av ? `<img src="${escapeHtml(av)}" data-l="${letter}" loading="lazy" decoding="async" class="w-full h-full object-cover" onerror="this.replaceWith(document.createTextNode(this.dataset.l))">` : letter
-            }</div>`;
+            }</div>`);
 
             const media = safeUrl(msg.mediaUrl);
             const content = media
@@ -3717,8 +4360,9 @@ match /inbox/{inboxId} {
                         ${replyHtml}
                         <div class="flex items-baseline gap-2 flex-wrap">
                             ${(isMe || !msg.uid)
-                                ? `<span class="text-sm font-semibold" style="color:${isMe ? 'var(--theme-color)' : '#f2f3f5'}">${escapeHtml(name)}</span>`
-                                : `<button type="button" data-uid="${escapeHtml(msg.uid)}" onclick="mentionFromEl(this)" class="text-sm font-semibold hover:underline cursor-pointer" style="color:#f2f3f5" title="Cliquer pour mentionner">${escapeHtml(name)}</button>`}
+                                ? `<span class="text-sm font-semibold" ${nameFx(msg.uid, `color:${isMe ? 'var(--theme-color)' : '#f2f3f5'}`)}>${escapeHtml(name)}</span>`
+                                : `<button type="button" data-uid="${escapeHtml(msg.uid)}" onclick="mentionFromEl(this)" class="text-sm font-semibold hover:underline cursor-pointer" ${nameFx(msg.uid, 'color:#f2f3f5')} title="Cliquer pour mentionner">${escapeHtml(name)}</button>`}
+                            ${roleTag(msg.uid)}
                             <span class="msg-time text-[11px] text-[#80848e]">${time}</span>
                             ${msg.editedAt ? '<span class="text-[10px] text-[#80848e] italic" title="Ce message a été modifié">(modifié)</span>' : ''}
                         </div>
