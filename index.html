@@ -212,6 +212,9 @@
                         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                         <span id="online-count" class="text-[#dbdee1] font-medium">0</span>
                     </button>
+                    <button onclick="openLeaderboardModal()" class="flex items-center justify-center bg-[#35373c]/60 hover:bg-[#35373c] w-9 h-9 rounded-full border border-[#4e5058]/50 transition" title="Classement">
+                        <i class="fa-solid fa-trophy text-amber-400 text-sm"></i>
+                    </button>
                 </div>
             </div>
 
@@ -346,6 +349,21 @@
                 <button onclick="closeVoiceConfirm()" class="flex-1 px-4 py-2.5 rounded-xl bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] text-sm font-medium transition">Annuler</button>
                 <button onclick="confirmJoinVoice()" id="voice-confirm-btn" class="flex-1 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold flex items-center justify-center gap-2 transition"><i class="fa-solid fa-phone"></i> Rejoindre</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Classement XP : général + hebdomadaire. Les chiffres viennent des champs xp/weeklyXp de users/{uid}, gérés uniquement côté règles Firestore. -->
+    <div id="leaderboard-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4" onclick="if(event.target===this)closeLeaderboardModal()">
+        <div class="modal-pop bg-[#2b2d31] border border-[#3f4147] p-5 rounded-2xl max-w-sm w-full space-y-3 shadow-2xl max-h-[80vh] flex flex-col">
+            <div class="flex items-center justify-between shrink-0">
+                <h3 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-trophy text-amber-400"></i> Classement</h3>
+                <div class="flex bg-[#1e1f22] rounded-lg p-0.5 text-xs">
+                    <button id="lb-tab-global" onclick="setLbTab('global')" class="px-2.5 py-1 rounded-md transition">Général</button>
+                    <button id="lb-tab-week" onclick="setLbTab('week')" class="px-2.5 py-1 rounded-md transition">Cette semaine</button>
+                </div>
+            </div>
+            <div id="leaderboard-list" class="space-y-1 overflow-y-auto"></div>
+            <button onclick="closeLeaderboardModal()" class="shrink-0 px-4 py-2 rounded-xl text-sm bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] transition">Fermer</button>
         </div>
     </div>
 
@@ -644,7 +662,7 @@ match /inbox/{inboxId} {
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, signInWithRedirect, linkWithPopup, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, where, orderBy, limitToLast, onSnapshot, serverTimestamp, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, writeBatch, arrayRemove, arrayUnion, FieldPath, deleteField, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, where, orderBy, limitToLast, limit, onSnapshot, serverTimestamp, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, writeBatch, arrayRemove, arrayUnion, FieldPath, deleteField, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
         const firebaseConfig = {
@@ -676,6 +694,14 @@ match /inbox/{inboxId} {
         const GIPHY_KEY = "GlVGYHkr3WSBnllca54iNt0yFbjz7L65"; // clé de démo, prends la tienne sur developers.giphy.com
         const ONLINE_WINDOW_MS = 90 * 1000;
         const RTC_CONFIG = { iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }], iceCandidatePoolSize: 4 };
+
+        /* ---------- XP / Niveau / Classement ----------
+           Ces valeurs doivent rester identiques à celles des règles Firestore (msgXpOk/voiceXpOk/dailyBonusOk),
+           sinon le serveur refusera les écritures. Le cooldown + le plafond quotidien empêchent le spam de rapporter
+           beaucoup d'XP : ce n'est pas juste une protection côté client, le serveur revérifie tout. */
+        const MSG_XP = 6, MSG_XP_COOLDOWN_MS = 45 * 1000, MSG_XP_DAILY_CAP = 40;
+        const VOICE_XP = 6, VOICE_XP_COOLDOWN_MS = 5 * 60 * 1000, VOICE_XP_DAILY_CAP = 30;
+        const DAILY_BONUS_XP = 20, DAILY_BONUS_COOLDOWN_MS = 20 * 3600 * 1000;
 
         // Nombre de messages chargés d'un coup (un bouton "Charger les messages plus anciens" permet d'en voir plus)
         const MESSAGE_PAGE = 150;
@@ -2059,6 +2085,7 @@ match /inbox/{inboxId} {
             updateProfileUI();
             refreshAccountUI();
             updateAdminUI();
+            tryAwardXp('daily');   // bonus de connexion quotidien (cooldown 20h vérifié côté serveur)
             startHeartbeat();
             const usersReady = listenUsers();
             listenChannels();
@@ -2210,6 +2237,7 @@ match /inbox/{inboxId} {
                     ...(reply ? { replyTo: reply } : {})
                 });
                 bumpMsgCount();
+                tryAwardXp('msg');
                 const preview = "📷 a envoyé une image/GIF";
                 notifyAfterSend({ preview, conv, replyToUid: reply?.uid });
                 touchChannelMeta(conv, preview);
@@ -2567,6 +2595,7 @@ match /inbox/{inboxId} {
             if (!activeVoiceId || !currentUser || !localStream) { stopVoiceTimers(); return; }
             const now = Date.now();
             if (now - lastPing > VOICE_PING_MS) { lastPing = now; sendVoicePing(); }
+            tryAwardXp('voice');   // ne tente réellement une écriture que toutes les ~5 min (cooldown géré dans la fonction)
 
             voiceRoomData = voiceRoomData.filter(isVoiceAlive);   // les fantômes disparaissent même sans nouvel évènement
             reconcilePeers();
@@ -2906,6 +2935,7 @@ match /inbox/{inboxId} {
                     ...(reply ? { replyTo: reply } : {})
                 });
                 bumpMsgCount();
+                tryAwardXp('msg');
                 const preview = text.length > 60 ? text.slice(0, 57) + '…' : text;
                 notifyAfterSend({ text, preview, conv, replyToUid: reply?.uid });
                 touchChannelMeta(conv, preview);
@@ -2935,12 +2965,107 @@ match /inbox/{inboxId} {
         const statusOf = (u) => (u && STATUS_META[u.status]) ? u.status : 'online';
         const dotClass = (u) => isOnline(u) ? STATUS_META[statusOf(u)].dot : 'bg-slate-600';
 
-        // XP = 5 par message envoyé. Niveau n à partir de 25·(n-1)² XP.
-        const xpOf = (u) => Math.max(0, Math.floor(Number(u?.msgCount) || 0)) * 5;
+        // XP = champ "xp" réellement stocké sur users/{uid}, écrit uniquement via tryAwardXp() ci-dessous
+        // et vérifié par les règles Firestore (msgXpOk/voiceXpOk/dailyBonusOk) : impossible à falsifier depuis le navigateur.
+        const xpOf = (u) => Math.max(0, Math.floor(Number(u?.xp) || 0));
         function levelInfo(xp) {
             const level = 1 + Math.floor(Math.sqrt(xp / 25));
             const base = 25 * (level - 1) ** 2, next = 25 * level ** 2;
             return { level, xp, base, next, pct: Math.max(0, Math.min(100, Math.round((xp - base) / (next - base) * 100))) };
+        }
+
+        /* ---------- Gain d'XP (message / vocal / bonus quotidien) ----------
+           Anti-spam à deux niveaux : vérification locale (évite une écriture inutile) PUIS vérification
+           serveur (les règles Firestore refusent toute écriture hors cooldown/plafond ou avec un montant faux).
+           Envoyer 1000 messages ne rapporte donc jamais plus que MSG_XP_DAILY_CAP gains dans la journée. */
+        function isoWeekId(d = new Date()) {
+            const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+            const day = (t.getUTCDay() + 6) % 7;
+            t.setUTCDate(t.getUTCDate() - day + 3);
+            const firstThu = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));
+            const week = 1 + Math.round(((t - firstThu) / 86400000 - 3 + ((firstThu.getUTCDay() + 6) % 7)) / 7);
+            return `${t.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+        }
+
+        async function tryAwardXp(kind) {
+            if (!currentUser) return;
+            const now = Date.now();
+            const CFG = {
+                msg:   { field: 'lastMsgXpAt',      cd: MSG_XP_COOLDOWN_MS,      dailyField: 'dailyMsgXpCount',   dateField: 'dailyMsgXpDate',   cap: MSG_XP_DAILY_CAP,   amount: MSG_XP },
+                voice: { field: 'lastVoiceXpAt',    cd: VOICE_XP_COOLDOWN_MS,    dailyField: 'dailyVoiceXpCount', dateField: 'dailyVoiceXpDate', cap: VOICE_XP_DAILY_CAP, amount: VOICE_XP },
+                daily: { field: 'lastDailyBonusAt', cd: DAILY_BONUS_COOLDOWN_MS, amount: DAILY_BONUS_XP }
+            }[kind];
+
+            if (now - tsMillis(userProfile[CFG.field]) < CFG.cd) return;   // pas encore le moment (vérif locale ; le serveur revérifie de toute façon)
+
+            const weekId = isoWeekId();
+            const weekRolled = userProfile.weeklyWeekId !== weekId;
+            const payload = { xp: increment(CFG.amount), weeklyWeekId: weekId, [CFG.field]: serverTimestamp() };
+            payload.weeklyXp = weekRolled ? CFG.amount : increment(CFG.amount);
+
+            let dayRolled = false;
+            if (CFG.dailyField) {
+                dayRolled = now - tsMillis(userProfile[CFG.dateField]) > 86400000;
+                if (!dayRolled && (userProfile[CFG.dailyField] || 0) >= CFG.cap) return;   // plafond quotidien atteint (vérif locale)
+                payload[CFG.dailyField] = dayRolled ? 1 : increment(1);
+                if (dayRolled) payload[CFG.dateField] = serverTimestamp();
+            }
+            if (kind === 'voice' && activeVoiceId) payload.lastVoiceRoom = activeVoiceId;
+
+            // Optimiste en local pour un affichage immédiat (corrigé de toute façon au prochain instantané "users")
+            userProfile[CFG.field] = { toMillis: () => now };
+            userProfile.xp = (userProfile.xp || 0) + CFG.amount;
+            userProfile.weeklyWeekId = weekId;
+            userProfile.weeklyXp = weekRolled ? CFG.amount : (userProfile.weeklyXp || 0) + CFG.amount;
+            if (CFG.dailyField) {
+                userProfile[CFG.dailyField] = dayRolled ? 1 : (userProfile[CFG.dailyField] || 0) + 1;
+                if (dayRolled) userProfile[CFG.dateField] = { toMillis: () => now };
+            }
+
+            try { await updateDoc(doc(db, "users", currentUser.uid), payload); }
+            catch (e) { /* refusé par le serveur (cooldown/plafond non écoulé) : rien d'anormal, on ignore */ }
+        }
+
+        /* ---------- Classement (général + hebdomadaire) ---------- */
+        let lbTab = 'global';
+        window.setLbTab = (t) => { lbTab = t; renderLbTabs(); loadLeaderboard(); };
+        function renderLbTabs() {
+            $('lb-tab-global').className = `px-2.5 py-1 rounded-md transition ${lbTab === 'global' ? 'bg-[var(--theme-color)] text-white' : 'text-[#949ba4]'}`;
+            $('lb-tab-week').className = `px-2.5 py-1 rounded-md transition ${lbTab === 'week' ? 'bg-[var(--theme-color)] text-white' : 'text-[#949ba4]'}`;
+        }
+        window.openLeaderboardModal = () => { renderLbTabs(); loadLeaderboard(); $('leaderboard-modal').classList.remove('hidden'); };
+        window.closeLeaderboardModal = () => $('leaderboard-modal').classList.add('hidden');
+
+        async function loadLeaderboard() {
+            const box = $('leaderboard-list');
+            box.innerHTML = `<div class="text-center text-xs text-[#80848e] py-6">Chargement...</div>`;
+            const field = lbTab === 'global' ? 'xp' : 'weeklyXp';
+            try {
+                const snap = await getDocs(query(collection(db, "users"), orderBy(field, "desc"), limit(100)));
+                const rows = snap.docs.map((d, i) => ({ ...d.data(), uid: d.id, rank: i + 1 }));
+                const myIdx = rows.findIndex(r => r.uid === currentUser.uid);
+                box.innerHTML = rows.length ? rows.slice(0, 50).map(u => lbRow(u, field)).join('')
+                    + (myIdx === -1 ? `<div class="text-center text-xs text-[#80848e] italic pt-2">Tu n'es pas encore dans le top 100.</div>` : '')
+                    : `<div class="text-center text-xs text-[#80848e] py-6">Personne n'a encore gagné d'XP.</div>`;
+            } catch (e) { box.innerHTML = `<div class="text-center text-xs text-rose-400 py-6">Classement indisponible : ${escapeHtml(e.message)}</div>`; }
+        }
+
+        function lbRow(u, field) {
+            const isMe = u.uid === currentUser.uid;
+            const lv = levelInfo(xpOf(u));
+            const av = safeUrl(u.avatar);
+            const medal = u.rank === 1 ? '🥇' : u.rank === 2 ? '🥈' : u.rank === 3 ? '🥉' : `#${u.rank}`;
+            return `<div class="flex items-center gap-2.5 px-2 py-2 rounded-xl ${isMe ? 'bg-[var(--theme-color)]/15' : ''}">
+                <span class="w-7 text-center text-sm font-bold shrink-0">${medal}</span>
+                <div class="w-8 h-8 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-xs font-bold overflow-hidden shrink-0">
+                    ${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((u.name || '?').charAt(0))}
+                </div>
+                <div class="min-w-0 flex-1">
+                    <div class="text-sm font-medium truncate">${escapeHtml(u.name || '?')}${isMe ? ' <span class="text-xs text-[#80848e]">(toi)</span>' : ''}</div>
+                    <div class="text-[11px] text-[#80848e]">Niveau ${lv.level}</div>
+                </div>
+                <span class="text-xs font-bold text-amber-400 shrink-0">${Math.max(0, Math.floor(Number(u[field]) || 0))} XP</span>
+            </div>`;
         }
         function badgesOf(u, level) {
             const b = [], msgs = Math.floor(Number(u.msgCount) || 0), joined = tsMillis(u.joinedAt);
