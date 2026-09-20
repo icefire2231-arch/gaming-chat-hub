@@ -374,7 +374,7 @@
     <div id="friends-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4" onclick="if(event.target===this)closeFriendsModal()">
         <div class="modal-pop bg-[#2b2d31] border border-[#3f4147] p-5 rounded-2xl max-w-sm w-full space-y-3 shadow-2xl max-h-[80vh] flex flex-col">
             <h3 class="font-bold text-lg flex items-center gap-2 shrink-0"><i class="fa-solid fa-address-book text-[var(--theme-color)]"></i> Amis</h3>
-            <input id="friend-search" type="text" autocomplete="off" oninput="renderFriendsModal()" placeholder="Rechercher un pseudo…" class="shrink-0 w-full bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3.5 py-2.5 text-sm text-[#f2f3f5] focus:outline-none focus:border-[var(--theme-color)]">
+            <input id="friend-search" type="text" autocomplete="off" placeholder="Rechercher un pseudo…" class="shrink-0 w-full bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3.5 py-2.5 text-sm text-[#f2f3f5] focus:outline-none focus:border-[var(--theme-color)]">
             <div id="friends-modal-body" class="space-y-3 overflow-y-auto"></div>
             <button onclick="closeFriendsModal()" class="shrink-0 px-4 py-2 rounded-xl text-sm bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] transition">Fermer</button>
         </div>
@@ -2989,21 +2989,33 @@ match /inbox/{inboxId} {
             const outgoing = outgoingRequests().map(d => byUid(d.to)).filter(Boolean)
                 .map(u => friendUserRow(u, `<span class="text-[11px] text-[#80848e] shrink-0">En attente</span>` + fBtn('cancel', u.uid, 'Annuler', neutral))).join('');
 
-            let results = '';
+            const rowFor = (u) => {
+                const rel = friendRel(u.uid);
+                const actions = rel === 'friend' ? `<span class="text-[11px] text-emerald-400 shrink-0">Ami ✓</span>` + fBtn('dm', u.uid, dmIcon, neutral)
+                    : rel === 'sent' ? `<span class="text-[11px] text-[#80848e] shrink-0">En attente</span>` + fBtn('cancel', u.uid, 'Annuler', neutral)
+                    : rel === 'received' ? fBtn('accept', u.uid, 'Accepter', primary) + fBtn('decline', u.uid, 'Refuser', neutral)
+                    : fBtn('add', u.uid, 'Ajouter', primary) + fBtn('dm', u.uid, dmIcon, neutral);
+                return friendUserRow(u, actions);
+            };
+            const people = allUsersList.filter(u => u.uid && u.uid !== me && String(u.name || '').trim());
+            let listHtml;
             if (q) {
-                const found = allUsersList.filter(u => u.uid && u.uid !== me && normalizeName(u.name).includes(q)).slice(0, 30);
-                results = found.length ? found.map(u => {
-                    const rel = friendRel(u.uid);
-                    const actions = rel === 'friend' ? `<span class="text-[11px] text-emerald-400 shrink-0">Ami ✓</span>` + fBtn('dm', u.uid, dmIcon, neutral)
-                        : rel === 'sent' ? `<span class="text-[11px] text-[#80848e] shrink-0">En attente</span>` + fBtn('cancel', u.uid, 'Annuler', neutral)
-                        : rel === 'received' ? fBtn('accept', u.uid, 'Accepter', primary) + fBtn('decline', u.uid, 'Refuser', neutral)
-                        : fBtn('add', u.uid, 'Ajouter', primary) + fBtn('dm', u.uid, dmIcon, neutral);
-                    return friendUserRow(u, actions);
-                }).join('') : `<div class="text-center text-xs text-[#80848e] py-4">Aucun utilisateur trouvé.</div>`;
+                // Dès la 1re lettre : ceux dont le pseudo COMMENCE par la saisie d'abord, puis ceux qui la contiennent ; les connectés en premier
+                const rank = (u) => normalizeName(u.name).startsWith(q) ? 0 : 1;
+                const found = people.filter(u => normalizeName(u.name).includes(q))
+                    .sort((x, y) => rank(x) - rank(y) || (isOnline(y) - isOnline(x)) || String(x.name).localeCompare(String(y.name)))
+                    .slice(0, 30);
+                listHtml = sec('Résultats', found.length ? found.map(rowFor).join('') : `<div class="text-center text-xs text-[#80848e] py-4">Aucun utilisateur trouvé.</div>`);
+            } else {
+                // Sans saisie : on propose directement les personnes connectées qui ne sont pas encore tes amies
+                const sugg = people.filter(u => isOnline(u) && friendRel(u.uid) === 'none')
+                    .sort((x, y) => String(x.name).localeCompare(String(y.name))).slice(0, 20);
+                listHtml = sugg.length ? sec('Suggestions · en ligne maintenant', sugg.map(rowFor).join(''))
+                    : `<div class="text-center text-xs text-[#80848e] py-4">Personne à suggérer pour le moment. Tape un pseudo pour chercher.</div>`;
             }
-            $('friends-modal-body').innerHTML = sec('Demandes reçues', incoming) + sec('Demandes envoyées', outgoing)
-                + (q ? sec('Résultats', results) : `<div class="text-center text-xs text-[#80848e] py-4">Tape un pseudo pour trouver quelqu'un et l'ajouter en ami.</div>`);
+            $('friends-modal-body').innerHTML = sec('Demandes reçues', incoming) + sec('Demandes envoyées', outgoing) + listHtml;
         }
+        $('friend-search').addEventListener('input', renderFriendsModal);
         $('friends-modal-body').addEventListener('click', (e) => {
             const b = e.target.closest('[data-fa]');
             if (b) friendAction(b.dataset.fa, b.dataset.uid);
