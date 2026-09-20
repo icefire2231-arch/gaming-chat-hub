@@ -181,7 +181,7 @@
                     </div>
                     <div class="truncate">
                         <span class="text-sm font-medium truncate block" id="user-name">Utilisateur</span>
-                        <span class="text-xs text-[var(--theme-color)]">Paramètres</span>
+                        <span id="user-status-label" onclick="event.stopPropagation();openStatusMenu()" class="text-xs text-[var(--theme-color)] cursor-pointer hover:underline">Paramètres</span>
                     </div>
                 </div>
                 <button onclick="openProfileModal()" class="text-[#949ba4] hover:text-white p-2 transition" title="Paramètres"><i class="fa-solid fa-gear"></i></button>
@@ -394,6 +394,11 @@
         <div id="msg-sheet-body" class="modal-pop bg-[#2b2d31] border border-[#3f4147] w-full md:max-w-xs rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden pb-[env(safe-area-inset-bottom)] md:pb-0"></div>
     </div>
 
+    <!-- Fiche profil d'un membre (données publiques uniquement) -->
+    <div id="user-card-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4" onclick="if(event.target===this)closeUserCard()">
+        <div id="user-card-body" class="modal-pop bg-[#2b2d31] border border-[#3f4147] rounded-2xl max-w-sm w-full shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"></div>
+    </div>
+
     <!-- Ping rapide : choisis qui pinger, connecté ou non -->
     <div id="ping-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4">
         <div class="modal-pop bg-[#2b2d31] border border-[#3f4147] p-5 rounded-2xl max-w-sm w-full space-y-3 shadow-2xl max-h-[80vh] flex flex-col">
@@ -520,6 +525,18 @@
             <div>
                 <label class="text-xs text-[#949ba4] block mb-1">URL Avatar</label>
                 <input type="text" id="edit-avatar" placeholder="https://..." class="w-full bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3 py-2.5 text-sm">
+            </div>
+            <div>
+                <label class="text-xs text-[#949ba4] block mb-2">Statut</label>
+                <div id="edit-status-btns" class="grid grid-cols-2 gap-2"></div>
+            </div>
+            <div>
+                <label class="text-xs text-[#949ba4] mb-1 flex justify-between"><span>Bio</span><span id="edit-bio-count">0/160</span></label>
+                <textarea id="edit-bio" rows="2" maxlength="160" placeholder="Parle un peu de toi…" class="w-full bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3 py-2.5 text-sm resize-none"></textarea>
+            </div>
+            <div>
+                <label class="text-xs text-[#949ba4] mb-2 flex justify-between"><span>Jeux favoris (3 max)</span><span id="edit-games-count">0/3</span></label>
+                <div id="edit-games" class="flex flex-wrap gap-1.5"></div>
             </div>
             <div>
                 <label class="text-xs text-[#949ba4] block mb-2">Thème de couleur</label>
@@ -765,6 +782,7 @@ match /inbox/{inboxId} {
         const nameAllowed = (name) => !RESERVED_NAMES.includes(normalizeName(name)) || isAdmin();
 
         function isOnline(u) {
+            if (u.status === 'invisible') return false;   // statut "Invisible" = apparaît hors ligne pour les autres
             if (!u.lastSeen) return false;
             const ms = typeof u.lastSeen.toMillis === "function" ? u.lastSeen.toMillis() : 0;
             return Date.now() - ms < ONLINE_WINDOW_MS;
@@ -1040,7 +1058,7 @@ match /inbox/{inboxId} {
                 <div class="${size} rounded-full bg-[var(--theme-color)] flex items-center justify-center text-xs font-bold overflow-hidden">
                     ${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((u.name || '?').charAt(0))}
                 </div>
-                <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#2b2d31] ${isOnline(u) ? 'bg-emerald-500' : 'bg-slate-600'}"></span>
+                <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#2b2d31] ${dotClass(u)}"></span>
             </div>`;
         }
 
@@ -1395,9 +1413,11 @@ match /inbox/{inboxId} {
                         // Un ping ou une réponse prévient toujours, même si tu es déjà dans le salon
                         if ((c.type === 'added' || c.type === 'modified') && n.unread && n.lastText && (n.isMention || !isCurrentConv(n.convType, n.convId))) {
                             const msg = notifText(n);
-                            if (n.kind === 'call') { playRing(); showToast(msg, 8000); }
-                            else showToast(msg.slice(0, 120), n.isMention ? 5000 : 3000);
-                            browserNotify(msg);
+                            if (userProfile.status !== 'dnd') {   // "Ne pas déranger" : les badges restent, mais aucun bruit
+                                if (n.kind === 'call') { playRing(); showToast(msg, 8000); }
+                                else showToast(msg.slice(0, 120), n.isMention ? 5000 : 3000);
+                                browserNotify(msg);
+                            }
                         }
                     });
                 }
@@ -1545,12 +1565,12 @@ match /inbox/{inboxId} {
                 return `
                     <div class="chan-row relative group">
                     <button onclick="openDirectMessage('${escapeHtml(u.uid)}')" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2.5 transition ${isActive ? 'bg-[var(--theme-color)] text-white' : 'text-[#949ba4] hover:bg-[#35373c] hover:text-[#dbdee1]'}">
-                        <div class="w-6 h-6 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-xs font-bold overflow-hidden shrink-0">
+                        <div onclick="event.stopPropagation();openUserCard('${escapeHtml(u.uid)}')" class="w-6 h-6 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-xs font-bold overflow-hidden shrink-0" title="Voir le profil">
                             ${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((u.name || '?').charAt(0))}
                         </div>
                         <span class="truncate ${badge ? 'text-white font-bold' : ''}">${escapeHtml(u.name)}</span>
                         ${badge}
-                        <span class="w-2 h-2 rounded-full ${isOnline(u) ? 'bg-emerald-500' : 'bg-slate-600'} ${badge ? '' : 'ml-auto'} shrink-0"></span>
+                        <span class="w-2 h-2 rounded-full ${dotClass(u)} ${badge ? '' : 'ml-auto'} shrink-0"></span>
                     </button>
                     ${sideBtn}
                     </div>`;
@@ -1793,7 +1813,7 @@ match /inbox/{inboxId} {
                             ${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((u.name || '?').charAt(0))}
                         </div>
                         <span class="text-sm truncate">${escapeHtml(u.name)}</span>
-                        <span class="w-2 h-2 rounded-full ${isOnline(u) ? 'bg-emerald-500' : 'bg-slate-600'} ml-auto"></span>
+                        <span class="w-2 h-2 rounded-full ${dotClass(u)} ml-auto"></span>
                     </label>`;
             }).join('') : `<div class="text-xs text-[#80848e] italic px-2">Personne d'autre n'est inscrit.</div>`;
             $('group-modal').classList.remove('hidden');
@@ -1848,9 +1868,9 @@ match /inbox/{inboxId} {
                             <div class="w-9 h-9 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-sm font-bold overflow-hidden">
                                 ${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((u.name || '?').charAt(0))}
                             </div>
-                            <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-slate-900"></span>
+                            <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full ${dotClass(u)} border-2 border-slate-900"></span>
                         </div>
-                        <span class="text-sm font-medium truncate flex-1">${escapeHtml(u.name)}${isMe ? ' <span class="text-xs text-[#80848e]">(toi)</span>' : ''}</span>
+                        <span onclick="closeOnlineModal();openUserCard('${escapeHtml(u.uid)}')" class="text-sm font-medium truncate flex-1 cursor-pointer hover:underline">${escapeHtml(u.name)}${isMe ? ' <span class="text-xs text-[#80848e]">(toi)</span>' : ''}</span>
                         ${!isMe ? `
                             <button onclick="openDirectMessage('${escapeHtml(u.uid)}');closeOnlineModal();" class="text-[#949ba4] hover:text-white p-2" title="Message"><i class="fa-solid fa-comment"></i></button>
                             ${friendRel(u.uid) === 'none' ? `<button onclick="friendAction('add','${escapeHtml(u.uid)}')" class="text-[#949ba4] hover:text-white p-2" title="Ajouter en ami"><i class="fa-solid fa-user-plus"></i></button>` : ''}
@@ -2026,7 +2046,10 @@ match /inbox/{inboxId} {
                     };
                 }
                 userProfile.uid = user.uid;
-                await setDoc(userRef, { ...userProfile, lastSeen: serverTimestamp() }, { merge: true });
+                const first = { ...profileWritable(), lastSeen: serverTimestamp() };
+                // Date d'arrivée = date réelle de création du compte (Firebase Auth), écrite une seule fois
+                if (!userProfile.joinedAt && user.metadata?.creationTime) { first.joinedAt = new Date(user.metadata.creationTime); userProfile.joinedAt = first.joinedAt; }
+                await setDoc(userRef, first, { merge: true });
             } catch (e) {
                 showToast("Profil indisponible : " + e.message);
                 userProfile = { ...userProfile, name: userProfile.name || user.displayName || "Utilisateur", uid: user.uid };
@@ -2092,6 +2115,7 @@ match /inbox/{inboxId} {
 
         function updateProfileUI() {
             $('user-name').textContent = userProfile.name;
+            refreshMyStatusUI();
             const box = $('user-avatar-container');
             const av = safeUrl(userProfile.avatar);
             box.innerHTML = av
@@ -2102,6 +2126,7 @@ match /inbox/{inboxId} {
         window.openProfileModal = () => {
             $('edit-username').value = userProfile.name || "";
             $('edit-avatar').value = userProfile.avatar || "";
+            fillProfileEditor();
             refreshAccountUI();
             $('profile-modal').classList.remove('hidden');
         };
@@ -2119,7 +2144,10 @@ match /inbox/{inboxId} {
             userProfile.name = newName;
             userProfile.avatar = newAvatar;
             userProfile.uid = currentUser.uid;
-            await setDoc(doc(db, "users", currentUser.uid), { ...userProfile, lastSeen: serverTimestamp() }, { merge: true });
+            Object.assign(userProfile, readProfileEditor());   // statut, bio, jeux favoris
+            try {
+                await setDoc(doc(db, "users", currentUser.uid), { ...profileWritable(), lastSeen: serverTimestamp() }, { merge: true });
+            } catch (e) { return showToast("Enregistrement impossible : " + e.message); }
             updateProfileUI();
             closeProfileModal();
             showToast("Profil mis à jour !");
@@ -2181,6 +2209,7 @@ match /inbox/{inboxId} {
                     avatar: userProfile.avatar || "", createdAt: serverTimestamp(), reactions: {},
                     ...(reply ? { replyTo: reply } : {})
                 });
+                bumpMsgCount();
                 const preview = "📷 a envoyé une image/GIF";
                 notifyAfterSend({ preview, conv, replyToUid: reply?.uid });
                 touchChannelMeta(conv, preview);
@@ -2876,6 +2905,7 @@ match /inbox/{inboxId} {
                     avatar: userProfile.avatar || "", createdAt: serverTimestamp(), reactions: {},
                     ...(reply ? { replyTo: reply } : {})
                 });
+                bumpMsgCount();
                 const preview = text.length > 60 ? text.slice(0, 57) + '…' : text;
                 notifyAfterSend({ text, preview, conv, replyToUid: reply?.uid });
                 touchChannelMeta(conv, preview);
@@ -2888,6 +2918,163 @@ match /inbox/{inboxId} {
 
         // (suppression, réactions, modification et épinglage : voir la section « Actions sur les messages » plus bas)
         window.reactFromEl = (el) => addReaction(el.dataset.id, el.dataset.emoji);
+
+        /* =========================================================
+           PROFILS : statut, bio, jeux favoris, niveau / XP, badges
+           Champs OPTIONNELS du document users/<uid> : status, bio, favGames, joinedAt, msgCount.
+           Niveau, XP et badges ne sont PAS stockés : ils sont calculés à l'affichage.
+           Données privées (email, UID, dernière connexion exacte) : jamais affichées ici.
+           ========================================================= */
+        const PROFILE_GAMES = ['Brawl Stars', 'Clash of Clans', 'Clash Royale', 'Roblox', 'Minecraft', 'Fortnite', 'Valorant', 'League of Legends', 'Rocket League', 'Among Us', 'Free Fire', 'Call of Duty'];
+        const STATUS_META = {
+            online:    { label: 'En ligne',        dot: 'bg-emerald-500' },
+            away:      { label: 'Absent',          dot: 'bg-amber-400' },
+            dnd:       { label: 'Ne pas déranger', dot: 'bg-rose-500' },
+            invisible: { label: 'Invisible',       dot: 'bg-slate-500' }
+        };
+        const statusOf = (u) => (u && STATUS_META[u.status]) ? u.status : 'online';
+        const dotClass = (u) => isOnline(u) ? STATUS_META[statusOf(u)].dot : 'bg-slate-600';
+
+        // XP = 5 par message envoyé. Niveau n à partir de 25·(n-1)² XP.
+        const xpOf = (u) => Math.max(0, Math.floor(Number(u?.msgCount) || 0)) * 5;
+        function levelInfo(xp) {
+            const level = 1 + Math.floor(Math.sqrt(xp / 25));
+            const base = 25 * (level - 1) ** 2, next = 25 * level ** 2;
+            return { level, xp, base, next, pct: Math.max(0, Math.min(100, Math.round((xp - base) / (next - base) * 100))) };
+        }
+        function badgesOf(u, level) {
+            const b = [], msgs = Math.floor(Number(u.msgCount) || 0), joined = tsMillis(u.joinedAt);
+            if (ADMIN_UIDS.includes(u.uid)) b.push({ i: 'fa-shield-halved', t: 'Admin', c: 'text-rose-300 border-rose-500/40 bg-rose-500/10' });
+            if (joined && Date.now() - joined > 30 * 864e5) b.push({ i: 'fa-hourglass-half', t: 'Ancien', c: 'text-amber-300 border-amber-500/40 bg-amber-500/10' });
+            if (msgs >= 1000) b.push({ i: 'fa-crown', t: 'Légende du chat', c: 'text-yellow-300 border-yellow-500/40 bg-yellow-500/10' });
+            else if (msgs >= 100) b.push({ i: 'fa-comments', t: 'Bavard', c: 'text-emerald-300 border-emerald-500/40 bg-emerald-500/10' });
+            else if (msgs >= 1) b.push({ i: 'fa-seedling', t: 'Premiers pas', c: 'text-lime-300 border-lime-500/40 bg-lime-500/10' });
+            if (level >= 10) b.push({ i: 'fa-star', t: 'Niveau 10+', c: 'text-sky-300 border-sky-500/40 bg-sky-500/10' });
+            if (safeUrl(u.avatar) && u.bio && Array.isArray(u.favGames) && u.favGames.length) b.push({ i: 'fa-circle-check', t: 'Profil complet', c: 'text-violet-300 border-violet-500/40 bg-violet-500/10' });
+            return b;
+        }
+
+        // Ce qu'on peut réécrire d'un bloc : jamais les compteurs (msgCount) ni la date d'arrivée
+        function profileWritable() { const { msgCount, joinedAt, ...rest } = userProfile; return rest; }
+        function bumpMsgCount() {
+            if (!currentUser) return;
+            userProfile.msgCount = (userProfile.msgCount || 0) + 1;
+            updateDoc(doc(db, "users", currentUser.uid), { msgCount: increment(1) }).catch(() => {});
+        }
+
+        /* ---------- Éditeur (fenêtre « Mon Profil ») ---------- */
+        let editStatus = 'online', editGames = [];
+        function fillProfileEditor() {
+            editStatus = statusOf(userProfile);
+            editGames = (Array.isArray(userProfile.favGames) ? userProfile.favGames : []).slice(0, 3);
+            $('edit-bio').value = typeof userProfile.bio === 'string' ? userProfile.bio : '';
+            renderProfileEditor();
+        }
+        function renderProfileEditor() {
+            $('edit-status-btns').innerHTML = Object.entries(STATUS_META).map(([k, m]) =>
+                `<button type="button" data-st="${k}" class="flex items-center gap-2 px-3 py-2 rounded-xl text-xs border transition ${editStatus === k ? 'border-[var(--theme-color)] bg-[var(--theme-color)]/15 text-white' : 'border-[#3f4147] bg-[#1e1f22] text-[#b5bac1] hover:bg-[#35373c]'}"><span class="w-2.5 h-2.5 rounded-full ${m.dot}"></span>${m.label}</button>`).join('');
+            $('edit-games').innerHTML = PROFILE_GAMES.map(g =>
+                `<button type="button" data-game="${escapeHtml(g)}" class="px-2.5 py-1 rounded-full text-xs border transition ${editGames.includes(g) ? 'border-[var(--theme-color)] bg-[var(--theme-color)]/15 text-white' : 'border-[#3f4147] bg-[#1e1f22] text-[#b5bac1] hover:bg-[#35373c]'}">${escapeHtml(g)}</button>`).join('');
+            $('edit-games-count').textContent = `${editGames.length}/3`;
+            $('edit-bio-count').textContent = `${$('edit-bio').value.length}/160`;
+        }
+        function readProfileEditor() {
+            return { status: editStatus, bio: $('edit-bio').value.trim().slice(0, 160), favGames: editGames.slice(0, 3) };
+        }
+        $('edit-status-btns').addEventListener('click', (e) => { const b = e.target.closest('[data-st]'); if (b) { editStatus = b.dataset.st; renderProfileEditor(); } });
+        $('edit-games').addEventListener('click', (e) => {
+            const b = e.target.closest('[data-game]'); if (!b) return;
+            const g = b.dataset.game;
+            if (editGames.includes(g)) editGames = editGames.filter(x => x !== g);
+            else if (editGames.length < 3) editGames.push(g);
+            else showToast("3 jeux favoris maximum.");
+            renderProfileEditor();
+        });
+        $('edit-bio').addEventListener('input', () => { $('edit-bio-count').textContent = `${$('edit-bio').value.length}/160`; });
+
+        /* ---------- Changement rapide de statut (pied de sidebar) ---------- */
+        function refreshMyStatusUI() {
+            const el = $('user-status-label'); if (!el) return;
+            const st = STATUS_META[statusOf(userProfile)];
+            el.innerHTML = `<span class="inline-block w-2 h-2 rounded-full ${st.dot} mr-1"></span>${st.label} ▾`;
+        }
+        window.openStatusMenu = () => {
+            const cur = statusOf(userProfile);
+            openSheet(`<div class="px-4 pt-3 pb-2 text-xs text-[#80848e] border-b border-[#3f4147]">Mon statut</div>`
+                + Object.entries(STATUS_META).map(([k, m]) =>
+                    `<button type="button" onclick="setMyStatus('${k}')" class="w-full flex items-center gap-3 px-4 py-3.5 text-sm text-left hover:bg-[#35373c] active:bg-[#35373c] text-[#dbdee1]"><span class="w-3 h-3 rounded-full ${m.dot}"></span>${m.label}${cur === k ? '<i class="fa-solid fa-check ml-auto text-[var(--theme-color)]"></i>' : ''}</button>`).join('')
+                + `<button type="button" onclick="hideSheet();openUserCard('${currentUser.uid}')" class="w-full flex items-center gap-3 px-4 py-3.5 text-sm text-left hover:bg-[#35373c] text-[#dbdee1] border-t border-[#3f4147]"><i class="fa-solid fa-id-card w-3 text-center"></i>Voir mon profil</button>`);
+        };
+        window.hideSheet = hideSheet;
+        window.setMyStatus = async (st) => {
+            if (!currentUser || !STATUS_META[st]) return;
+            hideSheet();
+            userProfile.status = st;
+            refreshMyStatusUI();
+            try { await updateDoc(doc(db, "users", currentUser.uid), { status: st }); }
+            catch (e) { showToast("Statut non enregistré : " + e.message); }
+        };
+
+        /* ---------- Fiche profil ---------- */
+        window.closeUserCard = () => $('user-card-modal').classList.add('hidden');
+        window.openUserCard = (uid) => {
+            if (!currentUser || !uid) return;
+            const isMe = uid === currentUser.uid;
+            const fromList = allUsersList.find(x => x.uid === uid);
+            const u = isMe ? { ...userProfile, ...(fromList || {}), uid } : fromList;
+            if (!u) return showToast("Profil introuvable.");
+
+            const av = safeUrl(u.avatar);
+            const key = isMe ? statusOf(u) : (isOnline(u) ? statusOf(u) : 'offline');   // pas d'heure de connexion exacte : seulement en ligne / hors ligne
+            const label = key === 'offline' ? 'Hors ligne' : STATUS_META[key].label;
+            const dot = key === 'offline' ? 'bg-slate-600' : STATUS_META[key].dot;
+            const lv = levelInfo(xpOf(u));
+            const joined = tsMillis(u.joinedAt);
+            const days = joined ? Math.max(0, Math.floor((Date.now() - joined) / 864e5)) : null;
+            const games = (Array.isArray(u.favGames) ? u.favGames : []).filter(g => typeof g === 'string' && g.length <= 40).slice(0, 3);
+            const bio = typeof u.bio === 'string' ? u.bio.slice(0, 160) : '';
+            const badges = badgesOf(u, lv.level);
+            const rel = isMe ? 'me' : friendRel(uid);
+            const q = escapeHtml(uid);
+
+            const tile = (title, val, sub) => `<div class="bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3 py-2.5"><div class="text-[10px] uppercase tracking-wider text-[#80848e]">${title}</div><div class="text-sm font-semibold text-[#f2f3f5]">${val}</div>${sub ? `<div class="text-[11px] text-[#80848e]">${sub}</div>` : ''}</div>`;
+            const btn = (cls, onclick, html) => `<button type="button" onclick="${onclick}" class="flex-1 px-3 py-2.5 rounded-xl text-sm font-semibold transition ${cls}">${html}</button>`;
+            const primary = 'bg-[var(--theme-color)] text-white hover:opacity-90', neutral = 'bg-[#35373c] text-[#dbdee1] hover:bg-[#3f4147]';
+            const actions = isMe ? btn(primary, "closeUserCard();openProfileModal()", '<i class="fa-solid fa-pen mr-1.5"></i>Modifier mon profil')
+                : btn(primary, `closeUserCard();openDirectMessage('${q}')`, '<i class="fa-solid fa-comment mr-1.5"></i>Message')
+                  + (rel === 'friend' ? `<div class="flex-1 flex items-center justify-center text-xs text-emerald-400">Ami ✓</div>`
+                    : rel === 'sent' ? `<div class="flex-1 flex items-center justify-center text-xs text-[#80848e]">Demande envoyée</div>`
+                    : rel === 'received' ? btn(neutral, `friendAction('accept','${q}');closeUserCard()`, 'Accepter')
+                    : btn(neutral, `friendAction('add','${q}');closeUserCard()`, '<i class="fa-solid fa-user-plus mr-1.5"></i>Ajouter'));
+
+            $('user-card-body').innerHTML = `
+                <div class="h-20 relative" style="background:linear-gradient(135deg,var(--theme-color),#1e1f22)">
+                    <button type="button" onclick="closeUserCard()" class="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/30 hover:bg-black/50 text-white text-sm" title="Fermer"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="px-5 pb-5 -mt-10 space-y-3">
+                    <div class="relative w-20 h-20">
+                        <div class="w-20 h-20 rounded-full border-4 border-[#2b2d31] bg-[var(--theme-color)] flex items-center justify-center text-2xl font-bold overflow-hidden">${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml(String(u.name || '?').charAt(0).toUpperCase())}</div>
+                        <span class="absolute bottom-0.5 right-0.5 w-5 h-5 rounded-full border-4 border-[#2b2d31] ${dot}"></span>
+                    </div>
+                    <div>
+                        <div class="text-xl font-bold break-words">${escapeHtml(u.name || 'Anonyme')}${isMe ? ' <span class="text-xs font-normal text-[#80848e]">(toi)</span>' : ''}</div>
+                        <div class="text-xs text-[#949ba4] flex items-center gap-1.5"><span class="w-2 h-2 rounded-full ${dot}"></span>${label}</div>
+                    </div>
+                    ${badges.length ? `<div class="flex flex-wrap gap-1.5">${badges.map(b => `<span class="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-1 rounded-full border ${b.c}"><i class="fa-solid ${b.i} text-[10px]"></i>${b.t}</span>`).join('')}</div>` : ''}
+                    <div class="text-sm ${bio ? 'text-[#dbdee1]' : 'text-[#80848e] italic'} break-words">${bio ? escapeHtml(bio) : 'Aucune bio pour le moment.'}</div>
+                    ${games.length ? `<div><div class="text-[10px] uppercase tracking-wider text-[#80848e] mb-1.5">Jeux favoris</div><div class="flex flex-wrap gap-1.5">${games.map(g => `<span class="px-2.5 py-1 rounded-full text-xs bg-[#35373c] text-[#dbdee1]">${escapeHtml(g)}</span>`).join('')}</div></div>` : ''}
+                    <div class="bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3 py-2.5">
+                        <div class="flex justify-between items-baseline"><span class="text-sm font-bold text-[#f2f3f5]">Niveau ${lv.level}</span><span class="text-[11px] text-[#80848e]">${lv.xp} / ${lv.next} XP</span></div>
+                        <div class="h-2 mt-1.5 rounded-full bg-[#35373c] overflow-hidden"><div class="h-full rounded-full bg-[var(--theme-color)]" style="width:${lv.pct}%"></div></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        ${tile('Messages envoyés', Math.floor(Number(u.msgCount) || 0))}
+                        ${joined ? tile('Membre depuis', new Date(joined).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }), days === 0 ? "aujourd'hui" : `il y a ${days} j`) : ''}
+                    </div>
+                    <div class="flex gap-2 pt-1">${actions}</div>
+                </div>`;
+            $('user-card-modal').classList.remove('hidden');
+        };
 
         /* =========================================================
            AMIS : demandes avec acceptation (collection "friendships")
@@ -2916,7 +3103,7 @@ match /inbox/{inboxId} {
                 friendDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                 if (friendsReady) incomingRequests().filter(d => !before.has(d.id)).forEach(d => {
                     const u = allUsersList.find(x => x.uid === d.from);
-                    showToast(`🤝 ${u ? u.name : "Quelqu'un"} veut être ton ami`, 5000);
+                    if (userProfile.status !== 'dnd') showToast(`🤝 ${u ? u.name : "Quelqu'un"} veut être ton ami`, 5000);
                 });
                 friendsReady = true;
                 renderFriendsBadge();
@@ -2969,9 +3156,9 @@ match /inbox/{inboxId} {
             return `<div class="flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-[#35373c] transition">
                 <div class="relative shrink-0">
                     <div class="w-9 h-9 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-sm font-bold overflow-hidden">${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((u.name || '?').charAt(0))}</div>
-                    <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#2b2d31] ${isOnline(u) ? 'bg-emerald-500' : 'bg-slate-600'}"></span>
+                    <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#2b2d31] ${dotClass(u)}"></span>
                 </div>
-                <span class="text-sm font-medium truncate flex-1 min-w-0">${escapeHtml(u.name)}</span>${actions}</div>`;
+                <span onclick="openUserCard('${escapeHtml(u.uid)}')" class="text-sm font-medium truncate flex-1 min-w-0 cursor-pointer hover:underline">${escapeHtml(u.name)}</span>${actions}</div>`;
         }
         const fBtn = (act, uid, label, cls) => `<button type="button" data-fa="${act}" data-uid="${escapeHtml(uid)}" class="shrink-0 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition ${cls}">${label}</button>`;
 
@@ -3400,7 +3587,7 @@ match /inbox/{inboxId} {
             // La barre d'actions (répondre / réactions / suppression) est remplie au survol : deux fois moins d'éléments dans la page.
             return `
                 <div class="message-row group flex gap-3 px-2 py-1.5 hover:bg-white/[0.035] rounded-md relative ${highlightMe ? 'msg-mention-me' : ''}" data-id="${escapeHtml(id)}" data-ts="${ts}" data-del="${canDelete ? 1 : 0}">
-                    <div class="shrink-0 mt-0.5">${avatarHtml}</div>
+                    <div class="shrink-0 mt-0.5 ${msg.uid ? 'cursor-pointer' : ''}" ${msg.uid ? `onclick="event.stopPropagation();openUserCard('${escapeHtml(msg.uid)}')" title="Voir le profil"` : ''}>${avatarHtml}</div>
                     <div class="min-w-0 flex-1 msg-bubble-bg">
                         ${replyHtml}
                         <div class="flex items-baseline gap-2 flex-wrap">
