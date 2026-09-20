@@ -195,6 +195,11 @@
                     <button id="header-call-btn" onclick="callCurrentConversation()" class="hidden bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-600/40 px-2.5 py-1.5 rounded-lg text-xs font-medium items-center gap-1.5 transition">
                         <i class="fa-solid fa-phone"></i> <span class="hidden sm:inline">Appeler</span>
                     </button>
+                    <button onclick="openPinsModal()" class="relative flex items-center justify-center gap-1.5 bg-[#35373c]/60 hover:bg-[#35373c] h-9 min-w-[2.25rem] px-2.5 rounded-full border border-[#4e5058]/50 transition" title="Messages épinglés">
+                        <i class="fa-solid fa-thumbtack text-[#dbdee1] text-sm"></i>
+                        <span class="hidden md:inline text-xs text-[#dbdee1]">Messages épinglés</span>
+                        <span id="pins-badge" class="hidden absolute -top-1 -right-1 bg-[var(--theme-color)] text-white text-[10px] font-bold min-w-[16px] h-4 px-0.5 rounded-full items-center justify-center">0</span>
+                    </button>
                     <button onclick="openNotificationsModal()" class="relative flex items-center justify-center bg-[#35373c]/60 hover:bg-[#35373c] w-9 h-9 rounded-full border border-[#4e5058]/50 transition" title="Notifications">
                         <i class="fa-solid fa-bell text-[#dbdee1] text-sm"></i>
                         <span id="notif-badge" class="hidden absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold min-w-[16px] h-4 px-0.5 rounded-full items-center justify-center">0</span>
@@ -288,12 +293,17 @@
                     <span id="reply-bar-text" class="text-[#949ba4] truncate flex-1 min-w-0"></span>
                     <button type="button" onclick="cancelReply()" class="text-[#949ba4] hover:text-white p-1 shrink-0" title="Annuler la réponse"><i class="fa-solid fa-xmark"></i></button>
                 </div>
+                <div id="edit-bar" class="hidden items-center gap-2 px-3 py-2 mb-2 bg-[#1e1f22] border border-[#3f4147] rounded-xl text-xs" style="border-left:3px solid #f59e0b">
+                    <i class="fa-solid fa-pen text-amber-400 shrink-0"></i>
+                    <span class="text-[#dbdee1] flex-1 min-w-0 truncate">Modification du message</span>
+                    <button type="button" onclick="cancelEdit()" class="text-[#949ba4] hover:text-white p-1 shrink-0" title="Annuler (Échap)"><i class="fa-solid fa-xmark"></i></button>
+                </div>
                 <form id="message-form" onsubmit="sendMessage(event)" class="flex gap-2 items-center">
                     <button type="button" onclick="openMediaModal()" class="text-[#949ba4] hover:text-[#dbdee1] p-2 transition text-lg shrink-0" title="GIF / Image"><i class="fa-regular fa-image"></i></button>
                     <button type="button" onclick="openPingPicker()" class="text-[#949ba4] hover:text-[#dbdee1] p-2 transition text-lg shrink-0" title="Ping quelqu'un"><i class="fa-solid fa-at"></i></button>
                     <div class="relative flex-1 min-w-0">
                         <div id="mention-suggestions" class="hidden absolute bottom-full mb-2 left-0 right-0 bg-[#2b2d31] border border-[#3f4147] rounded-xl shadow-2xl max-h-64 overflow-y-auto z-20"></div>
-                        <input type="text" id="message-input" autocomplete="off" placeholder="Envoyer un message... (@ pour ping)" class="w-full bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3.5 py-2.5 md:py-3 text-sm focus:outline-none focus:border-[var(--theme-color)] text-[#f2f3f5]">
+                        <input type="text" id="message-input" maxlength="2000" autocomplete="off" placeholder="Envoyer un message... (@ pour ping)" class="w-full bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3.5 py-2.5 md:py-3 text-sm focus:outline-none focus:border-[var(--theme-color)] text-[#f2f3f5]">
                     </div>
                     <!-- onmousedown/preventDefault : le bouton n'enlève plus le focus du champ, le clavier mobile reste ouvert -->
                     <button type="submit" onmousedown="event.preventDefault()" class="bg-[var(--theme-color)] hover:opacity-90 text-white px-4 md:px-5 py-2.5 md:py-3 rounded-xl transition font-medium text-sm flex items-center justify-center shadow-lg shrink-0"><i class="fa-solid fa-paper-plane"></i></button>
@@ -354,6 +364,20 @@
             <div id="notifications-list" class="space-y-0.5 overflow-y-auto"></div>
             <button onclick="closeNotificationsModal()" class="shrink-0 px-4 py-2 rounded-xl text-sm bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] transition">Fermer</button>
         </div>
+    </div>
+
+    <!-- Messages épinglés -->
+    <div id="pins-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4" onclick="if(event.target===this)closePinsModal()">
+        <div class="modal-pop bg-[#2b2d31] border border-[#3f4147] p-5 rounded-2xl max-w-md w-full space-y-3 shadow-2xl max-h-[80vh] flex flex-col">
+            <h3 class="font-bold text-lg flex items-center gap-2 shrink-0"><i class="fa-solid fa-thumbtack text-[var(--theme-color)]"></i> Messages épinglés <span id="pins-count" class="text-xs font-normal text-[#80848e]"></span></h3>
+            <div id="pins-list" class="space-y-2 overflow-y-auto"></div>
+            <button onclick="closePinsModal()" class="shrink-0 px-4 py-2 rounded-xl text-sm bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] transition">Fermer</button>
+        </div>
+    </div>
+
+    <!-- Menu d'actions d'un message / confirmation (bottom sheet sur mobile, boîte centrée sur ordinateur) -->
+    <div id="msg-sheet" class="fixed inset-0 bg-black/60 z-[60] flex items-end md:items-center justify-center hidden" onclick="if(event.target===this)closeSheet()">
+        <div id="msg-sheet-body" class="modal-pop bg-[#2b2d31] border border-[#3f4147] w-full md:max-w-xs rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden pb-[env(safe-area-inset-bottom)] md:pb-0"></div>
     </div>
 
     <!-- Ping rapide : choisis qui pinger, connecté ou non -->
@@ -589,7 +613,7 @@ match /inbox/{inboxId} {
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, signInWithRedirect, linkWithPopup, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, where, orderBy, limitToLast, onSnapshot, serverTimestamp, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, writeBatch, arrayRemove, deleteField, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, where, orderBy, limitToLast, onSnapshot, serverTimestamp, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, writeBatch, arrayRemove, arrayUnion, FieldPath, deleteField, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
         const firebaseConfig = {
@@ -1687,6 +1711,7 @@ match /inbox/{inboxId} {
 
                 stopTyping();
                 cancelReply();
+                cancelEdit();
                 cacheCurrentConversation();
                 resetMessageView(`${type}:${id}`);
                 loadMessages();
@@ -1901,6 +1926,7 @@ match /inbox/{inboxId} {
         // Remet l'application à zéro à la déconnexion : le prochain compte ne voit rien de l'ancien
         function resetSessionState() {
             messagesToken++; typingToken++;
+            stopPins(); cancelEdit(); $('msg-sheet')?.classList.add('hidden');
             [unsubscribeMessages, unsubscribeTyping, unsubscribeUsers, unsubscribeChannels, unsubscribeGroups, unsubRoomParticipants, unsubConvVoice, unsubInbox, unsubChannelMeta, ...voiceUnsubs]
                 .forEach(fn => { try { fn && fn(); } catch {} });
             unsubscribeMessages = unsubscribeTyping = unsubscribeUsers = unsubscribeChannels = unsubscribeGroups =
@@ -2784,6 +2810,7 @@ match /inbox/{inboxId} {
             e.preventDefault();
             const text = msgInput.value.trim();
             if (!text || !currentUser) return;
+            if (editing) return saveEdit(text);
 
             if (text === "/clean") {
                 if (!isAdmin()) { showToast("⛔ Réservé à l'administrateur."); msgInput.value = ''; return; }
@@ -2794,6 +2821,8 @@ match /inbox/{inboxId} {
                         snap.docs.slice(i, i + 450).forEach(d => batch.delete(d.ref));
                         await batch.commit();
                     }
+                    const ps = await getDocs(collection(db, pinsPath()));
+                    await Promise.all(ps.docs.map(d => deleteDoc(d.ref)));
                     showToast("🧹 Salon nettoyé !");
                 } catch (err) { showToast("Erreur : " + err.message); }
                 msgInput.value = '';
@@ -2826,30 +2855,222 @@ match /inbox/{inboxId} {
             }
         };
 
+        // (suppression, réactions, modification et épinglage : voir la section « Actions sur les messages » plus bas)
+        window.reactFromEl = (el) => addReaction(el.dataset.id, el.dataset.emoji);
+
+        /* =========================================================
+           ACTIONS SUR LES MESSAGES : menu, confirmation, suppression,
+           modification, réactions, messages épinglés.
+           Les vraies permissions sont dans les règles Firestore
+           (firestore.rules) : le JavaScript ne fait que masquer les boutons.
+           ========================================================= */
+
+        const MAX_PINS = 10;   // = nombre d'emplacements p0…p9 (à garder identique dans firestore.rules)
+        const PIN_SLOTS = Array.from({ length: MAX_PINS }, (_, i) => `p${i}`);
+        const pinsPath = () => `${basePath()}/pins`;
+        let pinsList = [], unsubPins = null, pinsKey = null, pinsToken = 0;
+        let editing = null;   // { id, path, pinsPath }
+
+        /* ---------- Fenêtre menu / confirmation ---------- */
+        let sheetResolve = null;
+        function openSheet(html) { $('msg-sheet-body').innerHTML = html; $('msg-sheet').classList.remove('hidden'); }
+        function hideSheet() { $('msg-sheet').classList.add('hidden'); }
+        window.closeSheet = () => { hideSheet(); if (sheetResolve) { sheetResolve(false); sheetResolve = null; } };
+        window.confirmSheet = () => { const r = sheetResolve; sheetResolve = null; hideSheet(); if (r) r(true); };
+        function askConfirm(title, text, okLabel) {
+            return new Promise((resolve) => {
+                sheetResolve = resolve;
+                openSheet(`<div class="p-4 space-y-3">
+                    <h3 class="font-bold text-base">${title}</h3>
+                    <p class="text-sm text-[#b5bac1]">${text}</p>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="closeSheet()" class="flex-1 px-4 py-2.5 rounded-xl text-sm bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] transition">Annuler</button>
+                        <button type="button" onclick="confirmSheet()" class="flex-1 px-4 py-2.5 rounded-xl text-sm bg-rose-600 hover:bg-rose-500 text-white font-semibold transition">${okLabel}</button>
+                    </div></div>`);
+            });
+        }
+
+        window.openMessageMenu = (id) => {
+            const m = msgData.get(id);
+            if (!m || !currentUser) return;
+            const mine = m.uid === currentUser.uid;
+            const pin = pinsList.find(p => p.messageId === id);
+            const item = (act, icon, label, cls = 'text-[#dbdee1]') =>
+                `<button type="button" data-msg-act="${act}" class="w-full flex items-center gap-3 px-4 py-3.5 text-sm text-left hover:bg-[#35373c] active:bg-[#35373c] ${cls}"><i class="fa-solid ${icon} w-4 text-center"></i>${label}</button>`;
+            const items = [item('reply', 'fa-reply', 'Répondre')];
+            if (mine && m.text) items.push(item('edit', 'fa-pen', 'Modifier'));
+            if (isAdmin()) items.push(pin ? item('unpin', 'fa-thumbtack', 'Désépingler') : item('pin', 'fa-thumbtack', 'Épingler'));
+            if (mine || isAdmin()) items.push(item('del', 'fa-trash', 'Supprimer', 'text-rose-400'));
+            openSheet(`<div class="px-4 pt-3 pb-2 text-xs text-[#80848e] truncate border-b border-[#3f4147]">${escapeHtml(snippetOf(m) || 'Message')}</div>` + items.join(''));
+            $('msg-sheet-body').dataset.id = id;
+        };
+        $('msg-sheet-body').addEventListener('click', (e) => {
+            const b = e.target.closest('[data-msg-act]'); if (!b) return;
+            const id = $('msg-sheet-body').dataset.id;
+            hideSheet();
+            const fn = { reply: startReply, edit: startEdit, pin: pinMessage, unpin: unpinMessage, del: deleteMessage }[b.dataset.msgAct];
+            if (fn) fn(id);
+        });
+
+        /* ---------- Suppression (avec confirmation) ---------- */
         window.deleteMessage = async (id) => {
-            try { await deleteDoc(doc(db, messagesPath(), id)); }
-            catch (e) { showToast("Suppression impossible : " + e.message); }
+            const m = msgData.get(id);
+            const mine = !!m && m.uid === currentUser?.uid;
+            if (!mine && !isAdmin()) return showToast("⛔ Tu ne peux supprimer que tes propres messages.");
+            // On fige salon + épingle avant la confirmation (l'utilisateur peut changer de salon entre-temps)
+            const mPath = messagesPath(), pPath = pinsPath();
+            const pin = pinsList.find(p => p.messageId === id);
+            const ok = await askConfirm('Supprimer ce message ?',
+                mine ? 'Cette action est définitive.'
+                     : `Message de <b>${escapeHtml(m?.displayName || 'Anonyme')}</b> : suppression en tant qu'administrateur. Cette action est définitive.`,
+                'Supprimer');
+            if (!ok) return;
+            try {
+                const batch = writeBatch(db);
+                batch.delete(doc(db, mPath, id));
+                if (pin) batch.delete(doc(db, pPath, pin.id));   // un message supprimé est aussi désépinglé
+                await batch.commit();
+                if (editing?.id === id) cancelEdit();
+            } catch (e) { showToast("Suppression impossible : " + e.message); }
         };
 
+        /* ---------- Réactions : ajout / retrait de SA réaction uniquement ---------- */
+        // On n'écrit que le champ reactions.<emoji> avec arrayUnion/arrayRemove : pas d'écrasement entre utilisateurs,
+        // et les règles Firestore vérifient que seul TON uid est ajouté ou retiré.
         window.addReaction = async (id, emoji) => {
             if (!currentUser) return;
-            const ref = doc(db, messagesPath(), id);
-            let base = msgData.get(id)?.reactions;
-            if (!base) {
-                const snap = await getDoc(ref);
-                if (!snap.exists()) return;
-                base = snap.data().reactions || {};
-            }
-            const reactions = {};
-            for (const [k, v] of Object.entries(base)) reactions[k] = Array.isArray(v) ? [...v] : [];
-            if (!reactions[emoji]) reactions[emoji] = [];
-            if (reactions[emoji].includes(currentUser.uid)) {
-                reactions[emoji] = reactions[emoji].filter(u => u !== currentUser.uid);
-                if (!reactions[emoji].length) delete reactions[emoji];
-            } else reactions[emoji].push(currentUser.uid);
-            await updateDoc(ref, { reactions }).catch(e => showToast("Erreur : " + e.message));
+            const has = (msgData.get(id)?.reactions?.[emoji] || []).includes(currentUser.uid);
+            try {
+                await updateDoc(doc(db, messagesPath(), id), new FieldPath('reactions', emoji),
+                    has ? arrayRemove(currentUser.uid) : arrayUnion(currentUser.uid));
+            } catch (e) { showToast("Erreur : " + e.message); }
         };
-        window.reactFromEl = (el) => addReaction(el.dataset.id, el.dataset.emoji);
+
+        /* ---------- Modification (via la barre de saisie) ---------- */
+        window.startEdit = (id) => {
+            const m = msgData.get(id);
+            if (!m || !m.text || m.uid !== currentUser?.uid) return;
+            cancelReply();
+            editing = { id, path: messagesPath(), pinsPath: pinsPath() };
+            const bar = $('edit-bar'); bar.classList.remove('hidden'); bar.classList.add('flex');
+            msgInput.value = m.text;
+            msgInput.focus();
+        };
+        function cancelEdit() {
+            if (!editing) return;
+            editing = null;
+            const bar = $('edit-bar'); bar.classList.add('hidden'); bar.classList.remove('flex');
+            msgInput.value = '';
+        }
+        window.cancelEdit = cancelEdit;
+        msgInput.addEventListener('keydown', (e) => { if (e.key === 'Escape' && editing) cancelEdit(); });
+
+        async function saveEdit(text) {
+            const ed = editing, m = msgData.get(ed.id);
+            if (!m) { cancelEdit(); return showToast("Ce message n'existe plus."); }
+            if (text === m.text) return cancelEdit();
+            const pin = pinsList.find(p => p.messageId === ed.id);
+            cancelEdit();
+            try {
+                const batch = writeBatch(db);
+                batch.update(doc(db, ed.path, ed.id), { text, editedAt: serverTimestamp() });
+                if (pin) batch.update(doc(db, ed.pinsPath, pin.id), { text, editedAt: serverTimestamp() });   // l'épingle reste à jour
+                await batch.commit();
+            } catch (e) { msgInput.value = text; showToast("Modification impossible : " + e.message); }
+        }
+
+        /* ---------- Messages épinglés (collection <salon>/pins/p0…p9) ---------- */
+        function stopPins() {
+            pinsToken++;
+            if (unsubPins) { try { unsubPins(); } catch {} }
+            unsubPins = null; pinsKey = null; pinsList = [];
+            renderPinsBadge();
+        }
+        function listenPins() {
+            if (!currentUser) return;
+            const key = convKey();
+            if (unsubPins && pinsKey === key) return;   // déjà à l'écoute de ce salon
+            stopPins();
+            pinsKey = key;
+            const token = pinsToken;
+            unsubPins = onSnapshot(collection(db, pinsPath()), (snap) => {
+                if (token !== pinsToken) return;
+                const t = (p) => p.pinnedAt?.toMillis?.() ?? Date.now();
+                pinsList = snap.docs.map(d => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) })).sort((a, b) => t(b) - t(a));
+                renderPinsBadge();
+                if (!$('pins-modal').classList.contains('hidden')) renderPinsList();
+            }, (err) => { if (token === pinsToken) console.warn("Messages épinglés indisponibles :", err); });
+        }
+        function renderPinsBadge() {
+            const b = $('pins-badge'); if (!b) return;
+            b.textContent = pinsList.length;
+            b.classList.toggle('hidden', !pinsList.length);
+            b.classList.toggle('flex', !!pinsList.length);
+        }
+        function renderPinsList() {
+            $('pins-count').textContent = `(${pinsList.length}/${MAX_PINS})`;
+            const box = $('pins-list');
+            if (!pinsList.length) { box.innerHTML = `<div class="text-center text-sm text-[#80848e] py-8">Aucun message épinglé dans ce salon.</div>`; return; }
+            box.innerHTML = pinsList.map(p => {
+                const when = p.messageAt?.toMillis ? new Date(p.messageAt.toMillis()).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+                const body = p.mediaUrl ? '📷 Image / GIF' : escapeHtml(p.text || '');
+                return `<div class="bg-[#1e1f22] border border-[#3f4147] rounded-xl p-3">
+                    <button type="button" data-pin-go="${escapeHtml(p.messageId)}" class="block w-full text-left" title="Aller au message">
+                        <div class="flex items-baseline gap-2 text-xs flex-wrap"><span class="font-semibold text-[#f2f3f5]">${escapeHtml(p.displayName || 'Anonyme')}</span><span class="text-[#80848e]">${when}</span>${p.editedAt ? '<span class="text-[#80848e] italic">(modifié)</span>' : ''}</div>
+                        <div class="text-sm text-[#dbdee1] break-words mt-0.5" style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${body}</div>
+                    </button>
+                    <div class="flex items-center justify-between gap-2 mt-2 text-[11px] text-[#80848e]">
+                        <span class="truncate">Épinglé par ${escapeHtml(p.pinnedByName || '?')}</span>
+                        ${isAdmin() ? `<button type="button" data-unpin="${escapeHtml(p.messageId)}" class="shrink-0 text-rose-400 hover:text-rose-300 font-medium"><i class="fa-solid fa-xmark mr-1"></i>Désépingler</button>` : ''}
+                    </div></div>`;
+            }).join('');
+        }
+        $('pins-list').addEventListener('click', (e) => {
+            const go = e.target.closest('[data-pin-go]');
+            const un = e.target.closest('[data-unpin]');
+            if (un) unpinMessage(un.dataset.unpin);
+            else if (go) goToPin(go.dataset.pinGo);
+        });
+        window.openPinsModal = () => { renderPinsList(); $('pins-modal').classList.remove('hidden'); };
+        window.closePinsModal = () => $('pins-modal').classList.add('hidden');
+
+        async function goToPin(id) {
+            closePinsModal();
+            if (rowEl(id)) return goToMessage(id);
+            // Pas dans la liste chargée : soit plus ancien, soit supprimé
+            try {
+                const snap = await getDoc(doc(db, messagesPath(), id));
+                if (!snap.exists()) {
+                    showToast("Ce message a été supprimé.");
+                    const p = pinsList.find(x => x.messageId === id);
+                    if (p) deleteDoc(doc(db, pinsPath(), p.id)).catch(() => {});   // autorisé par les règles quand le message n'existe plus
+                    return;
+                }
+            } catch {}
+            goToMessage(id);
+        }
+
+        window.pinMessage = async (id) => {
+            if (!isAdmin()) return showToast("⛔ Réservé aux administrateurs.");
+            const m = msgData.get(id); if (!m) return;
+            if (pinsList.some(p => p.messageId === id)) return showToast("Ce message est déjà épinglé.");
+            const slot = PIN_SLOTS.find(sl => !pinsList.some(p => p.id === sl));
+            if (!slot) return showToast(`Maximum ${MAX_PINS} messages épinglés dans ce salon : désépingle-en un d'abord.`);
+            try {
+                await setDoc(doc(db, pinsPath(), slot), {
+                    messageId: id, uid: m.uid || '', displayName: m.displayName || 'Anonyme',
+                    text: m.text || '', mediaUrl: m.mediaUrl || '', messageAt: m.createdAt || serverTimestamp(),
+                    pinnedBy: currentUser.uid, pinnedByName: userProfile.name || 'Admin', pinnedAt: serverTimestamp()
+                });
+                showToast("📌 Message épinglé.");
+            } catch (e) { showToast("Épinglage impossible : " + e.message); }
+        };
+        window.unpinMessage = async (id) => {
+            if (!isAdmin()) return;
+            const p = pinsList.find(x => x.messageId === id); if (!p) return;
+            try { await deleteDoc(doc(db, pinsPath(), p.id)); showToast("Message désépinglé."); }
+            catch (e) { showToast("Erreur : " + e.message); }
+        };
 
         /* ---------- Défilement / remonter dans le temps ---------- */
 
@@ -3017,6 +3238,7 @@ match /inbox/{inboxId} {
                                 ? `<span class="text-sm font-semibold" style="color:${isMe ? 'var(--theme-color)' : '#f2f3f5'}">${escapeHtml(name)}</span>`
                                 : `<button type="button" data-uid="${escapeHtml(msg.uid)}" onclick="mentionFromEl(this)" class="text-sm font-semibold hover:underline cursor-pointer" style="color:#f2f3f5" title="Cliquer pour mentionner">${escapeHtml(name)}</button>`}
                             <span class="msg-time text-[11px] text-[#80848e]">${time}</span>
+                            ${msg.editedAt ? '<span class="text-[10px] text-[#80848e] italic" title="Ce message a été modifié">(modifié)</span>' : ''}
                         </div>
                         <div class="text-sm text-[#dbdee1] break-words leading-snug">${content}</div>
                         ${reactionsHtml}
@@ -3024,7 +3246,7 @@ match /inbox/{inboxId} {
                 </div>`;
         }
 
-        const sigOf = (m) => JSON.stringify([m.text, m.mediaUrl, m.displayName, m.avatar, m.reactions || {}, m.replyTo || null]);
+        const sigOf = (m) => JSON.stringify([m.text, m.mediaUrl, m.displayName, m.avatar, m.reactions || {}, m.replyTo || null, !!m.editedAt]);
 
         function buildRow(id, msg) {
             const t = document.createElement('template');
@@ -3040,14 +3262,13 @@ match /inbox/{inboxId} {
         actionsBar.innerHTML =
             `<button data-act="reply" class="hover:bg-[#35373c] px-1.5 py-0.5 rounded text-xs text-[#dbdee1]" title="Répondre"><i class="fa-solid fa-reply"></i></button>`
             + EMOJIS.map(e => `<button data-act="react" data-emoji="${e}" class="hover:bg-[#35373c] px-1 py-0.5 rounded text-xs">${e}</button>`).join('')
-            + `<button data-act="del" class="hover:bg-rose-900/60 px-1.5 py-0.5 rounded text-xs text-rose-400" title="Supprimer"><i class="fa-solid fa-trash"></i></button>`;
+            + `<button data-act="more" class="hover:bg-[#35373c] px-2 py-0.5 rounded text-xs text-[#dbdee1]" title="Plus d'actions"><i class="fa-solid fa-ellipsis"></i></button>`;
         msgContainer.appendChild(actionsBar);
 
         let actionsFor = null;
         function showActions(row) {
             if (!row) return;
             actionsFor = row.dataset.id;
-            actionsBar.querySelector('[data-act="del"]').style.display = row.dataset.del === '1' ? '' : 'none';
             actionsBar.style.top = Math.max(0, row.offsetTop - 14) + 'px';
             actionsBar.classList.remove('hidden'); actionsBar.classList.add('flex');
         }
@@ -3061,7 +3282,7 @@ match /inbox/{inboxId} {
             const id = actionsFor;
             if (b.dataset.act === 'reply') startReply(id);
             else if (b.dataset.act === 'react') addReaction(id, b.dataset.emoji);
-            else if (b.dataset.act === 'del') deleteMessage(id);
+            else if (b.dataset.act === 'more') openMessageMenu(id);
             hideActions();
         });
 
@@ -3130,6 +3351,7 @@ match /inbox/{inboxId} {
         function loadMessages({ keepScroll = false } = {}) {
             if (unsubscribeMessages) { unsubscribeMessages(); unsubscribeMessages = null; }
             if (!currentUser) return;
+            listenPins();
 
             const token = ++messagesToken;       // toute réponse portant un autre token est ignorée
             const key = convKey();
