@@ -165,7 +165,11 @@
                 </div>
 
                 <div>
-                    <div class="px-2 text-xs font-semibold text-[#80848e] uppercase tracking-wider mb-1">MESSAGES PRIVÉS</div>
+                    <div class="px-2 mb-1 flex items-center justify-between text-xs font-semibold text-[#80848e] uppercase tracking-wider">
+                        <span>AMIS</span>
+                        <button onclick="openFriendsModal()" class="relative text-[#949ba4] hover:text-white transition" title="Ajouter des amis / voir les demandes"><i class="fa-solid fa-address-book text-xs bg-[#35373c] p-1.5 rounded"></i><span id="friends-req-badge" class="hidden absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[10px] font-bold min-w-[16px] h-4 px-0.5 rounded-full items-center justify-center normal-case">0</span></button>
+                    </div>
+                    <input id="friend-filter" type="text" oninput="setFriendFilter(this.value)" placeholder="Filtrer mes amis…" class="hidden w-full mb-1 bg-[#1e1f22] border border-[#3f4147] rounded-lg px-2.5 py-1.5 text-xs text-[#f2f3f5] focus:outline-none focus:border-[var(--theme-color)] normal-case">
                     <div id="dm-conversations-list" class="space-y-1"></div>
                 </div>
             </div>
@@ -363,6 +367,16 @@
             <button id="notif-permission-btn" onclick="enableBrowserNotifications()" class="hidden shrink-0 w-full text-xs bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] rounded-xl px-3 py-2 transition items-center justify-center gap-2"><i class="fa-solid fa-bell text-[var(--theme-color)]"></i> Activer les alertes du navigateur (quand l'onglet est en arrière-plan)</button>
             <div id="notifications-list" class="space-y-0.5 overflow-y-auto"></div>
             <button onclick="closeNotificationsModal()" class="shrink-0 px-4 py-2 rounded-xl text-sm bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] transition">Fermer</button>
+        </div>
+    </div>
+
+    <!-- Amis : demandes + recherche -->
+    <div id="friends-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4" onclick="if(event.target===this)closeFriendsModal()">
+        <div class="modal-pop bg-[#2b2d31] border border-[#3f4147] p-5 rounded-2xl max-w-sm w-full space-y-3 shadow-2xl max-h-[80vh] flex flex-col">
+            <h3 class="font-bold text-lg flex items-center gap-2 shrink-0"><i class="fa-solid fa-address-book text-[var(--theme-color)]"></i> Amis</h3>
+            <input id="friend-search" type="text" autocomplete="off" oninput="renderFriendsModal()" placeholder="Rechercher un pseudo…" class="shrink-0 w-full bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3.5 py-2.5 text-sm text-[#f2f3f5] focus:outline-none focus:border-[var(--theme-color)]">
+            <div id="friends-modal-body" class="space-y-3 overflow-y-auto"></div>
+            <button onclick="closeFriendsModal()" class="shrink-0 px-4 py-2 rounded-xl text-sm bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] transition">Fermer</button>
         </div>
     </div>
 
@@ -1508,15 +1522,28 @@ match /inbox/{inboxId} {
                     </div>`;
             }).join('') : `<div class="px-3 py-2 text-xs text-[#80848e] italic">Aucun groupe.</div>`);
 
+            // Liste de gauche : uniquement tes amis, plus (pour ne rien rater) ceux qui t'ont écrit sans lecture et la conversation ouverte
+            const me = currentUser?.uid;
+            const fset = currentUser ? friendUidSet() : new Set();
+            const dmPeer = (dmId) => { const p = String(dmId).split('_'); return p.length === 3 ? (p[1] === me ? p[2] : p[1]) : null; };
+            const show = new Set(fset);
+            myInboxList.forEach(n => { if (n.convType === 'dm' && n.unread) { const o = dmPeer(n.convId); if (o) show.add(o); } });
+            if (currentTargetType === 'dm') { const o = dmPeer(currentTargetId); if (o) show.add(o); }
             const others = allUsersList
-                .filter(u => u.uid && currentUser && u.uid !== currentUser.uid)
+                .filter(u => u.uid && u.uid !== me && show.has(u.uid) && (!friendFilter || normalizeName(u.name).includes(friendFilter)))
                 .sort((a, b) => (isOnline(b) - isOnline(a)) || String(a.name).localeCompare(String(b.name)));
+            $('friend-filter')?.classList.toggle('hidden', fset.size < 8 && !friendFilter);
             setHtml($('dm-conversations-list'), others.length ? others.map(u => {
                 const dmId = getDmId(currentUser.uid, u.uid);
                 const isActive = currentTargetType === 'dm' && currentTargetId === dmId;
                 const badge = unreadBadgeHtml('dm', dmId, isActive);
                 const av = safeUrl(u.avatar);
+                const isFriend = fset.has(u.uid);
+                const sideBtn = isFriend
+                    ? `<button onclick="friendAction('remove','${escapeHtml(u.uid)}')" class="chan-edit md:opacity-0 opacity-70 transition absolute right-1 top-1/2 -translate-y-1/2 text-rose-400 hover:text-rose-300 bg-[#2b2d31]/80 rounded p-1.5" title="Retirer des amis"><i class="fa-solid fa-user-minus text-xs"></i></button>`
+                    : `<button onclick="friendAction('add','${escapeHtml(u.uid)}')" class="chan-edit transition absolute right-1 top-1/2 -translate-y-1/2 text-[var(--theme-color)] bg-[#2b2d31]/80 rounded p-1.5" title="Ajouter en ami"><i class="fa-solid fa-user-plus text-xs"></i></button>`;
                 return `
+                    <div class="chan-row relative group">
                     <button onclick="openDirectMessage('${escapeHtml(u.uid)}')" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2.5 transition ${isActive ? 'bg-[var(--theme-color)] text-white' : 'text-[#949ba4] hover:bg-[#35373c] hover:text-[#dbdee1]'}">
                         <div class="w-6 h-6 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-xs font-bold overflow-hidden shrink-0">
                             ${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((u.name || '?').charAt(0))}
@@ -1524,8 +1551,10 @@ match /inbox/{inboxId} {
                         <span class="truncate ${badge ? 'text-white font-bold' : ''}">${escapeHtml(u.name)}</span>
                         ${badge}
                         <span class="w-2 h-2 rounded-full ${isOnline(u) ? 'bg-emerald-500' : 'bg-slate-600'} ${badge ? '' : 'ml-auto'} shrink-0"></span>
-                    </button>`;
-            }).join('') : `<div class="px-3 py-2 text-xs text-[#80848e] italic">Aucun autre utilisateur.</div>`);
+                    </button>
+                    ${sideBtn}
+                    </div>`;
+            }).join('') : `<div class="px-3 py-2 text-xs text-[#80848e] italic">${friendFilter ? 'Aucun ami trouvé.' : "Aucun ami pour l'instant. Utilise le bouton en haut à droite pour en ajouter."}</div>`);
         }
 
         /* ---------- Salons (admin uniquement) + upload d'image ---------- */
@@ -1824,6 +1853,7 @@ match /inbox/{inboxId} {
                         <span class="text-sm font-medium truncate flex-1">${escapeHtml(u.name)}${isMe ? ' <span class="text-xs text-[#80848e]">(toi)</span>' : ''}</span>
                         ${!isMe ? `
                             <button onclick="openDirectMessage('${escapeHtml(u.uid)}');closeOnlineModal();" class="text-[#949ba4] hover:text-white p-2" title="Message"><i class="fa-solid fa-comment"></i></button>
+                            ${friendRel(u.uid) === 'none' ? `<button onclick="friendAction('add','${escapeHtml(u.uid)}')" class="text-[#949ba4] hover:text-white p-2" title="Ajouter en ami"><i class="fa-solid fa-user-plus"></i></button>` : ''}
                             <button onclick="closeOnlineModal();callUser('${escapeHtml(u.uid)}')" class="text-[#949ba4] hover:text-emerald-400 p-2" title="Appeler"><i class="fa-solid fa-phone"></i></button>
                         ` : ''}
                     </div>`;
@@ -1926,7 +1956,7 @@ match /inbox/{inboxId} {
         // Remet l'application à zéro à la déconnexion : le prochain compte ne voit rien de l'ancien
         function resetSessionState() {
             messagesToken++; typingToken++;
-            stopPins(); cancelEdit(); $('msg-sheet')?.classList.add('hidden');
+            stopPins(); cancelEdit(); stopFriends(); $('msg-sheet')?.classList.add('hidden');
             [unsubscribeMessages, unsubscribeTyping, unsubscribeUsers, unsubscribeChannels, unsubscribeGroups, unsubRoomParticipants, unsubConvVoice, unsubInbox, unsubChannelMeta, ...voiceUnsubs]
                 .forEach(fn => { try { fn && fn(); } catch {} });
             unsubscribeMessages = unsubscribeTyping = unsubscribeUsers = unsubscribeChannels = unsubscribeGroups =
@@ -2012,6 +2042,7 @@ match /inbox/{inboxId} {
             listenChannelMeta();
             listenGroups();
             listenInbox();
+            listenFriends();
 
             // On attend (au plus 1,5 s) la liste des membres pour que les @pings soient surlignés dès l'affichage
             await Promise.race([usersReady, new Promise(r => setTimeout(r, 1500))]);
@@ -2857,6 +2888,133 @@ match /inbox/{inboxId} {
 
         // (suppression, réactions, modification et épinglage : voir la section « Actions sur les messages » plus bas)
         window.reactFromEl = (el) => addReaction(el.dataset.id, el.dataset.emoji);
+
+        /* =========================================================
+           AMIS : demandes avec acceptation (collection "friendships")
+           Un document par paire : friendships/fr_<uidA>_<uidB> (uidA < uidB)
+           { users:[a,b], from, to, status:'pending'|'accepted', createdAt }
+           ========================================================= */
+        const friendPairId = (a, b) => a < b ? `fr_${a}_${b}` : `fr_${b}_${a}`;
+        let friendDocs = [], unsubFriends = null, friendsReady = false, friendFilter = '';
+
+        const incomingRequests = () => friendDocs.filter(d => d.status === 'pending' && d.to === currentUser?.uid);
+        const outgoingRequests = () => friendDocs.filter(d => d.status === 'pending' && d.from === currentUser?.uid);
+        const friendUidSet = () => new Set(friendDocs.filter(d => d.status === 'accepted').map(d => (d.users || []).find(u => u !== currentUser.uid)).filter(Boolean));
+        function friendRel(uid) {
+            const d = friendDocs.find(x => x.id === friendPairId(currentUser.uid, uid));
+            if (!d) return 'none';
+            if (d.status === 'accepted') return 'friend';
+            return d.from === currentUser.uid ? 'sent' : 'received';
+        }
+
+        function listenFriends() {
+            if (unsubFriends) unsubFriends();
+            friendsReady = false;
+            const q = query(collection(db, "friendships"), where("users", "array-contains", currentUser.uid));
+            unsubFriends = onSnapshot(q, (snap) => {
+                const before = new Set(incomingRequests().map(d => d.id));
+                friendDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                if (friendsReady) incomingRequests().filter(d => !before.has(d.id)).forEach(d => {
+                    const u = allUsersList.find(x => x.uid === d.from);
+                    showToast(`🤝 ${u ? u.name : "Quelqu'un"} veut être ton ami`, 5000);
+                });
+                friendsReady = true;
+                renderFriendsBadge();
+                initSidebarUI();
+                if (!$('friends-modal').classList.contains('hidden')) renderFriendsModal();
+            }, (err) => { console.warn("friendships", err); warnRules("Amis indisponibles (collection friendships)"); });
+        }
+        function stopFriends() {
+            if (unsubFriends) { try { unsubFriends(); } catch {} }
+            unsubFriends = null; friendDocs = []; friendsReady = false; friendFilter = '';
+            renderFriendsBadge();
+        }
+        function renderFriendsBadge() {
+            const b = $('friends-req-badge'); if (!b) return;
+            const n = currentUser ? incomingRequests().length : 0;
+            b.textContent = n; b.classList.toggle('hidden', !n); b.classList.toggle('flex', !!n);
+        }
+        window.setFriendFilter = (v) => { friendFilter = normalizeName(String(v).trim()); initSidebarUI(); };
+
+        window.friendAction = async (act, uid) => {
+            if (!currentUser || !uid || uid === currentUser.uid) return;
+            const ref = doc(db, "friendships", friendPairId(currentUser.uid, uid));
+            const u = allUsersList.find(x => x.uid === uid);
+            const name = u ? u.name : 'cet utilisateur';
+            try {
+                if (act === 'add') {
+                    const rel = friendRel(uid);
+                    if (rel === 'friend') return showToast("Déjà dans tes amis.");
+                    if (rel === 'sent') return showToast("Demande déjà envoyée.");
+                    if (rel === 'received') return friendAction('accept', uid);   // il t'avait déjà ajouté : on accepte
+                    const pair = currentUser.uid < uid ? [currentUser.uid, uid] : [uid, currentUser.uid];
+                    await setDoc(ref, { users: pair, from: currentUser.uid, to: uid, status: 'pending', createdAt: serverTimestamp() });
+                    showToast(`Demande envoyée à ${name}.`);
+                } else if (act === 'accept') {
+                    await updateDoc(ref, { status: 'accepted', respondedAt: serverTimestamp() });
+                    showToast(`🤝 ${name} est maintenant ton ami.`);
+                } else if (act === 'decline' || act === 'cancel') {
+                    await deleteDoc(ref);
+                } else if (act === 'remove') {
+                    const ok = await askConfirm('Retirer cet ami ?', `<b>${escapeHtml(name)}</b> ne sera plus dans ta liste d'amis. Vos messages privés sont conservés.`, 'Retirer');
+                    if (ok) await deleteDoc(ref);
+                } else if (act === 'dm') {
+                    closeFriendsModal(); openDirectMessage(uid);
+                }
+            } catch (e) { showToast("Erreur : " + e.message); }
+        };
+
+        function friendUserRow(u, actions) {
+            const av = safeUrl(u.avatar);
+            return `<div class="flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-[#35373c] transition">
+                <div class="relative shrink-0">
+                    <div class="w-9 h-9 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-sm font-bold overflow-hidden">${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((u.name || '?').charAt(0))}</div>
+                    <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#2b2d31] ${isOnline(u) ? 'bg-emerald-500' : 'bg-slate-600'}"></span>
+                </div>
+                <span class="text-sm font-medium truncate flex-1 min-w-0">${escapeHtml(u.name)}</span>${actions}</div>`;
+        }
+        const fBtn = (act, uid, label, cls) => `<button type="button" data-fa="${act}" data-uid="${escapeHtml(uid)}" class="shrink-0 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition ${cls}">${label}</button>`;
+
+        function renderFriendsModal() {
+            const me = currentUser.uid;
+            const byUid = (uid) => allUsersList.find(u => u.uid === uid);
+            const q = normalizeName($('friend-search').value.trim());
+            const primary = 'bg-[var(--theme-color)] text-white hover:opacity-90';
+            const neutral = 'bg-[#35373c] text-[#dbdee1] hover:bg-[#3f4147]';
+            const dmIcon = '<i class="fa-solid fa-comment"></i>';
+            const sec = (title, inner) => inner ? `<div><div class="px-2 mb-1 text-[11px] font-semibold text-[#80848e] uppercase tracking-wider">${title}</div>${inner}</div>` : '';
+
+            const incoming = incomingRequests().map(d => byUid(d.from)).filter(Boolean)
+                .map(u => friendUserRow(u, fBtn('accept', u.uid, 'Accepter', primary) + fBtn('decline', u.uid, 'Refuser', neutral))).join('');
+            const outgoing = outgoingRequests().map(d => byUid(d.to)).filter(Boolean)
+                .map(u => friendUserRow(u, `<span class="text-[11px] text-[#80848e] shrink-0">En attente</span>` + fBtn('cancel', u.uid, 'Annuler', neutral))).join('');
+
+            let results = '';
+            if (q) {
+                const found = allUsersList.filter(u => u.uid && u.uid !== me && normalizeName(u.name).includes(q)).slice(0, 30);
+                results = found.length ? found.map(u => {
+                    const rel = friendRel(u.uid);
+                    const actions = rel === 'friend' ? `<span class="text-[11px] text-emerald-400 shrink-0">Ami ✓</span>` + fBtn('dm', u.uid, dmIcon, neutral)
+                        : rel === 'sent' ? `<span class="text-[11px] text-[#80848e] shrink-0">En attente</span>` + fBtn('cancel', u.uid, 'Annuler', neutral)
+                        : rel === 'received' ? fBtn('accept', u.uid, 'Accepter', primary) + fBtn('decline', u.uid, 'Refuser', neutral)
+                        : fBtn('add', u.uid, 'Ajouter', primary) + fBtn('dm', u.uid, dmIcon, neutral);
+                    return friendUserRow(u, actions);
+                }).join('') : `<div class="text-center text-xs text-[#80848e] py-4">Aucun utilisateur trouvé.</div>`;
+            }
+            $('friends-modal-body').innerHTML = sec('Demandes reçues', incoming) + sec('Demandes envoyées', outgoing)
+                + (q ? sec('Résultats', results) : `<div class="text-center text-xs text-[#80848e] py-4">Tape un pseudo pour trouver quelqu'un et l'ajouter en ami.</div>`);
+        }
+        $('friends-modal-body').addEventListener('click', (e) => {
+            const b = e.target.closest('[data-fa]');
+            if (b) friendAction(b.dataset.fa, b.dataset.uid);
+        });
+        window.openFriendsModal = () => {
+            $('friend-search').value = '';
+            renderFriendsModal();
+            $('friends-modal').classList.remove('hidden');
+            closeSidebarOnMobile();
+        };
+        window.closeFriendsModal = () => $('friends-modal').classList.add('hidden');
 
         /* =========================================================
            ACTIONS SUR LES MESSAGES : menu, confirmation, suppression,
