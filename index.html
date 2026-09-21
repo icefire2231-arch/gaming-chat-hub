@@ -117,6 +117,33 @@
         .cos-role { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 700; line-height: 1; padding: 3px 7px; border-radius: 9999px; border: 1px solid var(--role-c, #949ba4); color: var(--role-c, #949ba4); background: rgba(255,255,255,.05); white-space: nowrap; }
         .cos-role[hidden] { display: none; }
 
+        /* ===== Adaptations MOBILE des cosmétiques (cadres + pseudos) =====
+           Le PC/Desktop n'est pas touché : ces règles ne s'appliquent qu'en dessous
+           de 768px / 480px et ne font que resserrer inset/padding/box-shadow/filter,
+           sans jamais toucher aux couleurs, dégradés (--fr-bg/--nfx-bg) ou animations. */
+        @media (max-width: 768px) {
+            /* Cadres (avatars taille normale, ex: messages du chat) : anneau plus fin, glow resserré */
+            .cos-av[data-frame]::before { inset: -3px; padding: 2px; }
+            .cos-av[data-frame]::after { inset: -3px; box-shadow: 0 0 5px 0px var(--fr-glow, transparent); }
+            /* Cadres (avatars petits, ex: sidebar/DM) : encore plus resserrés pour rester proportionnés */
+            .cos-av-sm[data-frame]::before { inset: -2px; padding: 1.5px; }
+            .cos-av-sm[data-frame]::after { inset: -2px; box-shadow: 0 0 3px 0px var(--fr-glow, transparent); }
+
+            /* Pseudos : on garde le dégradé (--nfx-bg) intact, on resserre juste le halo pour éviter le flou */
+            [data-nfx][data-nfx-glow] { filter: drop-shadow(0 0 2px var(--nfx-glow, transparent)); }
+        }
+
+        @media (max-width: 480px) {
+            /* Petits écrans : cadres encore plus précis, collés à l'avatar */
+            .cos-av[data-frame]::before { inset: -2px; padding: 1.5px; }
+            .cos-av[data-frame]::after { inset: -2px; box-shadow: 0 0 4px 0px var(--fr-glow, transparent); }
+            .cos-av-sm[data-frame]::before { inset: -1.5px; padding: 1px; }
+            .cos-av-sm[data-frame]::after { inset: -1.5px; box-shadow: 0 0 2px 0px var(--fr-glow, transparent); }
+
+            /* Pseudo bien net même sur les très petits écrans (ex: "Fire2") */
+            [data-nfx][data-nfx-glow] { filter: drop-shadow(0 0 1.2px var(--nfx-glow, transparent)); }
+        }
+
         @media (prefers-reduced-motion: reduce) {
             * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
         }
