@@ -113,6 +113,12 @@
         .cos-av[data-frame]::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; box-shadow: 0 0 10px 1px var(--fr-glow, transparent); pointer-events: none; z-index: 2; }
         .cos-av-sm[data-frame]::before { inset: -3px; padding: 2px; }
         .cos-av-sm[data-frame]::after { inset: -3px; box-shadow: 0 0 6px 0 var(--fr-glow, transparent); }
+/* Cadres en image PNG */
+.cos-av-frame-png {
+    position: absolute; inset: -38%; width: 176%; height: 176%;
+    object-fit: contain; pointer-events: none; z-index: 3;
+}
+.cos-av-sm .cos-av-frame-png { inset: -30%; width: 160%; height: 160%; }
         .cos-av[data-fr-anim="spin"]::before { animation: cosSpin 3s linear infinite; }
         .cos-av[data-fr-anim="pulse"]::after { animation: cosPulse 1.8s ease-in-out infinite; }
         @keyframes cosSpin { to { transform: rotate(360deg); } }
@@ -3637,6 +3643,16 @@ match /inbox/{inboxId} {
             frame_royal:    { type: 'frame', name: 'Royal',             icon: '🔱', price: 1000, ring: 'conic-gradient(#7c3aed,#fbbf24,#7c3aed)', glow: '#7c3aed', anim: 'spin' },
             frame_galaxy:   { type: 'frame', name: 'Galaxie',           icon: '🌌', price: 1200, ring: 'conic-gradient(#6366f1,#a855f7,#ec4899,#1e1b4b,#6366f1)', glow: '#a855f7', anim: 'spin' },
             frame_diamond:  { type: 'frame', name: 'Diamant',           icon: '💎', price: 1500, ring: 'conic-gradient(#e0f2fe,#a5f3fc,#ffffff,#93c5fd,#e0f2fe)', glow: '#a5f3fc', anim: 'spin' },
+            // ----- Cadres en image (par jeu) -----
+            frame_bs_hero:     { type: 'frame', game: 'bs',  name: 'Héros',      icon: '🔫', price: 600, img: 'frames/brawlstars-01.png' },
+            frame_bs_creature: { type: 'frame', game: 'bs',  name: 'Créature',   icon: '💀', price: 600, img: 'frames/brawlstars-02.png' },
+            frame_bs_genie:    { type: 'frame', game: 'bs',  name: 'Génie',      icon: '🧞', price: 600, img: 'frames/brawlstars-03.png' },
+            frame_cr_kings:    { type: 'frame', game: 'cr',  name: 'Rois',       icon: '👑', price: 700, img: 'frames/clashroyale-kings.png' },
+            frame_cr_ice:      { type: 'frame', game: 'cr',  name: 'Glace',      icon: '🧊', price: 700, img: 'frames/clashroyale-ice.png' },
+            frame_cr_hog:      { type: 'frame', game: 'cr',  name: 'Cochons',    icon: '🐷', price: 700, img: 'frames/clashroyale-hog.png' },
+            frame_coc_cowboy:  { type: 'frame', game: 'coc', name: 'Cowboy',     icon: '🤠', price: 700, img: 'frames/clashofclan-cowboy.png' },
+            frame_coc_archer:  { type: 'frame', game: 'coc', name: 'Archère',    icon: '🏹', price: 700, img: 'frames/clashofclan-princess.png' },
+            frame_coc_dragon:  { type: 'frame', game: 'coc', name: 'Dragonneau', icon: '🐲', price: 700, img: 'frames/clashofclans-dragon.png' },
 
             // ----- Effets de pseudo -----
             nfx_gradient:   { type: 'name', name: 'Dégradé',      icon: '🎨', price: 200, bg: 'linear-gradient(90deg,#8b5cf6,#ec4899)', anim: '' },
@@ -3724,11 +3740,17 @@ match /inbox/{inboxId} {
         /* ---------- Affichage des cosmétiques (couche autour de l'avatar / du pseudo : l'existant n'est pas remplacé) ---------- */
         const frameStyleVars = (d) => `--fr-bg:${d.ring};--fr-glow:${d.glow || 'transparent'}`;
         function frameAttrs(d) {
-            return d ? `data-frame="${escapeHtml(d.id)}" data-fr-anim="${d.anim || ''}" style="${frameStyleVars(d)}"` : '';
+            if (!d) return '';
+            if (d.img) return `data-frame-img="${escapeHtml(d.id)}"`;
+            return `data-frame="${escapeHtml(d.id)}" data-fr-anim="${d.anim || ''}" style="${frameStyleVars(d)}"`;
+        }
+        function frameImgTag(d) {
+            return (d && d.img) ? `<img src="${escapeHtml(d.img)}" class="cos-av-frame-png" alt="" aria-hidden="true">` : '';
         }
         // Entoure un avatar existant d'un cadre (si le joueur en porte un)
         function cosAv(uid, inner, small) {
-            return `<div class="cos-av${small ? ' cos-av-sm' : ''}" data-cos-av="${escapeHtml(uid || '')}" ${frameAttrs(uid ? equippedDef(uid, 'frame') : null)}>${inner}</div>`;
+            const d = uid ? equippedDef(uid, 'frame') : null;
+            return `<div class="cos-av${small ? ' cos-av-sm' : ''}" data-cos-av="${escapeHtml(uid || '')}" ${frameAttrs(d)}>${inner}${frameImgTag(d)}</div>`;
         }
         // Attributs à mettre sur l'élément qui affiche le pseudo (extraStyle = style déjà présent sur cet élément)
         function nameFx(uid, extraStyle = '') {
@@ -3747,14 +3769,28 @@ match /inbox/{inboxId} {
         // Remet à jour ce qui est DÉJÀ affiché (messages en cache, listes...) quand quelqu'un change de cosmétique
         function applyFrame(el, uid) {
             const d = uid ? equippedDef(uid, 'frame') : null;
-            if (d) {
+            const existingImg = el.querySelector(':scope > .cos-av-frame-png');
+            const clearGradient = () => { if (el.dataset.frame) { delete el.dataset.frame; delete el.dataset.frAnim; el.style.removeProperty('--fr-bg'); el.style.removeProperty('--fr-glow'); } };
+            if (d && d.img) {
+                clearGradient();
+                if (!existingImg || !existingImg.src.endsWith(d.img)) {
+                    if (existingImg) existingImg.remove();
+                    const img = document.createElement('img');
+                    img.src = d.img; img.className = 'cos-av-frame-png'; img.alt = ''; img.setAttribute('aria-hidden', 'true');
+                    el.appendChild(img);
+                }
+                el.dataset.frameImg = d.id;
+            } else if (d) {
+                if (existingImg) existingImg.remove();
+                delete el.dataset.frameImg;
                 if (el.dataset.frame !== d.id) {
                     el.dataset.frame = d.id; el.dataset.frAnim = d.anim || '';
                     el.style.setProperty('--fr-bg', d.ring); el.style.setProperty('--fr-glow', d.glow || 'transparent');
                 }
-            } else if (el.dataset.frame) {
-                delete el.dataset.frame; delete el.dataset.frAnim;
-                el.style.removeProperty('--fr-bg'); el.style.removeProperty('--fr-glow');
+            } else {
+                if (existingImg) existingImg.remove();
+                delete el.dataset.frameImg;
+                clearGradient();
             }
         }
         function applyNameFx(el, uid) {
@@ -3970,7 +4006,7 @@ match /inbox/{inboxId} {
         }
         function previewHtml(d) {
             const me = userOf(currentUser.uid) || userProfile;
-            if (d.type === 'frame') return `<div class="cos-av" ${frameAttrs(d)}>${avatarCircle(me, 'w-14 h-14', 'text-lg')}</div>`;
+            if (d.type === 'frame') return `<div class="cos-av" ${frameAttrs(d)}>${avatarCircle(me, 'w-14 h-14', 'text-lg')}${frameImgTag(d)}</div>`;
             if (d.type === 'name') return `<span class="text-base font-bold break-all" data-nfx="${escapeHtml(d.id)}" data-nfx-anim="${d.anim || ''}"${d.glow ? ' data-nfx-glow' : ''} style="--nfx-bg:${d.bg};--nfx-glow:${d.glow || 'transparent'}">${escapeHtml(me.name || 'Pseudo')}</span>`;
             return roleChip(d);
         }
@@ -4004,7 +4040,13 @@ match /inbox/{inboxId} {
             else if (isAdmin() && catalogDiffers()) html += `<div class="mb-3 p-3 rounded-xl border border-amber-500/40 bg-amber-500/10 text-xs text-amber-200 space-y-2"><div>Le catalogue du code diffère de celui du serveur (nouveaux objets ou prix modifiés).</div><button type="button" onclick="publishCatalog()" class="px-3 py-2 rounded-lg bg-amber-500 text-black font-semibold">Republier le catalogue</button></div>`;
             html += `<div class="flex gap-1.5 mb-3">${Object.keys(TYPE_LABEL).map(t => `<button type="button" onclick="setHubType('${t}')" class="flex-1 px-2 py-1.5 rounded-lg text-xs font-semibold transition ${hubType === t ? 'bg-[var(--theme-color)] text-white' : 'bg-[#1e1f22] text-[#b5bac1] border border-[#3f4147]'}">${TYPE_LABEL[t]}</button>`).join('')}</div>`;
             const items = shopEntries().filter(d => d.type === hubType).sort((a, b) => a.price - b.price);
-            html += `<div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">${items.map(cosCard).join('')}</div>`;
+            const grid = (list) => `<div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">${list.map(cosCard).join('')}</div>`;
+            const general = items.filter(d => !d.game);
+            if (general.length) html += grid(general);
+            [['bs', 'Brawl Stars'], ['cr', 'Clash Royale'], ['coc', 'Clash of Clans']].forEach(([k, title]) => {
+                const g = items.filter(d => d.game === k);
+                if (g.length) html += `<div class="text-sm font-bold mt-5 mb-2">${title}</div>` + grid(g);
+            });
             html += `<p class="text-[11px] text-[#80848e] mt-3">Les pièces se gagnent avec l’activité (connexion quotidienne, messages, vocal), avec un plafond par jour. Les cosmétiques sont purement visuels.</p>`;
             return html;
         }
