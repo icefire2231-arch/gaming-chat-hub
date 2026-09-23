@@ -1,0 +1,488 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return isSignedIn() && request.auth.uid in ['uoWkSMB60egz8sO0GeybXdfURcn2'];
+    }
+    // dmId a la forme "dm_<uidA>_<uidB>" (voir getDmId() dans le code)
+    function isDmParticipant(dmId) {
+      let parts = dmId.split('_');
+      return parts.size() == 3 && (parts[1] == request.auth.uid || parts[2] == request.auth.uid);
+    }
+    function isGroupMember(groupId) {
+      return isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
+    }
+
+    // ---------- Règles communes aux messages (salons, groupes, MP) ----------
+
+    function msgCreateOk() {
+      return request.resource.data.uid == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.keys().hasOnly(['text','mediaUrl','uid','displayName','avatar','createdAt','reactions','replyTo'])
+        && request.resource.data.get('reactions', {}) == {}
+        && (!('text' in request.resource.data)
+            || (request.resource.data.text is string && request.resource.data.text.size() <= 2000));
+    }
+
+    function reactOk(k) {
+      let before = resource.data.get('reactions', {}).get(k, []);
+      let after = request.resource.data.reactions.get(k, []);
+      return after == before
+        || (after.size() <= before.size() + 1
+            && after.toSet().size() == after.size()
+            && after.toSet().difference(before.toSet()).hasOnly([request.auth.uid])
+            && before.toSet().difference(after.toSet()).hasOnly([request.auth.uid]));
+    }
+    function validReactionChange() {
+      return request.resource.data.reactions is map
+        && request.resource.data.reactions.keys().hasOnly(['👍', '❤️', '😂', '🔥', '💀', '👑', '🚀', '🎮', '😎'])
+        && reactOk('👍')
+        && reactOk('❤️')
+        && reactOk('😂')
+        && reactOk('🔥')
+        && reactOk('💀')
+        && reactOk('👑')
+        && reactOk('🚀')
+        && reactOk('🎮')
+        && reactOk('😎');
+    }
+
+    function msgUpdateOk() {
+      return
+        ( resource.data.get('uid', '') == request.auth.uid
+          && 'text' in resource.data
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text','editedAt'])
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 2000
+          && request.resource.data.editedAt == request.time )
+        || ( request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
+             && validReactionChange() );
+    }
+
+    // ---- Profils utilisateurs ----
+    function profileFieldsOk() {
+      let d = request.resource.data;
+      return (!('status' in d) || d.status in ['online','away','dnd','invisible'])
+        && (!('bio' in d) || (d.bio is string && d.bio.size() <= 160))
+        && (!('favGames' in d) || (d.favGames is list && d.favGames.size() <= 3))
+        && (!('msgCount' in d) || d.msgCount is int)
+        && (!('joinedAt' in d) || (d.joinedAt is timestamp && d.joinedAt <= request.time))
+        && notifPrefsOk(d);
+    }
+
+    // ---- Préférences de notifications push (mentions / MP / réponses / tous les messages) ----
+    // Simple validation de forme : chaque clé, si présente, doit être un booléen.
+    // La vraie sécurité (qui reçoit quoi) est appliquée côté Cloud Function, qui lit
+    // ce document avec les droits admin, pas via ces règles.
+    function notifPrefsOk(d) {
+      let p = d.get('notifPrefs', {});
+      return p is map
+        && p.keys().hasOnly(['enabled','mentions','dms','replies','allMessages'])
+        && (!('enabled' in p) || p.enabled is bool)
+        && (!('mentions' in p) || p.mentions is bool)
+        && (!('dms' in p) || p.dms is bool)
+        && (!('replies' in p) || p.replies is bool)
+        && (!('allMessages' in p) || p.allMessages is bool);
+    }
+
+    // ---- XP / Niveau / Classement : anti-spam et anti-triche ----
+    function xpKeysOnly(extra) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(extra);
+    }
+    function validWeekId(id) {
+      return id is string && id.matches('^[0-9]{4}-W[0-9]{2}$');
+    }
+
+    // ---- SAISONS ----
+    // Numéro de saison calculé depuis la date DU SERVEUR (UTC).
+    // Saison 0 = septembre 2026, Saison 1 = octobre 2026, Saison 2 = novembre 2026, etc.
+    function seasonNo(t) {
+      return (t.year() - 2026) * 12 + (t.month() - 9);
+    }
+
+    // ---- PIÈCES + XP DE SAISON : gagnés dans la MÊME écriture que l'XP (même cooldown, même plafond) ----
+    function coinsGainOk(n) {
+      let d = request.resource.data;
+      let r = resource.data;
+      let ch = d.diff(r).affectedKeys();
+      return !ch.hasAny(['coins']) || (d.coins is int && d.coins == r.get('coins', 0) + n);
+    }
+    function seasonGainOk(n) {
+      let d = request.resource.data;
+      let r = resource.data;
+      let ch = d.diff(r).affectedKeys();
+      let key = 's' + string(seasonNo(request.time));
+      let before = r.get('seasonXp', {});
+      return !ch.hasAny(['seasonXp'])
+        || (d.seasonXp is map
+            && d.seasonXp.diff(before).affectedKeys().hasOnly([key])
+            && d.seasonXp.get(key, 0) == before.get(key, 0) + n);
+    }
+
+    // Message : +6 XP, cooldown 45 s, plafond 40/jour  + 2 pièces + 6 XP de saison
+    function msgXpOk() {
+      let d = request.resource.data;
+      let r = resource.data;
+      let cooldownOk = request.time > r.get('lastMsgXpAt', timestamp.date(1970,1,1)) + duration.value(45,'s');
+      let dayRolled  = request.time > r.get('dailyMsgXpDate', timestamp.date(1970,1,1)) + duration.value(24,'h');
+      let capOk      = dayRolled || r.get('dailyMsgXpCount', 0) < 40;
+      let weekRolled = d.get('weeklyWeekId','') != r.get('weeklyWeekId','');
+      return cooldownOk && capOk
+        && xpKeysOnly(['xp','weeklyXp','weeklyWeekId','lastMsgXpAt','dailyMsgXpCount','dailyMsgXpDate','coins','seasonXp'])
+        && d.xp == r.get('xp', 0) + 6
+        && d.weeklyXp == (weekRolled ? 6 : r.get('weeklyXp', 0) + 6)
+        && validWeekId(d.weeklyWeekId)
+        && d.lastMsgXpAt == request.time
+        && d.dailyMsgXpCount == (dayRolled ? 1 : r.get('dailyMsgXpCount', 0) + 1)
+        && d.dailyMsgXpDate == (dayRolled ? request.time : r.get('dailyMsgXpDate', request.time))
+        && coinsGainOk(2)
+        && seasonGainOk(6);
+    }
+
+    // Vocal : +6 XP, cooldown 4 min 30, plafond 30/jour  + 3 pièces + 6 XP de saison
+    function voiceXpOk() {
+      let d = request.resource.data;
+      let r = resource.data;
+      let roomId = d.get('lastVoiceRoom', '');
+      let presenceOk = roomId is string && roomId.size() > 0 && roomId.size() < 200
+        && exists(/databases/$(database)/documents/voice_rooms/$(roomId)/participants/$(request.auth.uid))
+        && get(/databases/$(database)/documents/voice_rooms/$(roomId)/participants/$(request.auth.uid)).data.ping
+             > request.time - duration.value(90,'s');
+      let cooldownOk = request.time > r.get('lastVoiceXpAt', timestamp.date(1970,1,1)) + duration.value(4,'m') + duration.value(30,'s');
+      let dayRolled  = request.time > r.get('dailyVoiceXpDate', timestamp.date(1970,1,1)) + duration.value(24,'h');
+      let capOk      = dayRolled || r.get('dailyVoiceXpCount', 0) < 30;
+      let weekRolled = d.get('weeklyWeekId','') != r.get('weeklyWeekId','');
+      return presenceOk && cooldownOk && capOk
+        && xpKeysOnly(['xp','weeklyXp','weeklyWeekId','lastVoiceXpAt','dailyVoiceXpCount','dailyVoiceXpDate','lastVoiceRoom','coins','seasonXp'])
+        && d.xp == r.get('xp', 0) + 6
+        && d.weeklyXp == (weekRolled ? 6 : r.get('weeklyXp', 0) + 6)
+        && validWeekId(d.weeklyWeekId)
+        && d.lastVoiceXpAt == request.time
+        && d.dailyVoiceXpCount == (dayRolled ? 1 : r.get('dailyVoiceXpCount', 0) + 1)
+        && d.dailyVoiceXpDate == (dayRolled ? request.time : r.get('dailyVoiceXpDate', request.time))
+        && coinsGainOk(3)
+        && seasonGainOk(6);
+    }
+
+    // Bonus quotidien : +20 XP, cooldown 20 h  + 50 pièces + 20 XP de saison
+    function dailyBonusOk() {
+      let d = request.resource.data;
+      let r = resource.data;
+      let ready = request.time > r.get('lastDailyBonusAt', timestamp.date(1970,1,1)) + duration.value(20,'h');
+      let weekRolled = d.get('weeklyWeekId','') != r.get('weeklyWeekId','');
+      return ready
+        && xpKeysOnly(['xp','weeklyXp','weeklyWeekId','lastDailyBonusAt','coins','seasonXp'])
+        && d.xp == r.get('xp', 0) + 20
+        && d.weeklyXp == (weekRolled ? 20 : r.get('weeklyXp', 0) + 20)
+        && validWeekId(d.weeklyWeekId)
+        && d.lastDailyBonusAt == request.time
+        && coinsGainOk(50)
+        && seasonGainOk(20);
+    }
+
+    // Mise à jour normale du profil : ne touche jamais à l'XP, aux pièces ni aux cosmétiques
+    function profileUpdateOk() {
+      return profileFieldsOk()
+        && xpKeysOnly(['name','avatar','theme','uid','status','bio','favGames','lastSeen','msgCount','notifPrefs'])
+        && (request.resource.data.get('msgCount', 0) == resource.data.get('msgCount', 0)
+            || request.resource.data.get('msgCount', 0) == resource.data.get('msgCount', 0) + 1)
+        && (!('joinedAt' in resource.data) || request.resource.data.joinedAt == resource.data.joinedAt);
+    }
+
+    // ---- BOUTIQUE : achat ----
+    // Prix lu dans settings/shop_catalog (écrit uniquement par l'admin).
+    // Objet absent du catalogue (dont les récompenses de saison) = impossible à acheter.
+    function purchaseOk() {
+      let d = request.resource.data;
+      let r = resource.data;
+      return xpKeysOnly(['coins','owned','lastPurchase'])
+        && d.get('lastPurchase', null) is string
+        && d.get('owned', null) is map
+        && purchaseCheck(d.lastPurchase, d, r);
+    }
+    function purchaseCheck(id, d, r) {
+      let items = get(/databases/$(database)/documents/settings/shop_catalog).data.items;
+      let owned0 = r.get('owned', {});
+      let diff = d.owned.diff(owned0);
+      return id in items
+        && items[id].p is int && items[id].p > 0
+        && !(id in owned0)
+        && diff.addedKeys().hasOnly([id])
+        && diff.addedKeys().size() == 1
+        && diff.removedKeys().size() == 0
+        && diff.changedKeys().size() == 0
+        && d.owned[id] == request.time
+        && d.coins is int
+        && r.get('coins', 0) >= items[id].p
+        && d.coins == r.get('coins', 0) - items[id].p;
+    }
+
+    // ---- Équiper / retirer un cosmétique (objet possédé ou 'none'; l'admin peut tout équiper) ----
+    function equipFieldOk(field) {
+      let d = request.resource.data;
+      let r = resource.data;
+      let v = d.get(field, 'none');
+      return v == r.get(field, 'none')
+        || v == 'none'
+        || (v is string && v.size() <= 64 && v in d.get('owned', {}))
+        || (isAdmin() && v is string && v.size() <= 64 && v.matches('^[a-z0-9_]+$'));
+    }
+    function equipOk() {
+      return xpKeysOnly(['equippedAvatarFrame','equippedNameEffect','equippedRole'])
+        && equipFieldOk('equippedAvatarFrame')
+        && equipFieldOk('equippedNameEffect')
+        && equipFieldOk('equippedRole');
+    }
+
+    // ---- Attribution d'objets par l'admin (récompenses de saison) : ajout uniquement ----
+    function adminGrantOk() {
+      let d = request.resource.data;
+      let r = resource.data;
+      return isAdmin()
+        && xpKeysOnly(['owned'])
+        && d.get('owned', null) is map
+        && d.owned.diff(r.get('owned', {})).removedKeys().size() == 0
+        && d.owned.diff(r.get('owned', {})).changedKeys().size() == 0;
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == userId
+        && profileFieldsOk()
+        && request.resource.data.get('msgCount', 0) == 0
+        && request.resource.data.get('xp', 0) == 0
+        && request.resource.data.get('weeklyXp', 0) == 0
+        && request.resource.data.get('coins', 0) == 0
+        && !('owned' in request.resource.data)
+        && !('seasonXp' in request.resource.data)
+        && request.resource.data.get('equippedAvatarFrame', 'none') == 'none'
+        && request.resource.data.get('equippedNameEffect', 'none') == 'none'
+        && request.resource.data.get('equippedRole', 'none') == 'none';
+      allow update: if isSignedIn()
+        && (
+          ( request.auth.uid == userId
+            && (profileUpdateOk() || equipOk() || msgXpOk() || voiceXpOk() || dailyBonusOk() || purchaseOk()) )
+          || adminGrantOk()
+        );
+      allow delete: if isSignedIn() && request.auth.uid == userId;
+
+      // ---- Tokens FCM (notifications push) : un document par appareil ----
+      // Strictement privé : seul le propriétaire du compte peut lire/écrire ses propres tokens.
+      // La Cloud Function qui envoie les pushs utilise les droits admin (Admin SDK) et n'est
+      // donc pas concernée par ces règles ; aucun autre utilisateur ne peut jamais les lire.
+      match /fcmTokens/{tokenId} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
+      }
+    }
+
+    // ---- Réglages (salons custom + catalogue boutique) : lecture libre, écriture admin ----
+    match /settings/{document=**} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // ---- Saisons terminées : historique PERMANENT (création admin, jamais modifiable ni supprimable) ----
+    match /seasons/{seasonDocId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly(['number','status','startDate','endDate','closedAt','top1','top2','top3','top10','winnerUids','rewards'])
+        && request.resource.data.number is int
+        && request.resource.data.number >= 1
+        && request.resource.data.number < seasonNo(request.time)
+        && seasonDocId == 'season_' + string(request.resource.data.number)
+        && request.resource.data.status == 'closed'
+        && request.resource.data.closedAt == request.time
+        && request.resource.data.top10 is list && request.resource.data.top10.size() <= 10
+        && request.resource.data.winnerUids is list && request.resource.data.winnerUids.size() <= 3
+        && request.resource.data.rewards is map;
+      allow update, delete: if false;
+
+      // Lien de récompense : visible uniquement par les gagnants (Top 1-3) et l'admin
+      match /private/{docId} {
+        allow read: if isAdmin()
+          || (isSignedIn()
+              && request.auth.uid in get(/databases/$(database)/documents/seasons/$(seasonDocId)).data.winnerUids);
+        allow write: if isAdmin()
+          && request.resource.data.keys().hasOnly(['url','updatedAt'])
+          && request.resource.data.url is string
+          && request.resource.data.url.size() <= 500;
+      }
+    }
+
+    // ---- Salons textuels ----
+    match /channels/{channelId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn() && msgCreateOk();
+        allow update: if isSignedIn() && msgUpdateOk();
+        allow delete: if isSignedIn() && (resource.data.get('uid', '') == request.auth.uid || isAdmin());
+      }
+
+      match /pins/{slot} {
+        allow read: if isSignedIn();
+
+        allow create: if isAdmin() && isSignedIn()
+          && slot.matches('p[0-9]')
+          && request.resource.data.keys().hasOnly(['messageId','uid','displayName','text','mediaUrl','messageAt','pinnedBy','pinnedByName','pinnedAt'])
+          && request.resource.data.messageId is string
+          && get(/databases/$(database)/documents/channels/$(channelId)/messages/$(request.resource.data.messageId)).data.get('uid', '') == request.resource.data.uid
+          && request.resource.data.pinnedBy == request.auth.uid
+          && request.resource.data.pinnedAt == request.time
+          && request.resource.data.text is string && request.resource.data.text.size() <= 2000
+          && request.resource.data.mediaUrl is string && request.resource.data.mediaUrl.size() <= 2048;
+
+        allow update: if isSignedIn()
+          && resource.data.uid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text','editedAt'])
+          && request.resource.data.editedAt == request.time
+          && request.resource.data.text == getAfter(/databases/$(database)/documents/channels/$(channelId)/messages/$(resource.data.messageId)).data.text;
+
+        allow delete: if isSignedIn()
+          && (isAdmin() || !existsAfter(/databases/$(database)/documents/channels/$(channelId)/messages/$(resource.data.messageId)));
+      }
+
+      match /typing/{typerId} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn() && request.auth.uid == typerId;
+      }
+    }
+
+    // ---- Groupes privés ----
+    match /groups/{groupId} {
+      allow read: if isSignedIn() && request.auth.uid in resource.data.members;
+      allow create: if isSignedIn() && request.auth.uid in request.resource.data.members;
+      allow update: if isSignedIn() && request.auth.uid in resource.data.members;
+
+      match /messages/{messageId} {
+        allow read: if isGroupMember(groupId);
+        allow create: if isGroupMember(groupId) && msgCreateOk();
+        allow update: if isGroupMember(groupId) && msgUpdateOk();
+        allow delete: if isGroupMember(groupId) && (resource.data.get('uid', '') == request.auth.uid || isAdmin());
+      }
+
+      match /pins/{slot} {
+        allow read: if isGroupMember(groupId);
+
+        allow create: if isAdmin() && isGroupMember(groupId)
+          && slot.matches('p[0-9]')
+          && request.resource.data.keys().hasOnly(['messageId','uid','displayName','text','mediaUrl','messageAt','pinnedBy','pinnedByName','pinnedAt'])
+          && request.resource.data.messageId is string
+          && get(/databases/$(database)/documents/groups/$(groupId)/messages/$(request.resource.data.messageId)).data.get('uid', '') == request.resource.data.uid
+          && request.resource.data.pinnedBy == request.auth.uid
+          && request.resource.data.pinnedAt == request.time
+          && request.resource.data.text is string && request.resource.data.text.size() <= 2000
+          && request.resource.data.mediaUrl is string && request.resource.data.mediaUrl.size() <= 2048;
+
+        allow update: if isGroupMember(groupId)
+          && resource.data.uid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text','editedAt'])
+          && request.resource.data.editedAt == request.time
+          && request.resource.data.text == getAfter(/databases/$(database)/documents/groups/$(groupId)/messages/$(resource.data.messageId)).data.text;
+
+        allow delete: if isGroupMember(groupId)
+          && (isAdmin() || !existsAfter(/databases/$(database)/documents/groups/$(groupId)/messages/$(resource.data.messageId)));
+      }
+
+      match /typing/{typerId} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn() && request.auth.uid == typerId;
+      }
+    }
+
+    // ---- Messages privés (MP) ----
+    match /dms_chats/{dmId} {
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn() && isDmParticipant(dmId);
+        allow create: if isSignedIn() && isDmParticipant(dmId) && msgCreateOk();
+        allow update: if isSignedIn() && isDmParticipant(dmId) && msgUpdateOk();
+        allow delete: if isSignedIn() && isDmParticipant(dmId) && (resource.data.get('uid', '') == request.auth.uid || isAdmin());
+      }
+
+      match /pins/{slot} {
+        allow read: if isSignedIn() && isDmParticipant(dmId);
+
+        allow create: if isAdmin() && isSignedIn() && isDmParticipant(dmId)
+          && slot.matches('p[0-9]')
+          && request.resource.data.keys().hasOnly(['messageId','uid','displayName','text','mediaUrl','messageAt','pinnedBy','pinnedByName','pinnedAt'])
+          && request.resource.data.messageId is string
+          && get(/databases/$(database)/documents/dms_chats/$(dmId)/messages/$(request.resource.data.messageId)).data.get('uid', '') == request.resource.data.uid
+          && request.resource.data.pinnedBy == request.auth.uid
+          && request.resource.data.pinnedAt == request.time
+          && request.resource.data.text is string && request.resource.data.text.size() <= 2000
+          && request.resource.data.mediaUrl is string && request.resource.data.mediaUrl.size() <= 2048;
+
+        allow update: if isSignedIn() && isDmParticipant(dmId)
+          && resource.data.uid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text','editedAt'])
+          && request.resource.data.editedAt == request.time
+          && request.resource.data.text == getAfter(/databases/$(database)/documents/dms_chats/$(dmId)/messages/$(resource.data.messageId)).data.text;
+
+        allow delete: if isSignedIn() && isDmParticipant(dmId)
+          && (isAdmin() || !existsAfter(/databases/$(database)/documents/dms_chats/$(dmId)/messages/$(resource.data.messageId)));
+      }
+
+      match /typing/{typerId} {
+        allow read: if isSignedIn() && isDmParticipant(dmId);
+        allow write: if isSignedIn() && request.auth.uid == typerId;
+      }
+    }
+
+    // ---- Amis ----
+    match /friendships/{friendId} {
+      allow read: if isSignedIn() && request.auth.uid in resource.data.users;
+
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly(['users','from','to','status','createdAt'])
+        && request.resource.data.users.size() == 2
+        && request.resource.data.users[0] < request.resource.data.users[1]
+        && friendId == 'fr_' + request.resource.data.users[0] + '_' + request.resource.data.users[1]
+        && request.resource.data.from == request.auth.uid
+        && request.resource.data.to != request.resource.data.from
+        && request.resource.data.users.hasAll([request.resource.data.from, request.resource.data.to])
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time;
+
+      allow update: if isSignedIn()
+        && resource.data.to == request.auth.uid
+        && resource.data.status == 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','respondedAt'])
+        && request.resource.data.status == 'accepted'
+        && request.resource.data.respondedAt == request.time;
+
+      allow delete: if isSignedIn() && request.auth.uid in resource.data.users;
+    }
+
+    // ---- Boîte de notifications ----
+    match /inbox/{inboxId} {
+      allow read: if isSignedIn() && resource.data.forUid == request.auth.uid;
+      allow create, update: if isSignedIn();
+    }
+
+    // ---- Vocal (WebRTC) ----
+    match /voice_rooms/{roomId} {
+      match /participants/{uid} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn() && request.auth.uid == uid;
+      }
+      match /connections/{pairId} {
+        allow read, write: if isSignedIn();
+        match /callerCandidates/{cid} {
+          allow read, write: if isSignedIn();
+        }
+        match /calleeCandidates/{cid} {
+          allow read, write: if isSignedIn();
+        }
+      }
+    }
+  }
+}
