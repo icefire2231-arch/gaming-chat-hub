@@ -3745,7 +3745,7 @@ match /inbox/{inboxId} {
             return `data-frame="${escapeHtml(d.id)}" data-fr-anim="${d.anim || ''}" style="${frameStyleVars(d)}"`;
         }
         function frameImgTag(d) {
-            return (d && d.img) ? `<img src="${escapeHtml(d.img)}" class="cos-av-frame-png" alt="" aria-hidden="true">` : '';
+            return (d && d.img) ? `<img src="${escapeHtml(d.img)}" class="cos-av-frame-png" alt="" aria-hidden="true" loading="lazy" decoding="async" onerror="this.remove()">` : '';
         }
         // Entoure un avatar existant d'un cadre (si le joueur en porte un)
         function cosAv(uid, inner, small) {
@@ -3777,6 +3777,7 @@ match /inbox/{inboxId} {
                     if (existingImg) existingImg.remove();
                     const img = document.createElement('img');
                     img.src = d.img; img.className = 'cos-av-frame-png'; img.alt = ''; img.setAttribute('aria-hidden', 'true');
+                    img.loading = 'lazy'; img.decoding = 'async'; img.onerror = () => img.remove();
                     el.appendChild(img);
                 }
                 el.dataset.frameImg = d.id;
