@@ -17,6 +17,11 @@ service cloud.firestore {
     function isGroupMember(groupId) {
       return isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
     }
+    // pairId de connexion vocale a la forme "<uidA>__<uidB>__<sessionId>" (voir pairId() dans le code)
+    function isVoicePairParticipant(pairId) {
+      let parts = pairId.split('__');
+      return parts.size() == 3 && (parts[0] == request.auth.uid || parts[1] == request.auth.uid);
+    }
 
     // ---------- Règles communes aux messages (salons, groupes, MP) ----------
 
@@ -26,7 +31,17 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['text','mediaUrl','uid','displayName','avatar','createdAt','reactions','replyTo'])
         && request.resource.data.get('reactions', {}) == {}
         && (!('text' in request.resource.data)
-            || (request.resource.data.text is string && request.resource.data.text.size() <= 2000));
+            || (request.resource.data.text is string && request.resource.data.text.size() <= 2000))
+        // AJOUT : bornes de taille sur les champs libres, pour éviter le gonflement de documents /
+        // la répétition d'un gros payload (avatar/mediaUrl en data-URI, etc.) sur chaque message.
+        && (!('displayName' in request.resource.data)
+            || (request.resource.data.displayName is string && request.resource.data.displayName.size() <= 100))
+        && (!('avatar' in request.resource.data)
+            || (request.resource.data.avatar is string && request.resource.data.avatar.size() <= 500))
+        && (!('mediaUrl' in request.resource.data)
+            || (request.resource.data.mediaUrl is string && request.resource.data.mediaUrl.size() <= 2048))
+        && (!('replyTo' in request.resource.data)
+            || (request.resource.data.replyTo is string && request.resource.data.replyTo.size() <= 200));
     }
 
     function reactOk(k) {
@@ -73,6 +88,10 @@ service cloud.firestore {
         && (!('favGames' in d) || (d.favGames is list && d.favGames.size() <= 3))
         && (!('msgCount' in d) || d.msgCount is int)
         && (!('joinedAt' in d) || (d.joinedAt is timestamp && d.joinedAt <= request.time))
+        // AJOUT : bornes de taille sur pseudo / avatar / thème, jamais validées avant.
+        && (!('name' in d) || (d.name is string && d.name.size() > 0 && d.name.size() <= 40))
+        && (!('avatar' in d) || (d.avatar is string && d.avatar.size() <= 500))
+        && (!('theme' in d) || (d.theme is string && d.theme.size() <= 50))
         && notifPrefsOk(d);
     }
 
@@ -316,9 +335,22 @@ service cloud.firestore {
     }
 
     // ---- Salons textuels ----
+    // NOTE SÉCURITÉ : la création/renommage/suppression réelle des salons passe par
+    // settings/custom_channels (protégé par isAdmin() ci-dessus + vérif isAdmin() côté client).
+    // Ce document channels/{channelId} ne sert QU'À la métadonnée "dernier message" écrite par
+    // touchChannelMeta() à chaque envoi. AVANT : "allow write: if isSignedIn()" sans aucune
+    // restriction de champs permettait à n'importe quel compte d'écrire n'importe quoi dans
+    // n'importe quel salon. On restreint désormais exactement aux 4 champs légitimes.
     match /channels/{channelId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn();
+      allow write: if isSignedIn()
+        && request.resource.data.keys().hasOnly(['lastMessageAt','lastMessageBy','lastMessageByName','lastMessageText'])
+        && request.resource.data.lastMessageBy == request.auth.uid
+        && request.resource.data.lastMessageAt == request.time
+        && request.resource.data.get('lastMessageByName', '') is string
+        && request.resource.data.get('lastMessageByName', '').size() <= 100
+        && request.resource.data.get('lastMessageText', '') is string
+        && request.resource.data.get('lastMessageText', '').size() <= 2000;
 
       match /messages/{messageId} {
         allow read: if isSignedIn();
@@ -463,9 +495,42 @@ service cloud.firestore {
     }
 
     // ---- Boîte de notifications ----
+    // AVANT : "allow create, update: if isSignedIn()" sans AUCUNE validation — n'importe quel
+    // compte pouvait forger/écraser une notification dans la boîte d'un autre utilisateur, avec
+    // un contenu arbitraire et une taille illimitée (spam / phishing). Reconstruit à partir du
+    // schéma réel utilisé par notifyUsers() / markRead() / initReadBaselines() dans le code :
+    // - on peut toujours marquer SA PROPRE boîte comme lue (forUid == soi-même) ;
+    // - on ne peut notifier quelqu'un d'autre que si on est bien l'auteur (fromUid == soi-même)
+    //   ET qu'on a un droit légitime sur la conversation (participant du MP, membre du groupe,
+    //   ou salon public) ; tous les champs texte sont désormais bornés en taille.
+    function inboxWriteOk(inboxId) {
+      let d = request.resource.data;
+      return inboxId == d.forUid + '_' + d.convType + '_' + d.convId
+        && d.convType in ['dm', 'group', 'channel']
+        && d.forUid is string && d.forUid.size() < 40
+        && d.convId is string && d.convId.size() <= 200
+        && d.get('convName', '') is string && d.get('convName', '').size() <= 200
+        && d.get('lastText', '') is string && d.get('lastText', '').size() <= 2000
+        && d.get('fromUid', '') is string && d.get('fromUid', '').size() < 40
+        && d.get('fromName', '') is string && d.get('fromName', '').size() <= 100
+        && d.get('kind', '') in ['', 'mention', 'reply', 'call']
+        && (
+             d.forUid == request.auth.uid
+             || (
+                  d.forUid != request.auth.uid
+                  && d.get('fromUid', '') == request.auth.uid
+                  && (
+                       (d.convType == 'dm' && isDmParticipant(d.convId))
+                       || (d.convType == 'group' && isGroupMember(d.convId))
+                       || d.convType == 'channel'
+                     )
+                )
+           );
+    }
     match /inbox/{inboxId} {
       allow read: if isSignedIn() && resource.data.forUid == request.auth.uid;
-      allow create, update: if isSignedIn();
+      allow create, update: if isSignedIn() && inboxWriteOk(inboxId);
+      allow delete: if isSignedIn() && resource.data.forUid == request.auth.uid;
     }
 
     // ---- Vocal (WebRTC) ----
@@ -474,13 +539,17 @@ service cloud.firestore {
         allow read: if isSignedIn();
         allow write: if isSignedIn() && request.auth.uid == uid;
       }
+      // AVANT : "allow read, write: if isSignedIn()" — n'importe quel compte connecté pouvait
+      // lire ou écrire les offres/réponses SDP et candidats ICE d'un appel entre DEUX AUTRES
+      // personnes (injection possible, ou simple espionnage de la présence d'un appel).
+      // On restreint désormais aux deux participants réels de la paire.
       match /connections/{pairId} {
-        allow read, write: if isSignedIn();
+        allow read, write: if isSignedIn() && isVoicePairParticipant(pairId);
         match /callerCandidates/{cid} {
-          allow read, write: if isSignedIn();
+          allow read, write: if isSignedIn() && isVoicePairParticipant(pairId);
         }
         match /calleeCandidates/{cid} {
-          allow read, write: if isSignedIn();
+          allow read, write: if isSignedIn() && isVoicePairParticipant(pairId);
         }
       }
     }
