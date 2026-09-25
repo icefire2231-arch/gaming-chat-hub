@@ -840,11 +840,32 @@ match /inbox/{inboxId} {
         // Enregistrement du service worker : nécessaire pour la PWA (installation, cache)
         // ET pour recevoir les notifications push en arrière-plan.
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', async () => {
-                try {
-                    swRegistration = await navigator.serviceWorker.register('service-worker.js');
-                } catch (e) { console.warn('Service worker indisponible :', e); }
+    window.addEventListener('load', async () => {
+        try {
+            swRegistration = await navigator.serviceWorker.register('service-worker.js');
+
+            // Dès qu'une nouvelle version du Service Worker est installée en arrière-plan,
+            // on lui dit de prendre le contrôle immédiatement (au lieu d'attendre indéfiniment).
+            swRegistration.addEventListener('updatefound', () => {
+                const nw = swRegistration.installing;
+                if (!nw) return;
+                nw.addEventListener('statechange', () => {
+                    if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                        nw.postMessage({ type: 'SKIP_WAITING' });
+                    }
+                });
             });
+
+            // Une fois que le nouveau Service Worker a pris le relai, on recharge la page
+            // automatiquement (une seule fois) pour que le code à jour s'applique tout seul.
+            let swRefreshed = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (swRefreshed) return;
+                swRefreshed = true;
+                window.location.reload();
+            });
+        } catch (e) { console.warn('Service worker indisponible :', e); }
+    });
             // Clic sur une notification alors qu'un onglet NexusChat est déjà ouvert :
             // le service worker nous transmet la conversation à ouvrir.
             navigator.serviceWorker.addEventListener('message', (event) => {
