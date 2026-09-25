@@ -115,10 +115,10 @@
         .cos-av-sm[data-frame]::after { inset: -3px; box-shadow: 0 0 6px 0 var(--fr-glow, transparent); }
 /* Cadres en image PNG */
 .cos-av-frame-png {
-    position: absolute; inset: -38%; width: 176%; height: 176%;
+    position: absolute; inset: -16%; width: 132%; height: 132%;
     object-fit: contain; max-width: none; max-height: none; pointer-events: none; z-index: 3;
 }
-.cos-av-sm .cos-av-frame-png { inset: -30%; width: 160%; height: 160%; }
+.cos-av-sm .cos-av-frame-png { inset: -10%; width: 120%; height: 120%; }
         .cos-av[data-fr-anim="spin"]::before { animation: cosSpin 3s linear infinite; }
         .cos-av[data-fr-anim="pulse"]::after { animation: cosPulse 1.8s ease-in-out infinite; }
         @keyframes cosSpin { to { transform: rotate(360deg); } }
@@ -144,6 +144,10 @@
             .cos-av-sm[data-frame]::before { inset: -2px; padding: 1.5px; }
             .cos-av-sm[data-frame]::after { inset: -2px; box-shadow: 0 0 3px 0px var(--fr-glow, transparent); }
 
+            /* Cadres en image PNG : encore plus resserrés qu'en desktop pour ne plus déborder sur le texte des messages */
+            .cos-av-frame-png { inset: -9%; width: 118%; height: 118%; }
+            .cos-av-sm .cos-av-frame-png { inset: -6%; width: 112%; height: 112%; }
+
             /* Pseudos : on garde le dégradé (--nfx-bg) intact, on resserre juste le halo pour éviter le flou */
             [data-nfx][data-nfx-glow] { filter: drop-shadow(0 0 2px var(--nfx-glow, transparent)); }
         }
@@ -154,6 +158,10 @@
             .cos-av[data-frame]::after { inset: -2px; box-shadow: 0 0 4px 0px var(--fr-glow, transparent); }
             .cos-av-sm[data-frame]::before { inset: -1.5px; padding: 1px; }
             .cos-av-sm[data-frame]::after { inset: -1.5px; box-shadow: 0 0 2px 0px var(--fr-glow, transparent); }
+
+            /* Cadres en image PNG : le plus resserré possible, collé à l'avatar */
+            .cos-av-frame-png { inset: -6%; width: 112%; height: 112%; }
+            .cos-av-sm .cos-av-frame-png { inset: -4%; width: 108%; height: 108%; }
 
             /* Pseudo bien net même sur les très petits écrans (ex: "Fire2") */
             [data-nfx][data-nfx-glow] { filter: drop-shadow(0 0 1.2px var(--nfx-glow, transparent)); }
