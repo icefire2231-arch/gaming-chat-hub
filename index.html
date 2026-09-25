@@ -1458,10 +1458,12 @@ match /inbox/{inboxId} {
                 const data = {
                     forUid: uid, convType: payload.convType, convId: payload.convId, convName: payload.convName,
                     fromUid: currentUser.uid, fromName: userProfile.name, lastText: payload.text,
-                    unread: true, unreadCount: increment(1), lastAt: serverTimestamp()
+                    unread: true, unreadCount: increment(1), lastAt: serverTimestamp(),
+                    // Toujours réécrits (jamais conditionnels) : sinon un ancien "kind: 'call'" (appel vocal) reste
+                    // collé dans Firestore et s'affiche à la place d'un message normal envoyé juste après.
+                    isMention: !!payload.isMention,
+                    kind: payload.isMention ? (payload.kind || 'mention') : ''
                 };
-                // isMention n'est écrit que s'il est vrai : un message normal ne fait pas disparaître un ping non lu
-                if (payload.isMention) { data.isMention = true; data.kind = payload.kind || 'mention'; }
                 return setDoc(doc(db, "inbox", inboxKey(uid, payload.convType, payload.convId)), data, { merge: true })
                     .catch((e) => { console.warn("notification refusée", e); warnRules("Notification non envoyée (collection inbox)"); });
             }));
@@ -2124,6 +2126,16 @@ match /inbox/{inboxId} {
             currentTargetType = type;
             currentTargetId = id;
             currentConvName = title || id;
+
+            // Mémorise le dernier salon/MP/groupe ouvert, par compte (clé = uid), pour y revenir
+            // automatiquement à la prochaine connexion, comme sur Discord.
+            if (currentUser) {
+                try {
+                    localStorage.setItem(`nexuschat_last_conv_${currentUser.uid}`,
+                        JSON.stringify({ type, id, name: currentConvName }));
+                } catch {}
+            }
+
             const h = $('current-channel-title');
             const callBtn = $('header-call-btn');
 
@@ -2461,6 +2473,40 @@ match /inbox/{inboxId} {
             // On attend (au plus 1,5 s) la liste des membres pour que les @pings soient surlignés dès l'affichage
             await Promise.race([usersReady, new Promise(r => setTimeout(r, 1500))]);
             if (currentUser !== user) return;
+
+            // Restaure le dernier salon/MP/groupe visité par CE compte (comme Discord), s'il y en a un.
+            try {
+                const saved = JSON.parse(localStorage.getItem(`nexuschat_last_conv_${user.uid}`) || 'null');
+                if (saved && saved.type && saved.id) {
+                    let restore = true;
+                    if (saved.type === 'group') {
+                        // Laisse le temps au tout premier instantané de groupes d'arriver avant de vérifier
+                        await new Promise(r => setTimeout(r, 350));
+                        if (currentUser !== user) return;
+                        restore = myGroups.some(g => g.id === saved.id);   // on ne restaure que si on en est encore membre
+                    } else if (saved.type !== 'channel' && saved.type !== 'dm') {
+                        restore = false;
+                    }
+                    if (restore) {
+                        currentTargetType = saved.type;
+                        currentTargetId = saved.id;
+                        currentConvName = saved.name || saved.id;
+                    }
+                }
+            } catch {}
+
+            const h0 = $('current-channel-title');
+            const callBtn0 = $('header-call-btn');
+            if (currentTargetType === 'channel') {
+                h0.textContent = `# ${currentConvName}`;
+                callBtn0.classList.add('hidden'); callBtn0.classList.remove('flex');
+                applyChannelBackground(textChannels.find(c => c.id === currentTargetId));
+            } else {
+                h0.textContent = currentTargetType === 'group' ? `👥 ${currentConvName}` : `💬 MP : ${currentConvName}`;
+                callBtn0.classList.remove('hidden'); callBtn0.classList.add('flex');
+                applyChannelBackground(null);
+                listenConversationVoice(currentTargetId);
+            }
 
             resetMessageView(convKey());
             loadMessages();
