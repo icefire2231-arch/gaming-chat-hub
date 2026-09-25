@@ -10,7 +10,7 @@
  * nouvelle configuration Firebase n'est créée.
  */
 
-const CACHE_NAME = 'nexuschat-shell-v1';
+const CACHE_NAME = 'nexuschat-shell-v2';
 const APP_SHELL = [
     './',
     './index.html',
