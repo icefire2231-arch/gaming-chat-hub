@@ -115,10 +115,14 @@
         .cos-av-sm[data-frame]::after { inset: -3px; box-shadow: 0 0 6px 0 var(--fr-glow, transparent); }
 /* Cadres en image PNG */
 .cos-av-frame-png {
-    position: absolute; inset: -16%; width: 132%; height: 132%;
+    --fscale: 132%;
+    position: absolute;
+    width: var(--fscale); height: var(--fscale);
+    left: calc(50% - (var(--hx, .5) * var(--fscale)));
+    top: calc(50% - (var(--hy, .5) * var(--fscale)));
     object-fit: contain; max-width: none; max-height: none; pointer-events: none; z-index: 3;
 }
-.cos-av-sm .cos-av-frame-png { inset: -10%; width: 120%; height: 120%; }
+.cos-av-sm .cos-av-frame-png { --fscale: 120%; }
         .cos-av[data-fr-anim="spin"]::before { animation: cosSpin 3s linear infinite; }
         .cos-av[data-fr-anim="pulse"]::after { animation: cosPulse 1.8s ease-in-out infinite; }
         @keyframes cosSpin { to { transform: rotate(360deg); } }
@@ -145,8 +149,8 @@
             .cos-av-sm[data-frame]::after { inset: -2px; box-shadow: 0 0 3px 0px var(--fr-glow, transparent); }
 
             /* Cadres en image PNG : encore plus resserrés qu'en desktop pour ne plus déborder sur le texte des messages */
-            .cos-av-frame-png { inset: -9%; width: 118%; height: 118%; }
-            .cos-av-sm .cos-av-frame-png { inset: -6%; width: 112%; height: 112%; }
+            .cos-av-frame-png { --fscale: 118%; }
+            .cos-av-sm .cos-av-frame-png { --fscale: 112%; }
 
             /* Pseudos : on garde le dégradé (--nfx-bg) intact, on resserre juste le halo pour éviter le flou */
             [data-nfx][data-nfx-glow] { filter: drop-shadow(0 0 2px var(--nfx-glow, transparent)); }
@@ -160,8 +164,8 @@
             .cos-av-sm[data-frame]::after { inset: -1.5px; box-shadow: 0 0 2px 0px var(--fr-glow, transparent); }
 
             /* Cadres en image PNG : le plus resserré possible, collé à l'avatar */
-            .cos-av-frame-png { inset: -6%; width: 112%; height: 112%; }
-            .cos-av-sm .cos-av-frame-png { inset: -4%; width: 108%; height: 108%; }
+            .cos-av-frame-png { --fscale: 112%; }
+            .cos-av-sm .cos-av-frame-png { --fscale: 108%; }
 
             /* Pseudo bien net même sur les très petits écrans (ex: "Fire2") */
             [data-nfx][data-nfx-glow] { filter: drop-shadow(0 0 1.2px var(--nfx-glow, transparent)); }
@@ -3701,6 +3705,26 @@ match /inbox/{inboxId} {
            Pseudo : bg = dégradé CSS · glow = halo (optionnel) · anim = 'shift' (défile) | 'pulse' | ''
            Rôle :   color = couleur de la pastille                                                                     */
         const solid = (c) => `linear-gradient(${c},${c})`;
+        // Centre réel (en fraction 0-1 de l'image 512x512) du trou transparent de chaque cadre PNG.
+        // Mesuré une fois sur chaque fichier : la tête/le perso en haut du cadre pousse le trou vers
+        // le bas (et parfois un peu sur le côté), donc ce n'est jamais exactement (0.5, 0.5). Utilisé
+        // par frameImgTag()/applyFrame() pour recentrer le cadre sur l'avatar au lieu de le centrer
+        // sur l'image, ce qui causait le décalage visible (surtout sur les cadres Brawl Stars).
+        const FRAME_HOLE = {
+            'frames/brawlstars-01.png':        { hx: 0.5000, hy: 0.5703 },
+            'frames/brawlstars-02.png':        { hx: 0.4980, hy: 0.5586 },
+            'frames/brawlstars-03.png':        { hx: 0.4941, hy: 0.5596 },
+            'frames/clashroyale-kings.png':    { hx: 0.4990, hy: 0.4834 },
+            'frames/clashroyale-ice.png':      { hx: 0.4932, hy: 0.5605 },
+            'frames/clashroyale-hog.png':      { hx: 0.5020, hy: 0.5068 },
+            'frames/clashofclan-cowboy.png':   { hx: 0.5020, hy: 0.5439 },
+            'frames/clashofclan-princess.png': { hx: 0.4961, hy: 0.5557 },
+            'frames/clashofclans-dragon.png':  { hx: 0.4863, hy: 0.5713 },
+        };
+        function frameHoleStyle(img) {
+            const h = img && FRAME_HOLE[img];
+            return h ? `--hx:${h.hx};--hy:${h.hy}` : '';
+        }
         const COSMETICS = {
             // ----- Cadres d'avatar -----
             frame_rose:     { type: 'frame', name: 'Rose',              icon: '🌸', price: 350,  ring: 'conic-gradient(#fb7185,#f9a8d4,#fb7185)', glow: '#fb7185', anim: '' },
@@ -3820,7 +3844,7 @@ match /inbox/{inboxId} {
             return `data-frame="${escapeHtml(d.id)}" data-fr-anim="${d.anim || ''}" style="${frameStyleVars(d)}"`;
         }
         function frameImgTag(d) {
-            return (d && d.img) ? `<img src="${escapeHtml(d.img)}" class="cos-av-frame-png" alt="" aria-hidden="true" decoding="async" onerror="this.remove()">` : '';
+            return (d && d.img) ? `<img src="${escapeHtml(d.img)}" class="cos-av-frame-png" alt="" aria-hidden="true" decoding="async" onerror="this.remove()" style="${frameHoleStyle(d.img)}">` : '';
         }
         // Entoure un avatar existant d'un cadre (si le joueur en porte un)
         function cosAv(uid, inner, small) {
@@ -3853,6 +3877,7 @@ match /inbox/{inboxId} {
                     const img = document.createElement('img');
                     img.src = d.img; img.className = 'cos-av-frame-png'; img.alt = ''; img.setAttribute('aria-hidden', 'true');
                     img.decoding = 'async'; img.onerror = () => img.remove();
+                    img.style.cssText = frameHoleStyle(d.img);
                     el.appendChild(img);
                 }
                 el.dataset.frameImg = d.id;
