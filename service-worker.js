@@ -19,6 +19,11 @@ const APP_SHELL = [
     './icons/icon-512.png'
 ];
 
+// Permet à la page de dire "prends le contrôle tout de suite" (voir index.html)
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('install', (event) => {
     self.skipWaiting();
     event.waitUntil(
