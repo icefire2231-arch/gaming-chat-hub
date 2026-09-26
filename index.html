@@ -393,7 +393,6 @@
                 <form id="message-form" onsubmit="sendMessage(event)" class="flex gap-2 items-center">
                     <button type="button" onclick="openMediaModal()" class="text-[#949ba4] hover:text-[#dbdee1] p-2 transition text-lg shrink-0" title="GIF / Image"><i class="fa-regular fa-image"></i></button>
                     <button type="button" onclick="openPingPicker()" class="text-[#949ba4] hover:text-[#dbdee1] p-2 transition text-lg shrink-0" title="Ping quelqu'un"><i class="fa-solid fa-at"></i></button>
-                    <button type="button" id="everyone-btn" onclick="insertEveryone()" class="hidden text-[#949ba4] hover:text-amber-400 p-2 transition text-lg shrink-0" title="Pinger tout le monde"><i class="fa-solid fa-bullhorn"></i></button>
                     <div class="relative flex-1 min-w-0">
                         <div id="mention-suggestions" class="hidden absolute bottom-full mb-2 left-0 right-0 bg-[#2b2d31] border border-[#3f4147] rounded-xl shadow-2xl max-h-64 overflow-y-auto z-20"></div>
                         <input type="text" id="message-input" maxlength="2000" autocomplete="off" placeholder="Envoyer un message... (@ pour ping)" class="w-full bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3.5 py-2.5 md:py-3 text-sm focus:outline-none focus:border-[var(--theme-color)] text-[#f2f3f5]">
@@ -818,7 +817,7 @@ match /inbox/{inboxId} {
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, signInWithRedirect, linkWithPopup, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, where, orderBy, limitToLast, limit, onSnapshot, serverTimestamp, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, writeBatch, arrayRemove, arrayUnion, FieldPath, deleteField, increment, getDocFromServer } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, where, orderBy, limitToLast, limit, onSnapshot, serverTimestamp, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, writeBatch, arrayRemove, arrayUnion, FieldPath, deleteField, increment, getDocFromServer, enableNetwork, disableNetwork } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
         import { getMessaging, getToken, onMessage, isSupported as fcmIsSupported, deleteToken as fcmDeleteToken } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging.js";
 
@@ -1312,10 +1311,6 @@ match /inbox/{inboxId} {
         }
 
         function mentionsMe(text) {
-            if (currentUser && text && text.includes('@everyone') && currentTargetType === 'channel') {
-                const c = textChannels.find(x => x.id === currentTargetId);
-                if (c && c.announceOnly) return true;
-            }
             const n = String(userProfile.name || '').trim();
             if (!currentUser || !text || n.length < 2 || !text.includes('@')) return false;
             const re = new RegExp("@" + escapeRegex(n) + "(?![\\p{L}\\p{N}_])", "iu");
@@ -1323,8 +1318,7 @@ match /inbox/{inboxId} {
         }
 
         function highlightMentions(text) {
-            let safe = escapeHtml(text);
-            safe = safe.replace(/@everyone\b/gi, '<span class="bg-amber-500/30 text-amber-300 px-1 rounded font-medium">@everyone</span>');
+            const safe = escapeHtml(text);
             if (!safe.includes('@')) return safe;
             const users = allUsersList.filter(u => u.uid && String(u.name || '').trim().length >= 2);
             if (!users.length) return safe;
@@ -1448,12 +1442,6 @@ match /inbox/{inboxId} {
         }
         $('ping-search').addEventListener('input', renderPingList);
 
-        window.insertEveryone = () => {
-            const cur = msgInput.value;
-            if (!cur.includes('@everyone')) msgInput.value = cur + (cur && !cur.endsWith(' ') ? ' ' : '') + '@everyone ';
-            msgInput.focus();
-        };
-
         window.openPingPicker = () => {
             pingSelected.clear();
             $('ping-search').value = '';
@@ -1503,15 +1491,6 @@ match /inbox/{inboxId} {
         // la notification part quand même vers la bonne conversation.
         function notifyAfterSend({ text = '', preview, conv, replyToUid }) {
             const me = currentUser.uid;
-            const chan = conv.type === 'channel' ? textChannels.find(c => c.id === conv.id) : null;
-            if (chan?.announceOnly && text.includes('@everyone') && isAdmin()) {
-                const recipients = allUsersList.map(u => u.uid).filter(uid => uid && uid !== me);
-                notifyUsers(recipients, {
-                    convType: conv.type, convId: conv.id, convName: conv.name,
-                    text: preview, isMention: true, kind: 'mention'
-                });
-                return;
-            }
             const mentioned = new Set(findMentionedUsers(text).map(u => u.uid));
             const replied = (replyToUid && replyToUid !== me) ? replyToUid : null;
             let recipients = [];
@@ -2173,11 +2152,6 @@ match /inbox/{inboxId} {
             $('composer-locked').classList.toggle('hidden', !locked);
             $('composer-locked').classList.toggle('flex', locked);
             if (locked) { stopTyping(); cancelReply(); cancelEdit(); }
-            const everyoneBtn = $('everyone-btn');
-            if (everyoneBtn) {
-                const showEveryone = !locked && !!(chan && chan.announceOnly && isAdmin());
-                everyoneBtn.classList.toggle('hidden', !showEveryone);
-            }
         }
 
         window.switchTarget = function (type, id, title = "") {
@@ -2601,10 +2575,46 @@ match /inbox/{inboxId} {
             }, 30000);
         }
         // Retour sur l'onglet / l'appli : on se signale tout de suite en ligne et on marque la conversation ouverte comme lue
+        let hiddenSinceTs = null;
+        let resyncInFlight = false;
+        // Au-delà de ce délai en arrière-plan, on considère que la connexion temps réel sous-jacente
+        // peut être "à moitié morte" (mobile qui suspend le JS, veille, changement de réseau...) :
+        // les écoutes onSnapshot restent ouvertes mais ne reçoivent plus les mises à jour du serveur
+        // tant qu'on ne force pas une reconnexion propre. D'où les vieux cadres/données qui ne
+        // disparaissent qu'après un F5.
+        const RESYNC_AFTER_HIDDEN_MS = 15000;
+        async function forceFirestoreResync() {
+            if (resyncInFlight) return;
+            resyncInFlight = true;
+            try {
+                // Couper puis rallumer le réseau Firestore force le SDK à rouvrir son flux temps
+                // réel et à retélécharger l'état actuel du serveur pour TOUTES les écoutes actives
+                // (cadres, salons, groupes, amis, notifications...), sans jamais recharger la page.
+                await disableNetwork(db);
+                await enableNetwork(db);
+            } catch {
+                // Si la coupure/reconnexion échoue (ex: déjà hors-ligne), pas grave : on retentera
+                // à la prochaine reprise de visibilité.
+            } finally {
+                resyncInFlight = false;
+            }
+        }
         document.addEventListener('visibilitychange', () => {
-            if (document.hidden || !currentUser) return;
+            if (document.hidden) {
+                hiddenSinceTs = Date.now();
+                return;
+            }
+            if (!currentUser) return;
+            const wasHiddenLong = hiddenSinceTs && (Date.now() - hiddenSinceTs) > RESYNC_AFTER_HIDDEN_MS;
+            hiddenSinceTs = null;
+            if (wasHiddenLong) forceFirestoreResync();
             updateDoc(doc(db, "users", currentUser.uid), { lastSeen: serverTimestamp() }).catch(() => {});
             refreshUnreadUI();
+        });
+        // Filet de sécurité complémentaire : certains navigateurs mobiles déclenchent 'pageshow'
+        // (retour depuis le bfcache) sans forcément redéclencher 'visibilitychange' de façon fiable.
+        window.addEventListener('pageshow', (e) => {
+            if (e.persisted && currentUser) forceFirestoreResync();
         });
         // Le statut "en ligne" expire avec le temps même sans nouvel évènement : on le rafraîchit régulièrement
         setInterval(() => { if (currentUser) { updateOnlineCount(); initSidebarUI(); } }, 20000);
@@ -3990,14 +4000,13 @@ match /inbox/{inboxId} {
         }
 
         /* ---------- Catalogue serveur (prix officiels lus par les règles Firestore) ---------- */
-        let catalogDoc = null, catalogLoaded = false, unsubCatalog = null;
-        function ensureShopCatalog() {
-            if (unsubCatalog) return;
-            unsubCatalog = onSnapshot(doc(db, 'settings', 'shop_catalog'), (s) => {
-                catalogDoc = s.exists() ? s.data() : null;
-                catalogLoaded = true;
-                if (hubIsOpen() && hubTab === 'shop') renderHub();
-            }, () => { catalogDoc = null; catalogLoaded = true; });
+        let catalogDoc = null, catalogLoaded = false;
+        async function ensureShopCatalog(force) {
+            if (catalogLoaded && !force) return;
+            try { const s = await getDoc(doc(db, 'settings', 'shop_catalog')); catalogDoc = s.exists() ? s.data() : null; }
+            catch (e) { catalogDoc = null; }
+            catalogLoaded = true;
+            if (hubIsOpen() && hubTab === 'shop') renderHub();
         }
         const shopPrice = (id) => { const p = catalogDoc?.items?.[id]?.p; return (Number.isInteger(p) && p > 0) ? p : 0; };
         const shopEntries = () => Object.keys(COSMETICS).map(cosmeticOf).filter(d => d && !d.exclusive && d.price > 0);
@@ -4016,6 +4025,7 @@ match /inbox/{inboxId} {
             if (!isAdmin()) return;
             try {
                 await setDoc(doc(db, 'settings', 'shop_catalog'), { items: catalogWanted(), updatedAt: serverTimestamp() });
+                await ensureShopCatalog(true);
                 showToast('✅ Catalogue de la boutique publié.');
             } catch (e) { showToast('Publication impossible : ' + e.message); }
         };
@@ -4054,23 +4064,22 @@ match /inbox/{inboxId} {
         };
 
         /* ---------- Historique des saisons (collection "seasons", écrite une seule fois par l'admin à la clôture) ---------- */
-        let seasonsHistory = [], seasonsLoaded = false, seasonsError = '', rewardLinks = {}, unsubSeasons = null;
-        function ensureSeasonsHistory() {
-            if (unsubSeasons) return;
-            unsubSeasons = onSnapshot(collection(db, 'seasons'), async (snap) => {
-                try {
-                    seasonsHistory = snap.docs.map(d => d.data()).filter(s => Number.isInteger(s.number)).sort((a, b) => b.number - a.number);
-                    seasonsError = '';
-                    // Lien de récompense (privé) : lisible uniquement par les gagnants et l'admin
-                    const mine = seasonsHistory.filter(s => (s.winnerUids || []).includes(currentUser.uid) || isAdmin());
-                    await Promise.all(mine.map(async (s) => {
-                        try { const r = await getDoc(doc(db, 'seasons', 'season_' + s.number, 'private', 'reward')); rewardLinks[s.number] = r.exists() ? String(r.data().url || '') : ''; }
-                        catch { rewardLinks[s.number] = ''; }
-                    }));
-                } catch (e) { seasonsError = e.message; }
-                seasonsLoaded = true;
-                if (hubIsOpen() && hubTab === 'season') renderHub();
-            }, (e) => { seasonsError = e.message; seasonsLoaded = true; });
+        let seasonsHistory = [], seasonsLoaded = false, seasonsError = '', rewardLinks = {};
+        async function ensureSeasonsHistory(force) {
+            if (seasonsLoaded && !force) return;
+            try {
+                const snap = await getDocs(collection(db, 'seasons'));
+                seasonsHistory = snap.docs.map(d => d.data()).filter(s => Number.isInteger(s.number)).sort((a, b) => b.number - a.number);
+                seasonsError = '';
+                // Lien de récompense (privé) : lisible uniquement par les gagnants et l'admin
+                const mine = seasonsHistory.filter(s => (s.winnerUids || []).includes(currentUser.uid) || isAdmin());
+                await Promise.all(mine.map(async (s) => {
+                    try { const r = await getDoc(doc(db, 'seasons', 'season_' + s.number, 'private', 'reward')); rewardLinks[s.number] = r.exists() ? String(r.data().url || '') : ''; }
+                    catch { rewardLinks[s.number] = ''; }
+                }));
+            } catch (e) { seasonsError = e.message; }
+            seasonsLoaded = true;
+            if (hubIsOpen() && hubTab === 'season') renderHub();
         }
 
         // Administration : clôture d'une saison terminée = enregistre le classement + attribue les récompenses, en UNE écriture atomique.
@@ -4107,6 +4116,7 @@ match /inbox/{inboxId} {
                 });
                 await batch.commit();
                 showToast(`🏆 Saison ${n} clôturée, récompenses distribuées.`);
+                await ensureSeasonsHistory(true);
             } catch (e) { showToast('Clôture impossible : ' + e.message); }
             finally { closingSeason = false; }
         };
@@ -4324,8 +4334,6 @@ match /inbox/{inboxId} {
         // Remet à zéro à la déconnexion (le prochain compte ne voit rien de l'ancien)
         function resetEconomyState() {
             usersByUid = new Map(); cosSig = ''; hubMySig = '';
-            if (unsubCatalog) { unsubCatalog(); unsubCatalog = null; }
-            if (unsubSeasons) { unsubSeasons(); unsubSeasons = null; }
             catalogDoc = null; catalogLoaded = false;
             seasonsHistory = []; seasonsLoaded = false; seasonsError = ''; rewardLinks = {};
             serverOffsetMs = 0; buying = false; closingSeason = false;
