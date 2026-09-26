@@ -148,27 +148,29 @@
             .cos-av-sm[data-frame]::before { inset: -2px; padding: 1.5px; }
             .cos-av-sm[data-frame]::after { inset: -2px; box-shadow: 0 0 3px 0px var(--fr-glow, transparent); }
 
-            /* Cadres en image PNG : encore plus resserrés qu'en desktop pour ne plus déborder sur le texte des messages */
-            .cos-av-frame-png { --fscale: 118%; }
-            .cos-av-sm .cos-av-frame-png { --fscale: 112%; }
+            /* Cadres en image PNG : légèrement resserrés vs desktop, mais pas au point de laisser
+               un vide en bas du cercle sur les artworks dont le centre visuel n'est pas au milieu
+               (voir FRAME_HOTSPOTS plus bas : hy != 0.5 pour la plupart des cadres). */
+            .cos-av-frame-png { --fscale: 128%; }
+            .cos-av-sm .cos-av-frame-png { --fscale: 118%; }
 
-            /* Pseudos : on garde le dégradé (--nfx-bg) intact, on resserre juste le halo pour éviter le flou */
-            [data-nfx][data-nfx-glow] { filter: drop-shadow(0 0 2px var(--nfx-glow, transparent)); }
+            /* Pseudos : le halo (drop-shadow) sur du texte à remplissage transparent (background-clip:
+               text) rend flou sur certains navigateurs mobiles (rastérisation du filtre sur un buffer
+               basse résolution). On le retire entièrement sur mobile plutôt que de le rétrécir : le
+               dégradé de couleur (--nfx-bg) reste net sans lui. */
+            [data-nfx][data-nfx-glow] { filter: none; }
         }
 
         @media (max-width: 480px) {
-            /* Petits écrans : cadres encore plus précis, collés à l'avatar */
+            /* Petits écrans : anneau CSS un peu plus fin, mais cadres PNG inchangés par rapport au
+               palier précédent pour ne pas recréer le vide en bas du cercle. */
             .cos-av[data-frame]::before { inset: -2px; padding: 1.5px; }
             .cos-av[data-frame]::after { inset: -2px; box-shadow: 0 0 4px 0px var(--fr-glow, transparent); }
             .cos-av-sm[data-frame]::before { inset: -1.5px; padding: 1px; }
             .cos-av-sm[data-frame]::after { inset: -1.5px; box-shadow: 0 0 2px 0px var(--fr-glow, transparent); }
 
-            /* Cadres en image PNG : le plus resserré possible, collé à l'avatar */
-            .cos-av-frame-png { --fscale: 112%; }
-            .cos-av-sm .cos-av-frame-png { --fscale: 108%; }
-
-            /* Pseudo bien net même sur les très petits écrans (ex: "Fire2") */
-            [data-nfx][data-nfx-glow] { filter: drop-shadow(0 0 1.2px var(--nfx-glow, transparent)); }
+            /* Pseudo bien net même sur les très petits écrans (ex: "Fire2") : toujours pas de halo */
+            [data-nfx][data-nfx-glow] { filter: none; }
         }
 
         @media (prefers-reduced-motion: reduce) {
