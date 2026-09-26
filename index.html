@@ -2628,6 +2628,7 @@ match /inbox/{inboxId} {
             $('media-modal').classList.remove('hidden');
             // Upload depuis l'appareil : MP et groupes seulement (coût de stockage), pas dans les salons publics.
             $('media-upload-section').classList.toggle('hidden', !(currentTargetType === 'dm' || currentTargetType === 'group'));
+            $('media-upload-status').innerHTML = '';
             if (!$('gif-results').dataset.loaded) loadTrendingGifs();
         };
         window.closeMediaModal = () => $('media-modal').classList.add('hidden');
@@ -2674,7 +2675,12 @@ match /inbox/{inboxId} {
                 return showToast("Les images depuis l'appareil sont réservées aux MP et aux groupes pour l'instant.");
             }
             if (!file.type.startsWith('image/')) { $('media-file-input').value = ''; return showToast("Ce fichier n'est pas une image."); }
-            if (file.size > 2 * 1024 * 1024) { $('media-file-input').value = ''; return showToast("Image trop lourde (2 Mo max)."); }
+            if (file.size > 2 * 1024 * 1024) {
+                $('media-file-input').value = '';
+                const mo = (file.size / (1024 * 1024)).toFixed(1);
+                status.innerHTML = `Image trop lourde (${mo} Mo, 2 Mo max). <a href="https://thclash917-hash.github.io/mon-hub/" target="_blank" rel="noopener" class="text-[var(--theme-color)] underline hover:opacity-80">Compresse-la ici</a>, puis réessaie.`;
+                return;
+            }
             status.textContent = "Envoi en cours…";
             try {
                 const path = `user-media/${currentUser.uid}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
