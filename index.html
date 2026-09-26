@@ -2599,44 +2599,6 @@ match /inbox/{inboxId} {
                 resyncInFlight = false;
             }
         }
-        // ---- Détection d'une nouvelle version de index.html déployée (contenu HTML/JS/CSS) ----
-        // Contexte : le service worker sert déjà index.html en "réseau d'abord" pour toute
-        // NAVIGATION complète (F5, réouverture) — ça, c'est déjà correct. Le vrai trou : quand on
-        // revient sur un onglet resté ouvert en arrière-plan, AUCUNE requête réseau n'a lieu, donc
-        // le JS déjà chargé continue de tourner tel quel, même si un nouveau design (cadres, etc.)
-        // a été déployé entre-temps. swRegistration.update() ne détecte que les changements dans
-        // service-worker.js lui-même, pas dans index.html : il faut donc vérifier ce fichier
-        // explicitement. On utilise une requête HEAD : le service worker n'intercepte que les GET
-        // (voir "if (req.method !== 'GET') return;" dans service-worker.js), une HEAD passe donc
-        // toujours en direct au serveur, jamais au cache — avec {cache:'no-store'} en plus pour
-        // ignorer aussi le cache HTTP du navigateur.
-        let currentIndexVersionTag = null;
-        async function fetchIndexVersionTag() {
-            try {
-                const res = await fetch('./index.html', { method: 'HEAD', cache: 'no-store' });
-                return res.headers.get('etag') || res.headers.get('last-modified') || null;
-            } catch { return null; }
-        }
-        fetchIndexVersionTag().then((tag) => { currentIndexVersionTag = tag; });
-        let versionCheckInFlight = false;
-        async function checkForNewVersion() {
-            if (versionCheckInFlight || !currentIndexVersionTag) return;
-            versionCheckInFlight = true;
-            try {
-                const tag = await fetchIndexVersionTag();
-                if (!tag || tag === currentIndexVersionTag) return;
-                // Une nouvelle version est en ligne. On évite de recharger brutalement si l'utilisateur
-                // a un message en cours de rédaction (perte de saisie) : dans ce cas on prévient
-                // seulement, sinon on recharge directement — comme le ferait un F5.
-                if (msgInput && msgInput.value.trim()) {
-                    showToast('🔄 Nouvelle version disponible : actualise (F5) quand tu es prêt.', 6000);
-                } else {
-                    window.location.reload();
-                }
-            } finally {
-                versionCheckInFlight = false;
-            }
-        }
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
                 hiddenSinceTs = Date.now();
@@ -2646,10 +2608,8 @@ match /inbox/{inboxId} {
             const wasHiddenLong = hiddenSinceTs && (Date.now() - hiddenSinceTs) > RESYNC_AFTER_HIDDEN_MS;
             hiddenSinceTs = null;
             if (wasHiddenLong) forceFirestoreResync();
-            // Utile si service-worker.js lui-même a changé (nouvelle logique FCM, etc.) — mais ne
-            // couvre PAS les changements de index.html seul, d'où la vérification ci-dessus.
+            // Utile si service-worker.js lui-même a changé (nouvelle logique FCM, etc.).
             if (swRegistration) swRegistration.update().catch(() => {});
-            if (wasHiddenLong) checkForNewVersion();
             updateDoc(doc(db, "users", currentUser.uid), { lastSeen: serverTimestamp() }).catch(() => {});
             refreshUnreadUI();
         });
@@ -2659,7 +2619,6 @@ match /inbox/{inboxId} {
             if (!e.persisted) return;
             if (currentUser) forceFirestoreResync();
             if (swRegistration) swRegistration.update().catch(() => {});
-            checkForNewVersion();
         });
         // Le statut "en ligne" expire avec le temps même sans nouvel évènement : on le rafraîchit régulièrement
         setInterval(() => { if (currentUser) { updateOnlineCount(); initSidebarUI(); } }, 20000);
