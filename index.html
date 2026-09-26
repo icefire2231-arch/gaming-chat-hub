@@ -397,7 +397,7 @@
                     <button type="button" onclick="openPingPicker()" class="text-[#949ba4] hover:text-[#dbdee1] p-2 transition text-lg shrink-0" title="Ping quelqu'un"><i class="fa-solid fa-at"></i></button>
                     <div class="relative flex-1 min-w-0">
                         <div id="mention-suggestions" class="hidden absolute bottom-full mb-2 left-0 right-0 bg-[#2b2d31] border border-[#3f4147] rounded-xl shadow-2xl max-h-64 overflow-y-auto z-20"></div>
-                        <input type="text" id="message-input" maxlength="2000" autocomplete="off" placeholder="Envoyer un message... (@ pour ping)" class="w-full bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3.5 py-2.5 md:py-3 text-sm focus:outline-none focus:border-[var(--theme-color)] text-[#f2f3f5]">
+                        <textarea id="message-input" maxlength="2000" autocomplete="off" rows="1" placeholder="Envoyer un message... (@ pour ping, Maj+Entrée pour un saut de ligne)" class="w-full bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3.5 py-2.5 md:py-3 text-sm focus:outline-none focus:border-[var(--theme-color)] text-[#f2f3f5] resize-none block max-h-40 overflow-y-auto leading-snug"></textarea>
                     </div>
                     <!-- onmousedown/preventDefault : le bouton n'enlève plus le focus du champ, le clavier mobile reste ouvert -->
                     <button type="submit" onmousedown="event.preventDefault()" class="bg-[var(--theme-color)] hover:opacity-90 text-white px-4 md:px-5 py-2.5 md:py-3 rounded-xl transition font-medium text-sm flex items-center justify-center shadow-lg shrink-0"><i class="fa-solid fa-paper-plane"></i></button>
@@ -1454,6 +1454,7 @@ match /inbox/{inboxId} {
             const val = msgInput.value;
             const at = val.lastIndexOf('@');
             msgInput.value = (at === -1 ? val : val.slice(0, at)) + `@${u.name} `;
+            resizeMsgInput();
             closeMentionBox();
             msgInput.focus();
         };
@@ -1501,6 +1502,7 @@ match /inbox/{inboxId} {
             if (!names.length) return;
             const cur = msgInput.value;
             msgInput.value = cur + (cur && !cur.endsWith(' ') ? ' ' : '') + names.join(' ') + ' ';
+            resizeMsgInput();
             closePingPicker();
             msgInput.focus();
         };
@@ -1510,6 +1512,7 @@ match /inbox/{inboxId} {
             if (!isAdmin()) return showToast("⛔ Réservé à l'administrateur.");
             const cur = msgInput.value;
             msgInput.value = cur + (cur && !cur.endsWith(' ') ? ' ' : '') + '@everyone ';
+            resizeMsgInput();
             closePingPicker();
             msgInput.focus();
         };
@@ -3367,6 +3370,12 @@ match /inbox/{inboxId} {
         let typingTimeout, typingRef = null, lastTypingSent = 0;
         const msgInput = $('message-input');
 
+        // Agrandit automatiquement la zone de texte au fil de la saisie (jusqu'à la limite max-h-40 du CSS).
+        function resizeMsgInput() {
+            msgInput.style.height = 'auto';
+            msgInput.style.height = msgInput.scrollHeight + 'px';
+        }
+
         function stopTyping() {
             clearTimeout(typingTimeout);
             if (typingRef) { deleteDoc(typingRef).catch(() => {}); typingRef = null; }
@@ -3374,6 +3383,7 @@ match /inbox/{inboxId} {
         }
 
         msgInput.addEventListener('input', () => {
+            resizeMsgInput();
             handleMentionAutocomplete();
             if (!currentUser) return;
             typingRef = doc(db, typingPath(), currentUser.uid);
@@ -3386,9 +3396,15 @@ match /inbox/{inboxId} {
             clearTimeout(typingTimeout);
             typingTimeout = setTimeout(stopTyping, 2500);
         });
-        // Clavier : navigation dans les suggestions @, Échap annule la réponse en cours
+        // Clavier : Entrée envoie le message, Maj+Entrée insère un saut de ligne,
+        // navigation dans les suggestions @, Échap annule la réponse en cours
         msgInput.addEventListener('keydown', (e) => {
             if (handleMentionKeys(e)) return;
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                $('message-form').requestSubmit();
+                return;
+            }
             if (e.key === 'Escape' && replyTo) cancelReply();
         });
         document.addEventListener('click', (e) => {
@@ -3440,6 +3456,7 @@ match /inbox/{inboxId} {
             if (!u || u.uid === currentUser?.uid) return;
             const cur = msgInput.value;
             msgInput.value = cur + (cur && !cur.endsWith(' ') ? ' ' : '') + `@${u.name} `;
+            resizeMsgInput();
             msgInput.focus();
         };
 
@@ -3452,7 +3469,7 @@ match /inbox/{inboxId} {
             if (editing) return saveEdit(text);
 
             if (text === "/clean") {
-                if (!isAdmin()) { showToast("⛔ Réservé à l'administrateur."); msgInput.value = ''; return; }
+                if (!isAdmin()) { showToast("⛔ Réservé à l'administrateur."); msgInput.value = ''; resizeMsgInput(); return; }
                 try {
                     const snap = await getDocs(collection(db, messagesPath()));
                     for (let i = 0; i < snap.docs.length; i += 450) {
@@ -3465,6 +3482,7 @@ match /inbox/{inboxId} {
                     showToast("🧹 Salon nettoyé !");
                 } catch (err) { showToast("Erreur : " + err.message); }
                 msgInput.value = '';
+                resizeMsgInput();
                 return;
             }
 
@@ -3473,6 +3491,7 @@ match /inbox/{inboxId} {
             const conv = currentConv();
             const reply = replyTo;
             msgInput.value = '';
+            resizeMsgInput();
             $('mention-suggestions').classList.add('hidden');
             stopTyping();
             cancelReply();
@@ -3490,7 +3509,7 @@ match /inbox/{inboxId} {
                 notifyAfterSend({ text, preview, conv, replyToUid: reply?.uid });
                 touchChannelMeta(conv, preview);
             } catch (error) {
-                if (!msgInput.value) msgInput.value = text;   // on rend le texte à l'utilisateur en cas d'échec
+                if (!msgInput.value) { msgInput.value = text; resizeMsgInput(); }   // on rend le texte à l'utilisateur en cas d'échec
                 if (reply) setReply(reply);
                 showToast("Erreur: " + error.message);
             }
@@ -4632,6 +4651,7 @@ match /inbox/{inboxId} {
             editing = { id, path: messagesPath(), pinsPath: pinsPath() };
             const bar = $('edit-bar'); bar.classList.remove('hidden'); bar.classList.add('flex');
             msgInput.value = m.text;
+            resizeMsgInput();
             msgInput.focus();
         };
         function cancelEdit() {
@@ -4639,6 +4659,7 @@ match /inbox/{inboxId} {
             editing = null;
             const bar = $('edit-bar'); bar.classList.add('hidden'); bar.classList.remove('flex');
             msgInput.value = '';
+            resizeMsgInput();
         }
         window.cancelEdit = cancelEdit;
         msgInput.addEventListener('keydown', (e) => { if (e.key === 'Escape' && editing) cancelEdit(); });
@@ -4654,7 +4675,7 @@ match /inbox/{inboxId} {
                 batch.update(doc(db, ed.path, ed.id), { text, editedAt: serverTimestamp() });
                 if (pin) batch.update(doc(db, ed.pinsPath, pin.id), { text, editedAt: serverTimestamp() });   // l'épingle reste à jour
                 await batch.commit();
-            } catch (e) { msgInput.value = text; showToast("Modification impossible : " + e.message); }
+            } catch (e) { msgInput.value = text; resizeMsgInput(); showToast("Modification impossible : " + e.message); }
         }
 
         /* ---------- Messages épinglés (collection <salon>/pins/p0…p9) ---------- */
@@ -4919,7 +4940,7 @@ match /inbox/{inboxId} {
                             <span class="msg-time text-[11px] text-[#80848e]">${time}</span>
                             ${msg.editedAt ? '<span class="text-[10px] text-[#80848e] italic" title="Ce message a été modifié">(modifié)</span>' : ''}
                         </div>
-                        <div class="text-sm text-[#dbdee1] break-words leading-snug">${content}</div>
+                        <div class="text-sm text-[#dbdee1] break-words leading-snug whitespace-pre-wrap">${content}</div>
                         ${reactionsHtml}
                     </div>
                 </div>`;
