@@ -670,6 +670,12 @@
                 </div>
                 <div id="gif-results" class="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto pr-1"></div>
             </div>
+            <div id="media-upload-section" class="border-t border-[#3f4147] pt-3 hidden">
+                <label class="text-xs font-semibold text-[#949ba4] block mb-2">📁 Depuis ton appareil <span class="font-normal text-[#80848e]">(MP et groupes uniquement · 2 Mo max)</span></label>
+                <input type="file" id="media-file-input" accept="image/*" class="hidden" onchange="handleUserImageFile(this.files[0])">
+                <button type="button" onclick="$('media-file-input').click()" class="w-full px-4 py-2.5 rounded-xl text-sm bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] border border-dashed border-[#3f4147] transition"><i class="fa-solid fa-upload mr-1.5"></i>Choisir une image sur mon appareil</button>
+                <div id="media-upload-status" class="text-[11px] text-[#80848e] mt-1.5 min-h-[1em]"></div>
+            </div>
             <div class="flex justify-end pt-2">
                 <button onclick="closeMediaModal()" class="px-4 py-2.5 rounded-xl text-sm bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1]">Fermer</button>
             </div>
@@ -2620,6 +2626,8 @@ match /inbox/{inboxId} {
 
         window.openMediaModal = () => {
             $('media-modal').classList.remove('hidden');
+            // Upload depuis l'appareil : MP et groupes seulement (coût de stockage), pas dans les salons publics.
+            $('media-upload-section').classList.toggle('hidden', !(currentTargetType === 'dm' || currentTargetType === 'group'));
             if (!$('gif-results').dataset.loaded) loadTrendingGifs();
         };
         window.closeMediaModal = () => $('media-modal').classList.add('hidden');
@@ -2655,6 +2663,32 @@ match /inbox/{inboxId} {
             if (url) await postMedia(url);
         };
         window.sendPresetGif = async (url) => postMedia(url);
+
+        // Image envoyée depuis l'appareil (pas une URL/GIF) : uniquement MP + groupes, 2 Mo max,
+        // pour limiter le volume envoyé sur Firebase Storage (facturé au-delà du forfait gratuit).
+        window.handleUserImageFile = async (file) => {
+            const status = $('media-upload-status');
+            if (!file) return;
+            if (!(currentTargetType === 'dm' || currentTargetType === 'group')) {
+                $('media-file-input').value = '';
+                return showToast("Les images depuis l'appareil sont réservées aux MP et aux groupes pour l'instant.");
+            }
+            if (!file.type.startsWith('image/')) { $('media-file-input').value = ''; return showToast("Ce fichier n'est pas une image."); }
+            if (file.size > 2 * 1024 * 1024) { $('media-file-input').value = ''; return showToast("Image trop lourde (2 Mo max)."); }
+            status.textContent = "Envoi en cours…";
+            try {
+                const path = `user-media/${currentUser.uid}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+                const r = storageRef(storage, path);
+                await uploadBytes(r, file);
+                const url = await getDownloadURL(r);
+                status.textContent = "";
+                await postMedia(url);
+            } catch (e) {
+                status.textContent = "Erreur d'envoi : " + e.message;
+            } finally {
+                $('media-file-input').value = '';
+            }
+        };
 
         async function postMedia(url) {
             const clean = safeUrl(url);
@@ -3814,12 +3848,27 @@ match /inbox/{inboxId} {
 
         /* ---------- Données publiques des joueurs (déjà en mémoire : aucune lecture Firestore en plus) ---------- */
         let usersByUid = new Map(), cosSig = '';
+        let ownerCountCache = new Map();   // id de cosmétique -> nombre de joueurs qui le possèdent (recalculé à chaque maj de la liste)
         function indexUsers() {
             usersByUid = new Map(allUsersList.map(u => [u.uid, u]));
             const sig = allUsersList.map(u => `${u.uid}|${u.equippedAvatarFrame || ''}|${u.equippedNameEffect || ''}|${u.equippedRole || ''}`).join('\n');
             const changed = sig !== cosSig;
             cosSig = sig;
+            const counts = new Map();
+            for (const u of allUsersList) for (const id in ownedOf(u)) counts.set(id, (counts.get(id) || 0) + 1);
+            ownerCountCache = counts;
             return changed;
+        }
+        // Badge de rareté : basé sur le nombre RÉEL de joueurs qui possèdent l'objet (pas son prix).
+        // Pas de badge tant qu'il n'y a pas assez de joueurs pour que "rare" veuille dire quelque chose.
+        function rarityBadge(id) {
+            const total = allUsersList.length;
+            if (total < 4) return null;
+            const count = ownerCountCache.get(id) || 0;
+            if (!count) return null;
+            if (count === 1) return { label: 'Unique', cls: 'border-fuchsia-500/50 bg-fuchsia-500/10 text-fuchsia-300', title: `1 seul joueur sur ${total} possède ce cosmétique` };
+            if (count / total <= 0.2) return { label: 'Rare', cls: 'border-sky-500/50 bg-sky-500/10 text-sky-300', title: `${count} joueurs sur ${total} possèdent ce cosmétique` };
+            return null;
         }
         const ownedOf = (u) => (u && u.owned && typeof u.owned === 'object') ? u.owned : {};
         const isAdminUid = (uid) => ADMIN_UIDS.includes(uid);     // affichage uniquement : la vraie sécurité est dans les règles Firestore
@@ -4126,7 +4175,10 @@ match /inbox/{inboxId} {
             const details = d.exclusive ? `<details class="text-[11px] text-[#b5bac1] text-left"><summary class="cursor-pointer text-[#949ba4] select-none">Détails</summary>
                     <div class="mt-1 space-y-0.5"><div class="font-semibold text-[#f2f3f5]">${escapeHtml(d.icon)} ${escapeHtml(d.name)}</div>
                     <div>Récompense exclusive de la Saison ${d.season}.</div><div>Obtenue grâce au classement de fin de saison.</div><div class="text-amber-300">🔒 Exclusivité permanente</div></div></details>` : '';
-            return `<div class="bg-[#1e1f22] border ${d.exclusive ? 'border-amber-500/40' : 'border-[#3f4147]'} rounded-2xl p-3 flex flex-col items-center gap-2 text-center">
+            const rarity = rarityBadge(d.id);
+            const rarityTag = rarity ? `<span class="absolute top-1.5 left-1.5 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full border ${rarity.cls}" title="${escapeHtml(rarity.title)}">${rarity.label}</span>` : '';
+            return `<div class="relative bg-[#1e1f22] border ${d.exclusive ? 'border-amber-500/40' : 'border-[#3f4147]'} rounded-2xl p-3 flex flex-col items-center gap-2 text-center">
+                ${rarityTag}
                 <div class="h-16 flex items-center justify-center">${previewHtml(d)}</div>
                 <div class="min-w-0 w-full"><div class="text-sm font-semibold truncate">${escapeHtml(d.icon)} ${escapeHtml(d.name)}</div><div class="text-xs font-bold">${priceTxt}</div></div>
                 ${details}${action}</div>`;
