@@ -572,6 +572,13 @@
         <div class="modal-pop bg-[#2b2d31] border border-[#3f4147] p-5 rounded-2xl max-w-sm w-full space-y-3 shadow-2xl max-h-[80vh] flex flex-col">
             <h3 class="font-bold text-lg flex items-center gap-2 shrink-0"><i class="fa-solid fa-at text-[var(--theme-color)]"></i> Pinger quelqu'un</h3>
             <p class="text-xs text-[#949ba4] shrink-0">Clique sur une ou plusieurs personnes. Elles reçoivent une notification même si elles ne sont pas connectées : elles la verront à leur retour.</p>
+            <button type="button" id="ping-everyone-btn" onclick="pingEveryone()" class="hidden shrink-0 w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 transition text-left">
+                <div class="w-8 h-8 rounded-full bg-amber-500/80 flex items-center justify-center shrink-0"><i class="fa-solid fa-bullhorn text-white text-xs"></i></div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-amber-400">Tout le monde</p>
+                    <p class="text-[11px] text-[#949ba4] truncate">Notifie tous les membres en un clic</p>
+                </div>
+            </button>
             <input type="text" id="ping-search" placeholder="Rechercher un pseudo..." autocomplete="off" class="shrink-0 w-full bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3 py-2.5 text-sm">
             <div id="ping-list" class="space-y-0.5 overflow-y-auto"></div>
             <div class="flex gap-2 shrink-0">
@@ -1296,10 +1303,22 @@ match /inbox/{inboxId} {
            sa boîte de réception (Firestore) et elle la verra à son retour. Les pseudos avec espaces
            ("La Team") sont reconnus. */
 
+        // Mot-clé spécial pour pinguer tout le monde d'un coup (ex: dans le salon Annonces).
+        // "everyone" et "tous" sont acceptés, insensible à la casse.
+        // Réservé à l'administrateur : un message d'un membre normal contenant "@everyone" est traité
+        // comme du texte normal (pas de notification de masse).
+        const EVERYONE_KEYWORDS = ["everyone", "tous"];
+        const EVERYONE_RE = new RegExp("@(" + EVERYONE_KEYWORDS.join("|") + ")(?![\\p{L}\\p{N}_])", "iu");
+
+        function mentionsEveryone(text, authorUid) {
+            return !!text && text.includes('@') && ADMIN_UIDS.includes(authorUid) && EVERYONE_RE.test(text);
+        }
+
         function findMentionedUsers(text) {
             if (!text || !text.includes('@')) return [];
             const users = allUsersList.filter(u => u.uid && String(u.name || '').trim().length >= 2);
             if (!users.length) return [];
+            if (mentionsEveryone(text, currentUser?.uid)) return users.filter(u => u.uid !== currentUser?.uid);
             const names = users.map(u => u.name.trim()).sort((a, b) => b.length - a.length);
             const re = new RegExp("@(" + names.map(escapeRegex).join("|") + ")(?![\\p{L}\\p{N}_])", "giu");
             const byName = new Map(users.map(u => [u.name.trim().toLowerCase(), u]));
@@ -1312,16 +1331,21 @@ match /inbox/{inboxId} {
             return result;
         }
 
-        function mentionsMe(text) {
+        function mentionsMe(text, authorUid) {
             const n = String(userProfile.name || '').trim();
             if (!currentUser || !text || n.length < 2 || !text.includes('@')) return false;
+            if (mentionsEveryone(text, authorUid)) return true;
             const re = new RegExp("@" + escapeRegex(n) + "(?![\\p{L}\\p{N}_])", "iu");
             return re.test(text);
         }
 
-        function highlightMentions(text) {
-            const safe = escapeHtml(text);
+        function highlightMentions(text, authorUid) {
+            let safe = escapeHtml(text);
             if (!safe.includes('@')) return safe;
+            if (mentionsEveryone(text, authorUid)) {
+                safe = safe.replace(EVERYONE_RE, (whole) =>
+                    `<span class="bg-amber-500/30 text-amber-300 px-1 rounded font-medium">${whole}</span>`);
+            }
             const users = allUsersList.filter(u => u.uid && String(u.name || '').trim().length >= 2);
             if (!users.length) return safe;
             const names = users.map(u => escapeHtml(u.name.trim())).sort((a, b) => b.length - a.length);
@@ -1365,15 +1389,27 @@ match /inbox/{inboxId} {
             mentionMatches = []; mentionIdx = 0;
         }
 
+        // Pseudo-entrée spéciale "Tout le monde" affichée en haut de la liste de suggestions.
+        const EVERYONE_ENTRY = { uid: '__everyone__', name: 'everyone', everyone: true };
+
         function renderMentionBox() {
             const box = $('mention-suggestions');
             if (!mentionMatches.length) { box.classList.add('hidden'); return; }
-            const nOn = mentionMatches.filter(isOnline).length;
+            const real = mentionMatches.filter(u => !u.everyone);
+            const nOn = real.filter(isOnline).length;
             let html = '', group = null;
             mentionMatches.forEach((u, i) => {
+                const active = i === mentionIdx;
+                if (u.everyone) {
+                    html += `<button type="button" data-uid="${u.uid}" ${active ? 'data-active="1"' : ''} onmousedown="event.preventDefault()" onclick="insertMention(this.dataset.uid)" class="w-full text-left px-3 py-2 flex items-center gap-2.5 text-sm transition ${active ? 'bg-[#35373c]' : 'hover:bg-[#35373c]'}">
+                        <div class="w-6 h-6 rounded-full bg-amber-500/80 flex items-center justify-center shrink-0"><i class="fa-solid fa-bullhorn text-white text-[10px]"></i></div>
+                        <span class="truncate flex-1 font-medium text-amber-400">Tout le monde</span>
+                        <span class="text-[10px] text-[#80848e]">@everyone</span>
+                    </button>`;
+                    return;
+                }
                 const on = isOnline(u);
                 if (on !== group) { group = on; html += groupHeader(on, nOn); }
-                const active = i === mentionIdx;
                 html += `<button type="button" data-uid="${escapeHtml(u.uid)}" ${active ? 'data-active="1"' : ''} onmousedown="event.preventDefault()" onclick="insertMention(this.dataset.uid)" class="w-full text-left px-3 py-2 flex items-center gap-2.5 text-sm transition ${active ? 'bg-[#35373c]' : 'hover:bg-[#35373c]'}">
                     ${avatarBubble(u, 'w-6 h-6')}
                     <span class="truncate flex-1">${escapeHtml(u.name)}</span>
@@ -1394,6 +1430,10 @@ match /inbox/{inboxId} {
             mentionMatches = allUsersList
                 .filter(u => u.uid && u.uid !== currentUser?.uid && u.name && normalizeName(u.name).includes(partial))
                 .sort(sortPeople(partial));
+            // "everyone"/"tous" matche aussi le mot-clé spécial (réservé à l'admin), proposé en tête de liste
+            if (isAdmin() && (!partial || EVERYONE_KEYWORDS.some(k => k.startsWith(partial)))) {
+                mentionMatches = [EVERYONE_ENTRY, ...mentionMatches];
+            }
             mentionIdx = 0;
             renderMentionBox();
         }
@@ -1409,7 +1449,7 @@ match /inbox/{inboxId} {
         }
 
         window.insertMention = (uid) => {
-            const u = allUsersList.find(x => x.uid === uid);
+            const u = uid === EVERYONE_ENTRY.uid ? EVERYONE_ENTRY : allUsersList.find(x => x.uid === uid);
             if (!u) return;
             const val = msgInput.value;
             const at = val.lastIndexOf('@');
@@ -1447,6 +1487,7 @@ match /inbox/{inboxId} {
         window.openPingPicker = () => {
             pingSelected.clear();
             $('ping-search').value = '';
+            $('ping-everyone-btn').classList.toggle('hidden', !isAdmin());
             renderPingList();
             $('ping-modal').classList.remove('hidden');
         };
@@ -1460,6 +1501,15 @@ match /inbox/{inboxId} {
             if (!names.length) return;
             const cur = msgInput.value;
             msgInput.value = cur + (cur && !cur.endsWith(' ') ? ' ' : '') + names.join(' ') + ' ';
+            closePingPicker();
+            msgInput.focus();
+        };
+        // Insère "@everyone" en un clic : tout le monde reçoit la notification, connecté ou non.
+        // Réservé à l'admin (la vraie sécurité reste dans findMentionedUsers/mentionsEveryone).
+        window.pingEveryone = () => {
+            if (!isAdmin()) return showToast("⛔ Réservé à l'administrateur.");
+            const cur = msgInput.value;
+            msgInput.value = cur + (cur && !cur.endsWith(' ') ? ' ' : '') + '@everyone ';
             closePingPicker();
             msgInput.focus();
         };
@@ -4828,7 +4878,7 @@ match /inbox/{inboxId} {
             const media = safeUrl(msg.mediaUrl);
             const content = media
                 ? `<img src="${escapeHtml(media)}" decoding="async" class="rounded-xl max-h-60 object-cover mt-1" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'text-xs italic opacity-70',textContent:'[GIF indisponible]'}))">`
-                : highlightMentions(msg.text || '');
+                : highlightMentions(msg.text || '', msg.uid);
             const time = formatTime(msg.createdAt);
 
             const reactions = (msg.reactions && typeof msg.reactions === 'object')
@@ -4851,7 +4901,7 @@ match /inbox/{inboxId} {
                 : '';
 
             // Liseré doré si ce message te mentionne ou répond à toi
-            const highlightMe = !isMe && (mentionsMe(msg.text) || (!!rp && !!rp.uid && rp.uid === currentUser?.uid));
+            const highlightMe = !isMe && (mentionsMe(msg.text, msg.uid) || (!!rp && !!rp.uid && rp.uid === currentUser?.uid));
 
             const ts = (msg.createdAt && typeof msg.createdAt.toMillis === 'function') ? msg.createdAt.toMillis() : 0;
 
