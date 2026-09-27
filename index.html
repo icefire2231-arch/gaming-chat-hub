@@ -280,6 +280,9 @@
                     <button id="header-call-btn" onclick="callCurrentConversation()" class="hidden bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-600/40 px-2.5 py-1.5 rounded-lg text-xs font-medium items-center gap-1.5 transition">
                         <i class="fa-solid fa-phone"></i> <span class="hidden sm:inline">Appeler</span>
                     </button>
+                    <button onclick="openSearchModal()" class="flex items-center justify-center bg-[#35373c]/60 hover:bg-[#35373c] w-9 h-9 rounded-full border border-[#4e5058]/50 transition" title="Rechercher dans les messages">
+                        <i class="fa-solid fa-magnifying-glass text-[#dbdee1] text-sm"></i>
+                    </button>
                     <button onclick="openPinsModal()" class="relative flex items-center justify-center gap-1.5 bg-[#35373c]/60 hover:bg-[#35373c] h-9 min-w-[2.25rem] px-2.5 rounded-full border border-[#4e5058]/50 transition" title="Messages épinglés">
                         <i class="fa-solid fa-thumbtack text-[#dbdee1] text-sm"></i>
                         <span class="hidden md:inline text-xs text-[#dbdee1]">Messages épinglés</span>
@@ -301,6 +304,9 @@
                     </button>
                     <button onclick="openHub('shop')" class="hidden md:flex items-center gap-1.5 bg-[#35373c]/60 hover:bg-[#35373c] h-9 px-3 rounded-full border border-[#4e5058]/50 text-xs font-bold text-amber-300 transition" title="Boutique &amp; saisons">
                         <span>🪙</span><span id="coins-count">0</span>
+                    </button>
+                    <button id="admin-stats-btn" onclick="openAdminStatsModal()" class="hidden items-center justify-center bg-[#35373c]/60 hover:bg-[#35373c] w-9 h-9 rounded-full border border-[#4e5058]/50 transition" title="Vie du serveur (admin)">
+                        <i class="fa-solid fa-chart-simple text-emerald-400 text-sm"></i>
                     </button>
                 </div>
             </div>
@@ -402,10 +408,10 @@
                     <!-- onmousedown/preventDefault : le bouton n'enlève plus le focus du champ, le clavier mobile reste ouvert -->
                     <button type="submit" onmousedown="event.preventDefault()" class="bg-[var(--theme-color)] hover:opacity-90 text-white px-4 md:px-5 py-2.5 md:py-3 rounded-xl transition font-medium text-sm flex items-center justify-center shadow-lg shrink-0"><i class="fa-solid fa-paper-plane"></i></button>
                 </form>
-                <!-- Salon "annonces uniquement" : affiché à la place du champ de texte pour tout le monde sauf l'admin. -->
+                <!-- Salon "annonces uniquement" (ou compte en sourdine / banni) : remplace le champ de texte -->
                 <div id="composer-locked" class="hidden items-center gap-2.5 px-3.5 py-2.5 md:py-3 rounded-xl bg-[#1e1f22] border border-[#3f4147] text-sm text-[#80848e]">
                     <i class="fa-solid fa-lock shrink-0"></i>
-                    <span>Seul l'administrateur peut publier dans ce salon. Tu peux réagir aux messages avec des emojis 👍</span>
+                    <span id="composer-locked-text">Seul l'administrateur peut publier dans ce salon. Tu peux réagir aux messages avec des emojis 👍</span>
                 </div>
             </div>
         </div>
@@ -554,6 +560,25 @@
             <h3 class="font-bold text-lg flex items-center gap-2 shrink-0"><i class="fa-solid fa-thumbtack text-[var(--theme-color)]"></i> Messages épinglés <span id="pins-count" class="text-xs font-normal text-[#80848e]"></span></h3>
             <div id="pins-list" class="space-y-2 overflow-y-auto"></div>
             <button onclick="closePinsModal()" class="shrink-0 px-4 py-2 rounded-xl text-sm bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] transition">Fermer</button>
+        </div>
+    </div>
+
+    <!-- Recherche dans l'historique des messages du salon / MP / groupe ouvert -->
+    <div id="search-modal" class="fixed inset-0 bg-black/70 flex items-start md:items-center justify-center z-50 hidden p-4" onclick="if(event.target===this)closeSearchModal()">
+        <div class="modal-pop bg-[#2b2d31] border border-[#3f4147] p-5 rounded-2xl max-w-md w-full space-y-3 shadow-2xl max-h-[85vh] mt-14 md:mt-0 flex flex-col">
+            <h3 class="font-bold text-lg flex items-center gap-2 shrink-0"><i class="fa-solid fa-magnifying-glass text-[var(--theme-color)]"></i> Rechercher</h3>
+            <input type="text" id="search-input" placeholder="Rechercher un mot, un pseudo..." autocomplete="off" oninput="handleSearchInput()" class="shrink-0 w-full bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--theme-color)]">
+            <div id="search-results" class="space-y-1 overflow-y-auto min-h-[100px]"></div>
+            <button onclick="closeSearchModal()" class="shrink-0 px-4 py-2 rounded-xl text-sm bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] transition">Fermer</button>
+        </div>
+    </div>
+
+    <!-- Vie du serveur (admin) : membres, activité par salon, boutique -->
+    <div id="admin-stats-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden p-4" onclick="if(event.target===this)closeAdminStatsModal()">
+        <div class="modal-pop bg-[#2b2d31] border border-[#3f4147] p-5 rounded-2xl max-w-lg w-full space-y-4 shadow-2xl max-h-[85vh] flex flex-col">
+            <h3 class="font-bold text-lg flex items-center gap-2 shrink-0"><i class="fa-solid fa-chart-simple text-emerald-400"></i> Vie du serveur</h3>
+            <div id="admin-stats-body" class="space-y-4 overflow-y-auto"></div>
+            <button onclick="closeAdminStatsModal()" class="shrink-0 px-4 py-2 rounded-xl text-sm bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] transition">Fermer</button>
         </div>
     </div>
 
@@ -1236,6 +1261,9 @@ match /inbox/{inboxId} {
 
         function updateAdminUI() {
             $('create-channel-btn').classList.toggle('hidden', !isAdmin());
+            const stats = $('admin-stats-btn');
+            stats.classList.toggle('hidden', !isAdmin());
+            stats.classList.toggle('flex', isAdmin());
         }
 
         /* ---------- Chemins ---------- */
@@ -1602,12 +1630,14 @@ match /inbox/{inboxId} {
             } catch {}
         }
 
-        // Retient le dernier message d'un salon pour que les autres voient "nouveau" à leur retour
+        // Retient le dernier message d'un salon pour que les autres voient "nouveau" à leur retour,
+        // et incrémente un compteur total de messages (utilisé par le tableau "Vie du serveur" admin).
         function touchChannelMeta(conv, preview) {
             if (conv.type !== 'channel') return;
             setDoc(doc(db, "channels", conv.id), {
                 lastMessageAt: serverTimestamp(), lastMessageBy: currentUser.uid,
-                lastMessageByName: userProfile.name, lastMessageText: preview
+                lastMessageByName: userProfile.name, lastMessageText: preview,
+                messageCount: increment(1)
             }, { merge: true }).catch((e) => { console.warn("meta salon refusée", e); warnRules("Non-lus des salons indisponibles (document channels/…)"); });
         }
 
@@ -1620,7 +1650,8 @@ match /inbox/{inboxId} {
                     const x = d.data({ serverTimestamps: 'estimate' });
                     next[d.id] = {
                         at: (x.lastMessageAt && typeof x.lastMessageAt.toMillis === 'function') ? x.lastMessageAt.toMillis() : 0,
-                        by: x.lastMessageBy || '', byName: x.lastMessageByName || '', text: x.lastMessageText || ''
+                        by: x.lastMessageBy || '', byName: x.lastMessageByName || '', text: x.lastMessageText || '',
+                        count: Math.max(0, Math.floor(Number(x.messageCount) || 0))
                     };
                 });
                 channelMeta = next;
@@ -1636,8 +1667,22 @@ match /inbox/{inboxId} {
 
         const readMillis = (n) => (n && n.lastReadAt && typeof n.lastReadAt.toMillis === 'function') ? n.lastReadAt.toMillis() : null;
 
+        // Sourdine par salon : préférence personnelle, écrite sur users/<moi>.mutedChannels.<id>
+        const isChannelMuted = (id) => !!(userProfile.mutedChannels && userProfile.mutedChannels[id]);
+        window.toggleChannelMute = async (id, name) => {
+            if (!currentUser) return;
+            const next = !isChannelMuted(id);
+            userProfile.mutedChannels = { ...(userProfile.mutedChannels || {}), [id]: next };
+            initSidebarUI();   // retour visuel immédiat, avant même la confirmation du serveur
+            try {
+                await updateDoc(doc(db, "users", currentUser.uid), new FieldPath('mutedChannels', id), next);
+                showToast(next ? `🔇 Notifications coupées pour #${name || id}` : `🔔 Notifications réactivées pour #${name || id}`);
+            } catch (e) { showToast("Erreur : " + e.message); }
+        };
+
         // Vrai si le salon a un message plus récent que ta dernière lecture (et qui n'est pas de toi)
         function channelNewSince(id) {
+            if (isChannelMuted(id)) return false;   // en sourdine : jamais de pastille "nouveau"
             const m = channelMeta[id];
             if (!m || !m.at || m.by === currentUser?.uid) return false;
             const n = myInboxList.find(x => x.id === inboxKey(currentUser.uid, 'channel', id));
@@ -1671,6 +1716,9 @@ match /inbox/{inboxId} {
                 forUid: currentUser.uid, convType: type, convId: id,
                 unread: false, unreadCount: 0, isMention: false, lastReadAt: serverTimestamp()
             }, { merge: true }).catch(() => {});
+            // "Vu" : horodatage de lecture partagé avec les autres membres de la conversation (MP / groupe uniquement)
+            const rp = convReadsPath(type, id);
+            if (rp) setDoc(doc(db, rp, currentUser.uid), { at: serverTimestamp() }, { merge: true }).catch(() => {});
         }
 
         function unreadBadgeHtml(type, id, isActive, extra = '') {
@@ -1875,7 +1923,7 @@ match /inbox/{inboxId} {
                     snap.docChanges().forEach(c => {
                         const n = c.doc.data();
                         // Un ping ou une réponse prévient toujours, même si tu es déjà dans le salon
-                        if ((c.type === 'added' || c.type === 'modified') && n.unread && n.lastText && (n.isMention || !isCurrentConv(n.convType, n.convId))) {
+                        if ((c.type === 'added' || c.type === 'modified') && n.unread && n.lastText && (n.isMention || !isCurrentConv(n.convType, n.convId)) && !(n.convType === 'channel' && isChannelMuted(n.convId))) {
                             const msg = notifText(n);
                             if (userProfile.status !== 'dnd') {   // "Ne pas déranger" : les badges restent, mais aucun bruit
                                 if (n.kind === 'call') { playRing(); showToast(msg, 8000); }
@@ -1948,14 +1996,17 @@ match /inbox/{inboxId} {
 
             setHtml($('channels-list'), textChannels.map(c => {
                 const isActive = currentTargetType === 'channel' && currentTargetId === c.id;
-                const badge = unreadBadgeHtml('channel', c.id, isActive, isAdmin() ? 'mr-6' : '');
+                const muted = isChannelMuted(c.id);
+                const badge = unreadBadgeHtml('channel', c.id, isActive, isAdmin() ? 'mr-12' : 'mr-6');
                 return `
                     <div class="chan-row relative group">
                         <button data-type="channel" data-id="${escapeHtml(c.id)}" data-name="${escapeHtml(c.name)}" onclick="goTo(this)" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2.5 transition ${isActive ? 'bg-[var(--theme-color)] text-white shadow-lg' : 'text-[#949ba4] hover:bg-[#35373c] hover:text-[#dbdee1]'}">
                             ${channelIconHtml(c)}
                             <span class="truncate ${badge ? 'text-white font-bold' : ''}">${escapeHtml(c.name)}</span>
+                            ${muted ? '<i class="fa-solid fa-bell-slash text-[10px] text-[#80848e] shrink-0"></i>' : ''}
                             ${badge}
                         </button>
+                        <button onclick="event.stopPropagation();toggleChannelMute('${escapeHtml(c.id)}','${escapeHtml(c.name)}')" class="chan-mute ${muted ? 'opacity-70' : 'md:opacity-0 opacity-70'} transition absolute ${isAdmin() ? 'right-9' : 'right-2'} top-1/2 -translate-y-1/2 text-[#dbdee1] hover:text-white bg-[#2b2d31]/80 rounded p-1.5" title="${muted ? 'Réactiver les notifications' : 'Mettre en sourdine'}"><i class="fa-solid ${muted ? 'fa-bell-slash' : 'fa-bell'} text-[10px]"></i></button>
                         ${isAdmin() ? `<button onclick="openEditChannelModal('${escapeHtml(c.id)}')" class="chan-edit md:opacity-0 opacity-70 transition absolute right-2 top-1/2 -translate-y-1/2 text-[#dbdee1] hover:text-white bg-[#2b2d31]/80 rounded p-1.5" title="Image du salon"><i class="fa-solid fa-pen text-[10px]"></i></button>` : ''}
                     </div>`;
             }).join(''));
@@ -2202,11 +2253,20 @@ match /inbox/{inboxId} {
         // (les réactions restent ouvertes à tous, elles ne passent pas par ce composeur).
         function updateComposerLock() {
             const chan = currentTargetType === 'channel' ? textChannels.find(c => c.id === currentTargetId) : null;
-            const locked = !!(chan && chan.announceOnly && !isAdmin());
+            const announceLocked = !!(chan && chan.announceOnly && !isAdmin());
+            const until = Number(userProfile.mutedUntil) || 0;
+            const muted = !isAdmin() && until > Date.now();
+            const banned = !isAdmin() && !!userProfile.banned;
+            const locked = announceLocked || muted || banned;
             $('message-form').classList.toggle('hidden', locked);
             $('composer-locked').classList.toggle('hidden', !locked);
             $('composer-locked').classList.toggle('flex', locked);
-            if (locked) { stopTyping(); cancelReply(); cancelEdit(); }
+            if (locked) {
+                $('composer-locked-text').textContent = banned ? "Tu es banni de ce serveur : impossible d'écrire."
+                    : muted ? `Tu es en sourdine encore ${fmtRemaining(until - Date.now())}. Tu peux toujours réagir aux messages avec des emojis 👍`
+                    : "Seul l'administrateur peut publier dans ce salon. Tu peux réagir aux messages avec des emojis 👍";
+                stopTyping(); cancelReply(); cancelEdit();
+            }
         }
 
         window.switchTarget = function (type, id, title = "") {
@@ -2254,6 +2314,7 @@ match /inbox/{inboxId} {
                 resetMessageView(`${type}:${id}`);
                 loadMessages();
                 loadTypingIndicators();
+                listenConvReads();
             }
 
             renderSidebar();
@@ -2465,6 +2526,7 @@ match /inbox/{inboxId} {
         // Remet l'application à zéro à la déconnexion : le prochain compte ne voit rien de l'ancien
         function resetSessionState() {
             messagesToken++; typingToken++;
+            selfBanHandled = false;
             stopPins(); cancelEdit(); stopFriends(); $('msg-sheet')?.classList.add('hidden');
             [unsubscribeMessages, unsubscribeTyping, unsubscribeUsers, unsubscribeChannels, unsubscribeGroups, unsubRoomParticipants, unsubConvVoice, unsubInbox, unsubChannelMeta, ...voiceUnsubs]
                 .forEach(fn => { try { fn && fn(); } catch {} });
@@ -2600,6 +2662,7 @@ match /inbox/{inboxId} {
             resetMessageView(convKey());
             loadMessages();
             loadTypingIndicators();
+            listenConvReads();
             listenVoiceChannels();
             hideSplash();
 
@@ -2683,6 +2746,7 @@ match /inbox/{inboxId} {
             const ready = new Promise(r => { usersReadyResolve = r; });
             unsubscribeUsers = onSnapshot(collection(db, "users"), (snap) => {
                 allUsersList = snap.docs.map(d => ({ ...d.data(), uid: d.id }));
+                checkSelfModeration();
                 if (indexUsers()) refreshCosmeticsDom();   // quelqu'un a changé de cadre / d'effet / de rôle
                 hubOnUsersUpdate();
                 updateOnlineCount();
@@ -2691,6 +2755,31 @@ match /inbox/{inboxId} {
             }, () => { if (usersReadyResolve) usersReadyResolve(); });
             return ready;
         }
+
+        // Réagit en direct à un bannissement ou une sourdine décidés par l'admin, sans attendre une reconnexion.
+        let selfBanHandled = false;
+        function checkSelfModeration() {
+            if (!currentUser) return;
+            const me = allUsersList.find(u => u.uid === currentUser.uid);
+            if (!me) return;
+            if (me.banned && !isAdmin() && !selfBanHandled) {
+                selfBanHandled = true;
+                alert("Tu as été banni de ce serveur par un administrateur.");
+                signOut(auth).catch(() => {});
+                return;
+            }
+            userProfile.mutedUntil = me.mutedUntil || 0;
+            userProfile.banned = !!me.banned;
+            updateComposerLock();
+        }
+
+        const fmtRemaining = (ms) => {
+            const m = Math.ceil(ms / 60000);
+            if (m < 60) return `${m} min`;
+            const h = Math.ceil(m / 60);
+            if (h < 24) return `${h} h`;
+            return `${Math.ceil(h / 24)} j`;
+        };
 
         function updateProfileUI() {
             $('user-name').textContent = userProfile.name;
@@ -3468,6 +3557,12 @@ match /inbox/{inboxId} {
             if (!text || !currentUser) return;
             if (editing) return saveEdit(text);
 
+            if (!isAdmin()) {
+                if (userProfile.banned) return showToast("⛔ Tu es banni : impossible d'écrire.");
+                const until = Number(userProfile.mutedUntil) || 0;
+                if (until > Date.now()) return showToast(`🔇 Tu es en sourdine encore ${fmtRemaining(until - Date.now())}.`);
+            }
+
             if (text === "/clean") {
                 if (!isAdmin()) { showToast("⛔ Réservé à l'administrateur."); msgInput.value = ''; resizeMsgInput(); return; }
                 try {
@@ -3754,6 +3849,12 @@ match /inbox/{inboxId} {
                     : rel === 'received' ? btn(neutral, `friendAction('accept','${q}');closeUserCard()`, 'Accepter')
                     : btn(neutral, `friendAction('add','${q}');closeUserCard()`, '<i class="fa-solid fa-user-plus mr-1.5"></i>Ajouter'));
 
+            const canModerate = isAdmin() && !isMe && !isAdminUid(uid);
+            const mutedUntilU = Number(u.mutedUntil) || 0;
+            const modStatus = canModerate && (u.banned || mutedUntilU > Date.now())
+                ? `<p class="text-xs ${u.banned ? 'text-rose-400' : 'text-amber-400'}">${u.banned ? '⛔ Banni' : `🔇 En sourdine (encore ${fmtRemaining(mutedUntilU - Date.now())})`}</p>` : '';
+            const modBtn = canModerate ? `<button type="button" onclick="openModerationSheet('${q}')" class="w-full px-3 py-2.5 rounded-xl text-sm font-semibold bg-rose-600/15 text-rose-400 hover:bg-rose-600/25 transition"><i class="fa-solid fa-gavel mr-1.5"></i>Modération</button>` : '';
+
             $('user-card-body').innerHTML = `
                 <div class="h-20 relative" style="background:linear-gradient(135deg,var(--theme-color),#1e1f22)">
                     <button type="button" onclick="closeUserCard()" class="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/30 hover:bg-black/50 text-white text-sm" title="Fermer"><i class="fa-solid fa-xmark"></i></button>
@@ -3780,13 +3881,112 @@ match /inbox/{inboxId} {
                         ${joined ? tile('Membre depuis', new Date(joined).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }), days === 0 ? "aujourd'hui" : `il y a ${days} j`) : ''}
                     </div>
                     <div class="flex gap-2 pt-1">${actions}</div>
+                    ${modStatus}
+                    ${modBtn}
                 </div>`;
             $('user-card-modal').classList.remove('hidden');
         };
 
+        /* ---------- Modération (admin) : sourdine temporaire et bannissement ---------- */
+        window.openModerationSheet = (uid) => {
+            if (!isAdmin() || isAdminUid(uid)) return;
+            const u = allUsersList.find(x => x.uid === uid);
+            if (!u) return;
+            const mutedUntil = Number(u.mutedUntil) || 0;
+            const isMuted = mutedUntil > Date.now();
+            const isBanned = !!u.banned;
+            const q = escapeHtml(uid);
+            const durBtn = (label, ms) => `<button type="button" onclick="muteUser('${q}', ${ms})" class="px-3 py-2 rounded-lg text-xs font-semibold bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] transition">${label}</button>`;
+            openSheet(`
+                <div class="p-4 space-y-3">
+                    <h3 class="font-bold text-base">Modération — ${escapeHtml(u.name || 'Utilisateur')}</h3>
+                    ${isMuted ? `<p class="text-xs text-amber-400">🔇 En sourdine jusqu'à ${new Date(mutedUntil).toLocaleString('fr-FR')}</p>` : ''}
+                    ${isBanned ? `<p class="text-xs text-rose-400">⛔ Actuellement banni</p>` : ''}
+                    <div class="text-[10px] uppercase tracking-wider text-[#80848e]">Sourdine temporaire</div>
+                    <div class="grid grid-cols-2 gap-2">
+                        ${durBtn('10 min', 10 * 60 * 1000)}
+                        ${durBtn('1 heure', 60 * 60 * 1000)}
+                        ${durBtn('24 heures', 24 * 60 * 60 * 1000)}
+                        ${durBtn('7 jours', 7 * 24 * 60 * 60 * 1000)}
+                    </div>
+                    ${isMuted ? `<button type="button" onclick="muteUser('${q}', 0)" class="w-full px-3 py-2 rounded-lg text-xs font-semibold bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 transition">Lever la sourdine</button>` : ''}
+                    <div class="text-[10px] uppercase tracking-wider text-[#80848e] pt-1">Bannissement</div>
+                    <button type="button" onclick="toggleBanUser('${q}', ${!isBanned})" class="w-full px-3 py-2.5 rounded-xl text-sm font-semibold transition ${isBanned ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-rose-600 hover:bg-rose-500 text-white'}">${isBanned ? 'Débannir' : 'Bannir'}</button>
+                    <button type="button" onclick="closeSheet()" class="w-full px-3 py-2 rounded-lg text-xs text-[#80848e] hover:bg-[#35373c] transition">Annuler</button>
+                </div>`);
+        };
+
+        window.muteUser = async (uid, ms) => {
+            hideSheet();
+            try {
+                await setDoc(doc(db, 'users', uid), { mutedUntil: ms > 0 ? Date.now() + ms : 0 }, { merge: true });
+                showToast(ms > 0 ? `🔇 Mis en sourdine pour ${fmtRemaining(ms)}.` : '🔊 Sourdine levée.');
+                closeUserCard();
+            } catch (e) { showToast("Erreur : " + e.message); }
+        };
+
+        window.toggleBanUser = async (uid, ban) => {
+            const ok = await askConfirm(ban ? 'Bannir cet utilisateur ?' : 'Débannir cet utilisateur ?',
+                ban ? "Il sera immédiatement déconnecté et ne pourra plus écrire tant qu'il est banni."
+                    : "Il pourra de nouveau se connecter et écrire normalement.",
+                ban ? 'Bannir' : 'Débannir');
+            if (!ok) return;
+            try {
+                await setDoc(doc(db, 'users', uid), { banned: ban }, { merge: true });
+                showToast(ban ? '⛔ Utilisateur banni.' : '✅ Utilisateur débanni.');
+                closeUserCard();
+            } catch (e) { showToast("Erreur : " + e.message); }
+        };
+
+        /* ---------- "Vie du serveur" (admin) : membres, activité par salon, boutique ---------- */
+        window.openAdminStatsModal = () => {
+            if (!isAdmin()) return;
+            const users = allUsersList;
+            const total = users.length;
+            const online = users.filter(isOnline).length;
+            const weekAgo = Date.now() - 7 * 864e5;
+            const active7d = users.filter(u => tsMillis(u.lastSeen) >= weekAgo).length;
+            const totalMsgs = users.reduce((s, u) => s + (Math.floor(Number(u.msgCount)) || 0), 0);
+
+            const chanRows = textChannels.map(c => {
+                const m = channelMeta[c.id];
+                const last = m && m.at ? new Date(m.at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'aucune activité';
+                return `<div class="flex items-center justify-between text-sm py-1.5 border-b border-[#3f4147]/60 last:border-0">
+                    <span class="truncate flex-1 flex items-center gap-1.5">${channelIconHtml(c)}<span class="truncate">${escapeHtml(c.name)}</span></span>
+                    <span class="text-[#80848e] text-xs shrink-0 ml-2">${last}</span>
+                    <span class="font-bold text-[var(--theme-color)] shrink-0 ml-3 w-10 text-right">${m ? m.count : 0}</span>
+                </div>`;
+            }).join('');
+
+            // Boutique : pièces en circulation + objets les plus détenus (calculé côté client à partir des profils publics)
+            const totalCoins = users.reduce((s, u) => s + coinsOf(u), 0);
+            const ownedCount = {};
+            users.forEach(u => Object.keys(ownedOf(u)).forEach(id => { ownedCount[id] = (ownedCount[id] || 0) + 1; }));
+            const topItems = Object.entries(ownedCount).sort((a, b) => b[1] - a[1]).slice(0, 5)
+                .map(([id, n]) => `<div class="flex items-center justify-between text-sm py-1"><span>${escapeHtml(COSMETICS[id]?.icon || '🎁')} ${escapeHtml(COSMETICS[id]?.name || id)}</span><span class="text-[#80848e] text-xs">${n} membre${n > 1 ? 's' : ''}</span></div>`).join('')
+                || `<p class="text-xs text-[#80848e] italic">Aucun achat pour le moment.</p>`;
+            const catalogCount = catalogDoc?.items ? Object.keys(catalogDoc.items).length : 0;
+
+            $('admin-stats-body').innerHTML = `
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3 py-2.5 text-center"><div class="text-lg font-bold">${total}</div><div class="text-[10px] uppercase tracking-wider text-[#80848e]">Membres</div></div>
+                    <div class="bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3 py-2.5 text-center"><div class="text-lg font-bold text-emerald-400">${online}</div><div class="text-[10px] uppercase tracking-wider text-[#80848e]">En ligne</div></div>
+                    <div class="bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3 py-2.5 text-center"><div class="text-lg font-bold">${active7d}</div><div class="text-[10px] uppercase tracking-wider text-[#80848e]">Actifs 7j</div></div>
+                </div>
+                <div>
+                    <div class="text-[10px] uppercase tracking-wider text-[#80848e] mb-1.5">Messages par salon · ${fmtCoins(totalMsgs)} au total</div>
+                    <div class="bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3 py-1">${chanRows || '<p class="text-xs text-[#80848e] italic py-2">Aucun salon.</p>'}</div>
+                </div>
+                <div>
+                    <div class="text-[10px] uppercase tracking-wider text-[#80848e] mb-1.5">Boutique · ${fmtCoins(totalCoins)} 🪙 en circulation · ${catalogCount} objet${catalogCount > 1 ? 's' : ''} au catalogue</div>
+                    <div class="bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3 py-2">${topItems}</div>
+                </div>`;
+            $('admin-stats-modal').classList.remove('hidden');
+        };
+        window.closeAdminStatsModal = () => $('admin-stats-modal').classList.add('hidden');
+
         /* =========================================================
            SAISONS · PIÈCES · BOUTIQUE · COSMÉTIQUES
-           ---------------------------------------------------------
            Règle d'or : ce code ne fait que DEMANDER. C'est Firestore (les règles) qui vérifie et refuse :
            gains de pièces, achats, équipement, clôture des saisons. Un joueur qui bidouille la console
            ne peut ni se donner des pièces, ni un cosmétique, ni une récompense de saison.
@@ -4568,6 +4768,68 @@ match /inbox/{inboxId} {
         let pinsList = [], unsubPins = null, pinsKey = null, pinsToken = 0;
         let editing = null;   // { id, path, pinsPath }
 
+        /* ---------- Recherche dans l'historique des messages (salon / MP / groupe courant) ---------- */
+        // On récupère jusqu'à 500 messages récents de la conversation ouverte, puis on filtre côté client :
+        // pas d'index de recherche plein texte côté Firestore, mais largement suffisant pour un salon de discussion.
+        let searchCache = [], searchCacheKey = null, searchToken = 0, searchDebounce = null;
+        const SEARCH_IDLE = '<p class="text-xs text-[#80848e] italic text-center py-6">Tape pour chercher dans ce salon...</p>';
+
+        window.openSearchModal = () => {
+            if (!currentUser) return;
+            $('search-input').value = '';
+            $('search-results').innerHTML = SEARCH_IDLE;
+            $('search-modal').classList.remove('hidden');
+            setTimeout(() => $('search-input').focus(), 50);
+        };
+        window.closeSearchModal = () => $('search-modal').classList.add('hidden');
+
+        async function fetchSearchCache() {
+            const token = ++searchToken;
+            const key = convKey();
+            try {
+                const snap = await getDocs(query(collection(db, messagesPath()), orderBy('createdAt', 'desc'), limit(500)));
+                if (token !== searchToken) return;
+                searchCache = snap.docs.map(d => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) }));
+                searchCacheKey = key;
+            } catch (e) { showToast("Recherche indisponible : " + e.message); }
+        }
+
+        window.handleSearchInput = () => {
+            clearTimeout(searchDebounce);
+            searchDebounce = setTimeout(runSearch, 200);
+        };
+
+        async function runSearch() {
+            const q = $('search-input').value.trim();
+            const box = $('search-results');
+            if (!q) { box.innerHTML = SEARCH_IDLE; return; }
+            if (searchCacheKey !== convKey()) {
+                box.innerHTML = '<p class="text-xs text-[#80848e] italic text-center py-6"><i class="fa-solid fa-spinner fa-spin mr-1.5"></i>Chargement de l\'historique...</p>';
+                await fetchSearchCache();
+                if ($('search-input').value.trim() !== q) return;   // l'utilisateur a retapé entre-temps
+            }
+            const norm = normalizeName(q);
+            const results = searchCache.filter(m => {
+                const inText = m.text && normalizeName(m.text).includes(norm);
+                const inName = m.displayName && normalizeName(m.displayName).includes(norm);
+                return inText || inName;
+            }).slice(0, 60);
+            if (!results.length) { box.innerHTML = '<p class="text-xs text-[#80848e] italic text-center py-6">Aucun résultat.</p>'; return; }
+            box.innerHTML = results.map(m => {
+                const ts = tsMillis(m.createdAt);
+                const when = ts ? new Date(ts).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+                return `<button type="button" data-id="${escapeHtml(m.id)}" onclick="goToSearchResult(this)" class="w-full text-left px-3 py-2 rounded-lg hover:bg-[#35373c] transition">
+                    <div class="flex items-center gap-2 text-xs text-[#80848e]"><span class="font-semibold text-[#dbdee1]">${escapeHtml(m.displayName || 'Anonyme')}</span><span>${when}</span></div>
+                    <div class="text-sm text-[#dbdee1] truncate">${escapeHtml((m.text || '').slice(0, 140))}</div>
+                </button>`;
+            }).join('');
+        }
+
+        window.goToSearchResult = (el) => {
+            closeSearchModal();
+            goToMessage(el.dataset.id);
+        };
+
         /* ---------- Fenêtre menu / confirmation ---------- */
         let sheetResolve = null;
         function openSheet(html) { $('msg-sheet-body').innerHTML = html; $('msg-sheet').classList.remove('hidden'); }
@@ -4962,6 +5224,7 @@ match /inbox/{inboxId} {
         actionsBar.innerHTML =
             `<button data-act="reply" class="hover:bg-[#35373c] px-1.5 py-0.5 rounded text-xs text-[#dbdee1]" title="Répondre"><i class="fa-solid fa-reply"></i></button>`
             + EMOJIS.map(e => `<button data-act="react" data-emoji="${e}" class="hover:bg-[#35373c] px-1 py-0.5 rounded text-xs">${e}</button>`).join('')
+            + `<button data-act="react-custom" class="hover:bg-[#35373c] px-1.5 py-0.5 rounded text-xs text-[#dbdee1]" title="Autre emoji"><i class="fa-solid fa-plus"></i></button>`
             + `<button data-act="more" class="hover:bg-[#35373c] px-2 py-0.5 rounded text-xs text-[#dbdee1]" title="Plus d'actions"><i class="fa-solid fa-ellipsis"></i></button>`;
         msgContainer.appendChild(actionsBar);
 
@@ -4977,11 +5240,35 @@ match /inbox/{inboxId} {
             actionsBar.classList.add('hidden'); actionsBar.classList.remove('flex');
         }
 
+        // N'importe quel emoji (clavier emoji mobile, ou Win+. / Ctrl+Cmd+Espace sur ordinateur) : pas de liste fermée.
+        // On refuse juste le texte "normal" (lettres/chiffres latins) pour garder des réactions courtes et lisibles.
+        window.openCustomReact = (id) => {
+            openSheet(`<div class="p-4 space-y-3">
+                <h3 class="font-bold text-base">Réagir avec un emoji</h3>
+                <input type="text" id="custom-react-input" placeholder="Colle ou tape n'importe quel emoji" autocomplete="off" maxlength="16" class="w-full bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3 py-2.5 text-lg text-center focus:outline-none focus:border-[var(--theme-color)]">
+                <button type="button" onclick="confirmCustomReact('${id}')" class="w-full px-4 py-2.5 rounded-xl text-sm font-semibold bg-[var(--theme-color)] text-white hover:opacity-90 transition">Réagir</button>
+            </div>`);
+            setTimeout(() => {
+                const inp = $('custom-react-input');
+                inp?.focus();
+                inp?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); confirmCustomReact(id); } });
+            }, 50);
+        };
+        window.confirmCustomReact = (id) => {
+            const raw = ($('custom-react-input')?.value || '').trim();
+            if (!raw) return;
+            if (/[a-zA-Z0-9]/.test(raw)) return showToast("Ça, ce n'est pas un emoji 😅");
+            if ([...raw].length > 8) return showToast('Trop long pour une réaction.');
+            hideSheet();
+            addReaction(id, raw);
+        };
+
         actionsBar.addEventListener('click', (e) => {
             const b = e.target.closest('button'); if (!b || !actionsFor) return;
             const id = actionsFor;
             if (b.dataset.act === 'reply') startReply(id);
             else if (b.dataset.act === 'react') addReaction(id, b.dataset.emoji);
+            else if (b.dataset.act === 'react-custom') { openCustomReact(id); hideActions(); return; }
             else if (b.dataset.act === 'more') openMessageMenu(id);
             hideActions();
         });
@@ -5022,6 +5309,63 @@ match /inbox/{inboxId} {
         });
 
         const rowEl = (id) => msgList.querySelector(`.message-row[data-id="${CSS.escape(id)}"]`);
+
+        /* ---------- "Vu" en MP / groupe ----------
+           Chacun écrit son horodatage de lecture dans une sous-collection lisible par les autres membres
+           de la conversation (dms_chats/<id>/reads/<uid> ou groups/<id>/reads/<uid>), séparée de la boîte
+           de réception privée (inbox) qui, elle, reste réservée à son propriétaire. */
+        function convReadsPath(type, id) {
+            if (type === 'group') return `groups/${id}/reads`;
+            if (type === 'dm') return `dms_chats/${id}/reads`;
+            return null;   // pas de "vu" dans les salons publics : pas pertinent à grande échelle
+        }
+        let convReads = {}, unsubConvReads = null;
+        function listenConvReads() {
+            if (unsubConvReads) { unsubConvReads(); unsubConvReads = null; }
+            convReads = {};
+            const path = convReadsPath(currentTargetType, currentTargetId);
+            if (!path || !currentUser) { renderSeenIndicator(); return; }
+            const key = convKey();
+            unsubConvReads = onSnapshot(collection(db, path), (snap) => {
+                if (key !== convKey()) return;
+                const next = {};
+                snap.docs.forEach(d => { next[d.id] = tsMillis(d.data().at); });
+                convReads = next;
+                renderSeenIndicator();
+            }, () => { convReads = {}; renderSeenIndicator(); });
+        }
+        const dmPeerOf = (dmId, meUid) => { const p = String(dmId).split('_'); return p.length === 3 ? (p[1] === meUid ? p[2] : p[1]) : null; };
+
+        // Affiche "Vu" / "Vu par X" sous ton dernier message envoyé, s'il a été lu par le(s) destinataire(s)
+        function renderSeenIndicator() {
+            msgList.querySelectorAll('.seen-indicator').forEach(e => e.remove());
+            if (!currentUser || (currentTargetType !== 'dm' && currentTargetType !== 'group')) return;
+            const rows = [...msgList.children];
+            for (let i = rows.length - 1; i >= 0; i--) {
+                const id = rows[i].dataset.id;
+                const m = msgData.get(id);
+                if (!m || !m.uid) continue;
+                if (m.uid !== currentUser.uid) return;   // le tout dernier message n'est pas de moi : rien à indiquer
+                const ts = tsMillis(m.createdAt);
+                let label = null;
+                if (ts > 0) {
+                    if (currentTargetType === 'dm') {
+                        const peer = dmPeerOf(currentTargetId, currentUser.uid);
+                        label = (peer && convReads[peer] >= ts) ? 'Vu' : 'Envoyé';
+                    } else {
+                        const g = myGroups.find(x => x.id === currentTargetId);
+                        const others = (g?.members || []).filter(u => u !== currentUser.uid);
+                        if (!others.length) return;
+                        const seenBy = others.filter(u => convReads[u] >= ts);
+                        label = !seenBy.length ? 'Envoyé' : seenBy.length === others.length ? 'Vu par tous' : `Vu par ${seenBy.length}`;
+                    }
+                }
+                if (label) rows[i].querySelector('.msg-bubble-bg')?.insertAdjacentHTML('beforeend',
+                    `<div class="seen-indicator text-[10px] text-[#80848e] text-right mt-0.5">${label}</div>`);
+                return;
+            }
+        }
+
 
         // Saute jusqu'au message d'origine ; s'il est plus ancien que ce qui est chargé, on charge l'historique d'abord
         window.goToMessage = (id, afterLoad = false) => {
@@ -5076,6 +5420,7 @@ match /inbox/{inboxId} {
                     renderedKey = key;
                     $('messages-skeleton').classList.add('hidden');
                     refreshListChrome(snapshot.size);
+                    renderSeenIndicator();
 
                     if (prev) {
                         msgContainer.scrollTop = msgContainer.scrollHeight - prev.h + prev.t;
@@ -5132,6 +5477,7 @@ match /inbox/{inboxId} {
 
                 refreshListChrome(snapshot.size);
                 if (wasPinned) scrollToBottom();
+                renderSeenIndicator();
             }, (err) => {
                 if (token !== messagesToken) return;
                 $('messages-skeleton').classList.add('hidden');
