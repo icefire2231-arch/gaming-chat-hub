@@ -287,6 +287,10 @@
                     <button onclick="openSearchModal()" class="flex items-center justify-center bg-[#35373c]/60 hover:bg-[#35373c] w-9 h-9 rounded-full border border-[#4e5058]/50 transition" title="Rechercher dans les messages">
                         <i class="fa-solid fa-magnifying-glass text-[#dbdee1] text-sm"></i>
                     </button>
+                    <button id="polls-btn" onclick="openPollsModal()" class="hidden relative items-center justify-center bg-[#35373c]/60 hover:bg-[#35373c] w-9 h-9 rounded-full border border-[#4e5058]/50 transition" title="Sondages du salon">
+                        <i class="fa-solid fa-square-poll-vertical text-[#dbdee1] text-sm"></i>
+                        <span id="polls-badge" class="hidden absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[var(--theme-color)] text-white text-[10px] font-bold flex items-center justify-center">0</span>
+                    </button>
                     <button onclick="openPinsModal()" class="relative flex items-center justify-center gap-1.5 bg-[#35373c]/60 hover:bg-[#35373c] h-9 min-w-[2.25rem] px-2.5 rounded-full border border-[#4e5058]/50 transition" title="Messages épinglés">
                         <i class="fa-solid fa-thumbtack text-[#dbdee1] text-sm"></i>
                         <span class="hidden md:inline text-xs text-[#dbdee1]">Messages épinglés</span>
@@ -571,6 +575,10 @@
     <div id="search-modal" class="fixed inset-0 bg-black/70 flex items-start md:items-center justify-center z-50 hidden p-4" onclick="if(event.target===this)closeSearchModal()">
         <div class="modal-pop bg-[#2b2d31] border border-[#3f4147] p-5 rounded-2xl max-w-md w-full space-y-3 shadow-2xl max-h-[85vh] mt-14 md:mt-0 flex flex-col">
             <h3 class="font-bold text-lg flex items-center gap-2 shrink-0"><i class="fa-solid fa-magnifying-glass text-[var(--theme-color)]"></i> Rechercher</h3>
+            <div class="flex gap-1.5 shrink-0 bg-[#1e1f22] border border-[#3f4147] rounded-xl p-1">
+                <button type="button" id="search-scope-here" onclick="setSearchScope('here')" class="flex-1 px-2 py-1.5 rounded-lg text-xs font-semibold transition">Ce salon</button>
+                <button type="button" id="search-scope-global" onclick="setSearchScope('global')" class="flex-1 px-2 py-1.5 rounded-lg text-xs font-semibold transition">🌐 Partout</button>
+            </div>
             <input type="text" id="search-input" placeholder="Rechercher un mot, un pseudo..." autocomplete="off" oninput="handleSearchInput()" class="shrink-0 w-full bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--theme-color)]">
             <div id="search-results" class="space-y-1 overflow-y-auto min-h-[100px]"></div>
             <button onclick="closeSearchModal()" class="shrink-0 px-4 py-2 rounded-xl text-sm bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] transition">Fermer</button>
@@ -592,6 +600,34 @@
             <h3 id="user-collection-title" class="font-bold text-lg flex items-center gap-2 shrink-0">🎒 Collection</h3>
             <div id="user-collection-body" class="space-y-4 overflow-y-auto"></div>
             <button onclick="closeUserCollectionModal()" class="shrink-0 px-4 py-2 rounded-xl text-sm bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] transition">Fermer</button>
+        </div>
+    </div>
+
+    <!-- Sondages du salon (créés par l'admin, tout le monde vote) -->
+    <div id="polls-modal" class="fixed inset-0 bg-black/70 flex items-start md:items-center justify-center z-50 hidden p-4" onclick="if(event.target===this)closePollsModal()">
+        <div class="modal-pop bg-[#2b2d31] border border-[#3f4147] p-5 rounded-2xl max-w-lg w-full space-y-3 shadow-2xl max-h-[85vh] mt-14 md:mt-0 flex flex-col">
+            <div class="flex items-center justify-between shrink-0">
+                <h3 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-square-poll-vertical text-[var(--theme-color)]"></i> Sondages</h3>
+                <button id="create-poll-btn" onclick="openCreatePoll()" class="hidden px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--theme-color)] text-white hover:opacity-90 transition"><i class="fa-solid fa-plus mr-1"></i>Créer</button>
+            </div>
+            <div id="polls-list" class="space-y-3 overflow-y-auto"></div>
+            <button onclick="closePollsModal()" class="shrink-0 px-4 py-2 rounded-xl text-sm bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] transition">Fermer</button>
+        </div>
+    </div>
+
+    <!-- Création d'un sondage (admin) -->
+    <div id="create-poll-modal" class="fixed inset-0 bg-black/80 flex items-start md:items-center justify-center z-[60] hidden p-4" onclick="if(event.target===this)closeCreatePoll()">
+        <div class="modal-pop bg-[#2b2d31] border border-[#3f4147] p-5 rounded-2xl max-w-md w-full space-y-3 shadow-2xl max-h-[85vh] mt-14 md:mt-0 flex flex-col">
+            <h3 class="font-bold text-lg shrink-0">📊 Nouveau sondage</h3>
+            <div class="overflow-y-auto space-y-3">
+                <input type="text" id="poll-question" placeholder="Ta question…" maxlength="200" autocomplete="off" class="w-full bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--theme-color)]">
+                <div id="poll-options" class="space-y-2"></div>
+                <button type="button" onclick="addPollOption()" class="text-xs font-semibold text-[var(--theme-color)] hover:underline"><i class="fa-solid fa-plus mr-1"></i>Ajouter une option</button>
+            </div>
+            <div class="flex gap-2 shrink-0">
+                <button type="button" onclick="closeCreatePoll()" class="flex-1 px-4 py-2.5 rounded-xl text-sm bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] transition">Annuler</button>
+                <button type="button" onclick="submitPoll()" class="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold bg-[var(--theme-color)] text-white hover:opacity-90 transition">Publier</button>
+            </div>
         </div>
     </div>
 
@@ -2547,7 +2583,7 @@ match /groups/{groupId}/reads/{uid} {
         function resetSessionState() {
             messagesToken++; typingToken++;
             selfBanHandled = false;
-            stopPins(); cancelEdit(); stopFriends(); $('msg-sheet')?.classList.add('hidden');
+            stopPins(); stopPolls(); cancelEdit(); stopFriends(); $('msg-sheet')?.classList.add('hidden');
             [unsubscribeMessages, unsubscribeTyping, unsubscribeUsers, unsubscribeChannels, unsubscribeGroups, unsubRoomParticipants, unsubConvVoice, unsubInbox, unsubChannelMeta, ...voiceUnsubs]
                 .forEach(fn => { try { fn && fn(); } catch {} });
             unsubscribeMessages = unsubscribeTyping = unsubscribeUsers = unsubscribeChannels = unsubscribeGroups =
@@ -3957,8 +3993,10 @@ match /groups/{groupId}/reads/{uid} {
 
         window.muteUser = async (uid, ms) => {
             hideSheet();
+            const target = allUsersList.find(x => x.uid === uid);
             try {
                 await setDoc(doc(db, 'users', uid), { mutedUntil: ms > 0 ? Date.now() + ms : 0 }, { merge: true });
+                logModeration(ms > 0 ? 'mute' : 'unmute', uid, target?.name, ms > 0 ? ms : undefined);
                 showToast(ms > 0 ? `🔇 Mis en sourdine pour ${fmtRemaining(ms)}.` : '🔊 Sourdine levée.');
                 closeUserCard();
             } catch (e) { showToast("Erreur : " + e.message); }
@@ -3970,12 +4008,21 @@ match /groups/{groupId}/reads/{uid} {
                     : "Il pourra de nouveau se connecter et écrire normalement.",
                 ban ? 'Bannir' : 'Débannir');
             if (!ok) return;
+            const target = allUsersList.find(x => x.uid === uid);
             try {
                 await setDoc(doc(db, 'users', uid), { banned: ban }, { merge: true });
+                logModeration(ban ? 'ban' : 'unban', uid, target?.name);
                 showToast(ban ? '⛔ Utilisateur banni.' : '✅ Utilisateur débanni.');
                 closeUserCard();
             } catch (e) { showToast("Erreur : " + e.message); }
         };
+
+        // Trace une action de modération dans le journal admin (best-effort : n'empêche jamais l'action elle-même si ça échoue)
+        function logModeration(action, targetUid, targetName, durationMs) {
+            const data = { action, targetUid, targetName: targetName || '', byUid: currentUser.uid, at: serverTimestamp() };
+            if (durationMs) data.durationMs = durationMs;
+            addDoc(collection(db, 'modlog'), data).catch((e) => console.warn('journal de modération refusé', e));
+        }
 
         /* ---------- "Vie du serveur" (admin) : membres, activité par salon, boutique ---------- */
         window.openAdminStatsModal = () => {
@@ -4019,10 +4066,37 @@ match /groups/{groupId}/reads/{uid} {
                 <div>
                     <div class="text-[10px] uppercase tracking-wider text-[#80848e] mb-1.5">Boutique · ${fmtCoins(totalCoins)} 🪙 en circulation · ${catalogCount} objet${catalogCount > 1 ? 's' : ''} au catalogue</div>
                     <div class="bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3 py-2">${topItems}</div>
+                </div>
+                <div>
+                    <div class="text-[10px] uppercase tracking-wider text-[#80848e] mb-1.5">Journal de modération</div>
+                    <div id="modlog-body" class="bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3 py-2 text-xs text-[#80848e] italic">Chargement…</div>
                 </div>`;
             $('admin-stats-modal').classList.remove('hidden');
+            loadModLog();
         };
         window.closeAdminStatsModal = () => $('admin-stats-modal').classList.add('hidden');
+
+        // Charge les 20 dernières actions de modération (mute/ban) — lecture admin uniquement
+        async function loadModLog() {
+            const box = $('modlog-body');
+            try {
+                const snap = await getDocs(query(collection(db, 'modlog'), orderBy('at', 'desc'), limit(20)));
+                if (!snap.docs.length) { box.innerHTML = '<p class="italic">Aucune action de modération pour le moment.</p>'; return; }
+                const LABEL = { mute: ['🔇 Sourdine', 'text-amber-400'], unmute: ['🔊 Sourdine levée', 'text-emerald-400'], ban: ['⛔ Bannissement', 'text-rose-400'], unban: ['✅ Débanni', 'text-emerald-400'] };
+                box.className = 'bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3 py-1';
+                box.innerHTML = snap.docs.map(d => {
+                    const x = d.data();
+                    const [label, cls] = LABEL[x.action] || [x.action, 'text-[#dbdee1]'];
+                    const when = tsMillis(x.at) ? new Date(tsMillis(x.at)).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+                    const dur = x.durationMs ? ` · ${fmtRemaining(x.durationMs)}` : '';
+                    return `<div class="flex items-center justify-between text-xs py-1.5 border-b border-[#3f4147]/60 last:border-0">
+                        <span class="${cls} font-semibold shrink-0">${label}</span>
+                        <span class="truncate flex-1 mx-2">${escapeHtml(x.targetName || x.targetUid || '?')}${dur}</span>
+                        <span class="text-[#80848e] shrink-0">${when}</span>
+                    </div>`;
+                }).join('');
+            } catch (e) { box.innerHTML = `<p class="italic text-rose-400">Journal indisponible : ${escapeHtml(e.message)}</p>`; }
+        }
 
         /* =========================================================
            SAISONS · PIÈCES · BOUTIQUE · COSMÉTIQUES
@@ -4604,12 +4678,59 @@ match /groups/{groupId}/reads/{uid} {
             html += `<div class="text-sm font-bold mb-2">🛍️ Cosmétiques de la boutique</div>`;
             html += shop.length ? `<div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">${shop.sort((a, b) => a.type.localeCompare(b.type) || a.price - b.price).map(card).join('')}</div>`
                 : `<div class="text-xs text-[#80848e] italic">Rien pour l'instant.</div>`;
+            html += `<div class="mt-4">${purchaseHistoryHtml(u)}${badgesHtml(u)}</div>`;
 
             $('user-collection-title').innerHTML = `🎒 Collection de ${escapeHtml(u.name || 'Utilisateur')}`;
             $('user-collection-body').innerHTML = html;
             $('user-collection-modal').classList.remove('hidden');
         };
         window.closeUserCollectionModal = () => $('user-collection-modal').classList.add('hidden');
+
+        // ---- Badges : calculés côté client à partir de champs déjà existants sur le profil, rien à écrire ----
+        const BADGE_DEFS = [
+            { id: 'chat1', icon: '💬', name: 'Bavard', desc: '50 messages envoyés', test: u => (Number(u.msgCount) || 0) >= 50 },
+            { id: 'chat2', icon: '🗣️', name: 'Grand bavard', desc: '250 messages envoyés', test: u => (Number(u.msgCount) || 0) >= 250 },
+            { id: 'chat3', icon: '📢', name: 'Pilier du serveur', desc: '1000 messages envoyés', test: u => (Number(u.msgCount) || 0) >= 1000 },
+            { id: 'lvl5', icon: '⭐', name: 'Niveau 5', desc: 'Atteindre le niveau 5', test: u => levelInfo(xpOf(u)).level >= 5 },
+            { id: 'lvl10', icon: '🌟', name: 'Niveau 10', desc: 'Atteindre le niveau 10', test: u => levelInfo(xpOf(u)).level >= 10 },
+            { id: 'lvl20', icon: '👑', name: 'Niveau 20', desc: 'Atteindre le niveau 20', test: u => levelInfo(xpOf(u)).level >= 20 },
+            { id: 'coins1', icon: '🪙', name: 'Petit épargnant', desc: '200 🪙 en poche', test: u => coinsOf(u) >= 200 },
+            { id: 'coins2', icon: '💰', name: 'Riche', desc: '1000 🪙 en poche', test: u => coinsOf(u) >= 1000 },
+            { id: 'collec', icon: '🎒', name: 'Collectionneur', desc: '5 cosmétiques possédés', test: u => Object.keys(ownedOf(u)).length >= 5 },
+            { id: 'champ', icon: '🏆', name: 'Champion de saison', desc: 'Avoir gagné une récompense de saison', test: u => Object.keys(ownedOf(u)).some(id => COSMETICS[id]?.exclusive) },
+            { id: 'senior1', icon: '📅', name: 'Ancien', desc: 'Membre depuis 30 jours', test: u => u.joinedAt && (Date.now() - tsMillis(u.joinedAt)) >= 30 * 864e5 },
+            { id: 'senior2', icon: '🎂', name: 'Vétéran', desc: 'Membre depuis 90 jours', test: u => u.joinedAt && (Date.now() - tsMillis(u.joinedAt)) >= 90 * 864e5 },
+        ];
+        const computeBadges = (u) => BADGE_DEFS.map(b => ({ ...b, earned: !!b.test(u) }));
+
+        function badgesHtml(u) {
+            const badges = computeBadges(u);
+            const earned = badges.filter(b => b.earned);
+            return `<div class="text-sm font-bold mb-2 flex items-center gap-2">🎖️ Badges <span class="text-[10px] font-normal text-[#80848e]">${earned.length}/${badges.length}</span></div>
+                <div class="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-4">${badges.map(b => `
+                    <div class="relative bg-[#1e1f22] border ${b.earned ? 'border-amber-500/40' : 'border-[#3f4147] opacity-40'} rounded-xl p-2.5 flex flex-col items-center text-center gap-1" title="${escapeHtml(b.desc)}">
+                        <div class="text-xl">${b.earned ? b.icon : '🔒'}</div>
+                        <div class="text-[10px] font-semibold leading-tight">${escapeHtml(b.name)}</div>
+                    </div>`).join('')}
+                </div>`;
+        }
+
+        // ---- Historique d'achats : lu directement dans owned = { itemId: dateAchat }, aucune donnée à part ----
+        function purchaseHistoryHtml(u) {
+            const owned = ownedOf(u);
+            const rows = Object.entries(owned)
+                .map(([id, at]) => ({ id, at: tsMillis(at), def: cosmeticOf(id) }))
+                .filter(r => r.def)
+                .sort((a, b) => b.at - a.at);
+            if (!rows.length) return '';
+            return `<div class="text-sm font-bold mb-2">🧾 Historique d'achats</div>
+                <div class="bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3 py-1 mb-4">${rows.map(r => `
+                    <div class="flex items-center justify-between text-xs py-1.5 border-b border-[#3f4147]/60 last:border-0">
+                        <span class="truncate flex-1">${escapeHtml(r.def.icon)} ${escapeHtml(r.def.name)}</span>
+                        <span class="text-[#80848e] shrink-0 ml-2">${r.at ? new Date(r.at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}</span>
+                    </div>`).join('')}
+                </div>`;
+        }
 
         function renderCollectionTab() {
             const uid = currentUser.uid, admin = isAdmin();
@@ -4636,6 +4757,7 @@ match /groups/{groupId}/reads/{uid} {
             html += `<div class="text-sm font-bold mb-2">🛍️ Cosmétiques de la boutique</div>`;
             html += shop.length ? `<div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">${shop.sort((a, b) => a.type.localeCompare(b.type) || a.price - b.price).map(cosCard).join('')}</div>`
                 : `<div class="text-xs text-[#80848e] italic">Rien pour l’instant : va faire un tour à la boutique.</div>`;
+            html += `<div class="mt-4">${purchaseHistoryHtml(me)}${badgesHtml(me)}</div>`;
             return html;
         }
 
@@ -4876,20 +4998,47 @@ match /groups/{groupId}/reads/{uid} {
         let pinsList = [], unsubPins = null, pinsKey = null, pinsToken = 0;
         let editing = null;   // { id, path, pinsPath }
 
-        /* ---------- Recherche dans l'historique des messages (salon / MP / groupe courant) ---------- */
-        // On récupère jusqu'à 500 messages récents de la conversation ouverte, puis on filtre côté client :
-        // pas d'index de recherche plein texte côté Firestore, mais largement suffisant pour un salon de discussion.
+        /* ---------- Recherche dans l'historique des messages : ce salon, ou "Partout" (tous mes salons/groupes/MP) ---------- */
+        // Pas d'index de recherche plein texte côté Firestore : on récupère un lot de messages récents
+        // puis on filtre côté client. Largement suffisant pour la taille d'un serveur comme celui-ci.
+        let searchScope = 'here';
         let searchCache = [], searchCacheKey = null, searchToken = 0, searchDebounce = null;
-        const SEARCH_IDLE = '<p class="text-xs text-[#80848e] italic text-center py-6">Tape pour chercher dans ce salon...</p>';
+        let globalCache = [], globalCacheLoaded = false, globalToken = 0;
+        const SEARCH_IDLE = '<p class="text-xs text-[#80848e] italic text-center py-6">Tape pour chercher...</p>';
 
         window.openSearchModal = () => {
             if (!currentUser) return;
             $('search-input').value = '';
             $('search-results').innerHTML = SEARCH_IDLE;
+            setSearchScope('here', true);
             $('search-modal').classList.remove('hidden');
             setTimeout(() => $('search-input').focus(), 50);
         };
         window.closeSearchModal = () => $('search-modal').classList.add('hidden');
+
+        window.setSearchScope = (scope, silent) => {
+            searchScope = scope;
+            $('search-scope-here').className = `flex-1 px-2 py-1.5 rounded-lg text-xs font-semibold transition ${scope === 'here' ? 'bg-[var(--theme-color)] text-white' : 'text-[#b5bac1]'}`;
+            $('search-scope-global').className = `flex-1 px-2 py-1.5 rounded-lg text-xs font-semibold transition ${scope === 'global' ? 'bg-[var(--theme-color)] text-white' : 'text-[#b5bac1]'}`;
+            if (!silent) runSearch();
+        };
+
+        // Toutes les conversations couvertes par "Partout" : tous les salons, tous mes groupes, et mes MP
+        // ayant déjà eu un échange (déduits de ma boîte de notifications — un MP jamais répondu et sans
+        // notification reçue peut manquer, cas rare).
+        function myConversationList() {
+            const chans = textChannels.map(c => ({ type: 'channel', id: c.id, name: c.name }));
+            const groups = myGroups.map(g => ({ type: 'group', id: g.id, name: g.name || 'Groupe' }));
+            const dmIds = new Set();
+            myInboxList.forEach(n => { if (n.convType === 'dm' && n.convId) dmIds.add(n.convId); });
+            const dms = [...dmIds].map(id => {
+                const peer = dmPeerOf(id, currentUser.uid);
+                const u = peer ? allUsersList.find(x => x.uid === peer) : null;
+                return { type: 'dm', id, name: u ? (u.name || 'MP') : 'Message privé' };
+            });
+            return [...chans, ...groups, ...dms];
+        }
+        const pathForConv = (type, id) => type === 'channel' ? `channels/${id}/messages` : type === 'group' ? `groups/${id}/messages` : `dms_chats/${id}/messages`;
 
         async function fetchSearchCache() {
             const token = ++searchToken;
@@ -4902,6 +5051,23 @@ match /groups/{groupId}/reads/{uid} {
             } catch (e) { showToast("Recherche indisponible : " + e.message); }
         }
 
+        // Interroge chaque conversation en parallèle (jusqu'à 150 messages récents chacune) et fusionne le tout.
+        async function fetchGlobalCache() {
+            const token = ++globalToken;
+            const convs = myConversationList();
+            try {
+                const perConv = await Promise.all(convs.map(async (c) => {
+                    try {
+                        const snap = await getDocs(query(collection(db, pathForConv(c.type, c.id)), orderBy('createdAt', 'desc'), limit(150)));
+                        return snap.docs.map(d => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }), convType: c.type, convId: c.id, convName: c.name }));
+                    } catch { return []; }   // une conversation inaccessible ne bloque pas les autres
+                }));
+                if (token !== globalToken) return;
+                globalCache = perConv.flat();
+                globalCacheLoaded = true;
+            } catch (e) { showToast("Recherche globale indisponible : " + e.message); }
+        }
+
         window.handleSearchInput = () => {
             clearTimeout(searchDebounce);
             searchDebounce = setTimeout(runSearch, 200);
@@ -4911,23 +5077,35 @@ match /groups/{groupId}/reads/{uid} {
             const q = $('search-input').value.trim();
             const box = $('search-results');
             if (!q) { box.innerHTML = SEARCH_IDLE; return; }
-            if (searchCacheKey !== convKey()) {
-                box.innerHTML = '<p class="text-xs text-[#80848e] italic text-center py-6"><i class="fa-solid fa-spinner fa-spin mr-1.5"></i>Chargement de l\'historique...</p>';
-                await fetchSearchCache();
-                if ($('search-input').value.trim() !== q) return;   // l'utilisateur a retapé entre-temps
+
+            if (searchScope === 'here') {
+                if (searchCacheKey !== convKey()) {
+                    box.innerHTML = '<p class="text-xs text-[#80848e] italic text-center py-6"><i class="fa-solid fa-spinner fa-spin mr-1.5"></i>Chargement de l\'historique...</p>';
+                    await fetchSearchCache();
+                    if ($('search-input').value.trim() !== q || searchScope !== 'here') return;
+                }
+            } else if (!globalCacheLoaded) {
+                box.innerHTML = '<p class="text-xs text-[#80848e] italic text-center py-6"><i class="fa-solid fa-spinner fa-spin mr-1.5"></i>Chargement de toutes tes conversations...</p>';
+                await fetchGlobalCache();
+                if ($('search-input').value.trim() !== q || searchScope !== 'global') return;
             }
+
+            const cache = searchScope === 'here' ? searchCache : globalCache;
             const norm = normalizeName(q);
-            const results = searchCache.filter(m => {
+            const results = cache.filter(m => {
                 const inText = m.text && normalizeName(m.text).includes(norm);
                 const inName = m.displayName && normalizeName(m.displayName).includes(norm);
                 return inText || inName;
-            }).slice(0, 60);
+            }).sort((a, b) => tsMillis(b.createdAt) - tsMillis(a.createdAt)).slice(0, 60);
+
             if (!results.length) { box.innerHTML = '<p class="text-xs text-[#80848e] italic text-center py-6">Aucun résultat.</p>'; return; }
             box.innerHTML = results.map(m => {
                 const ts = tsMillis(m.createdAt);
                 const when = ts ? new Date(ts).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
-                return `<button type="button" data-id="${escapeHtml(m.id)}" onclick="goToSearchResult(this)" class="w-full text-left px-3 py-2 rounded-lg hover:bg-[#35373c] transition">
-                    <div class="flex items-center gap-2 text-xs text-[#80848e]"><span class="font-semibold text-[#dbdee1]">${escapeHtml(m.displayName || 'Anonyme')}</span><span>${when}</span></div>
+                const convTag = searchScope === 'global'
+                    ? `<span class="text-[10px] px-1.5 py-0.5 rounded-full bg-[#35373c] text-[#949ba4] shrink-0">${escapeHtml(m.convType === 'channel' ? '#' + (m.convName || '') : (m.convName || ''))}</span>` : '';
+                return `<button type="button" data-id="${escapeHtml(m.id)}" data-conv-type="${escapeHtml(m.convType || '')}" data-conv-id="${escapeHtml(m.convId || '')}" data-conv-name="${escapeHtml(m.convName || '')}" onclick="goToSearchResult(this)" class="w-full text-left px-3 py-2 rounded-lg hover:bg-[#35373c] transition">
+                    <div class="flex items-center gap-2 text-xs text-[#80848e] flex-wrap"><span class="font-semibold text-[#dbdee1]">${escapeHtml(m.displayName || 'Anonyme')}</span>${convTag}<span>${when}</span></div>
                     <div class="text-sm text-[#dbdee1] truncate">${escapeHtml((m.text || '').slice(0, 140))}</div>
                 </button>`;
             }).join('');
@@ -4935,7 +5113,9 @@ match /groups/{groupId}/reads/{uid} {
 
         window.goToSearchResult = (el) => {
             closeSearchModal();
-            goToMessage(el.dataset.id);
+            const { convType, convId, convName, id } = el.dataset;
+            if (convType && convId && !(convType === currentTargetType && convId === currentTargetId)) switchTarget(convType, convId, convName || '');
+            goToMessage(id);
         };
 
         /* ---------- Fenêtre menu / confirmation ---------- */
@@ -5102,6 +5282,140 @@ match /groups/{groupId}/reads/{uid} {
         });
         window.openPinsModal = () => { renderPinsList(); $('pins-modal').classList.remove('hidden'); };
         window.closePinsModal = () => $('pins-modal').classList.add('hidden');
+
+        /* ---------- Sondages (collection <salon>/polls) : créés par l'admin, tout le monde vote ---------- */
+        let pollsList = [], unsubPolls = null, pollsKey = null, pollsToken = 0;
+        function stopPolls() {
+            pollsToken++;
+            if (unsubPolls) { try { unsubPolls(); } catch {} }
+            unsubPolls = null; pollsKey = null; pollsList = [];
+            renderPollsBadge();
+        }
+        function listenPolls() {
+            const btn = $('polls-btn');
+            if (currentTargetType !== 'channel') { stopPolls(); btn.classList.add('hidden'); btn.classList.remove('flex'); return; }
+            btn.classList.remove('hidden'); btn.classList.add('flex');
+            if (!currentUser) return;
+            const key = convKey();
+            if (unsubPolls && pollsKey === key) return;   // déjà à l'écoute de ce salon
+            stopPolls();
+            pollsKey = key;
+            const token = pollsToken;
+            unsubPolls = onSnapshot(collection(db, `channels/${currentTargetId}/polls`), (snap) => {
+                if (token !== pollsToken) return;
+                const t = (p) => p.createdAt?.toMillis?.() ?? 0;
+                pollsList = snap.docs.map(d => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) })).sort((a, b) => (a.closed === b.closed ? t(b) - t(a) : (a.closed ? 1 : -1)));
+                renderPollsBadge();
+                if (!$('polls-modal').classList.contains('hidden')) renderPollsList();
+            }, (err) => { if (token === pollsToken) console.warn("Sondages indisponibles :", err); });
+        }
+        function renderPollsBadge() {
+            const b = $('polls-badge'); if (!b) return;
+            const active = pollsList.filter(p => !p.closed).length;
+            b.textContent = active;
+            b.classList.toggle('hidden', !active);
+        }
+        function pollCardHtml(p) {
+            const votes = p.votes || {};
+            const totalVotes = Object.keys(votes).length;
+            const myVote = currentUser ? votes[currentUser.uid] : null;
+            const when = p.createdAt?.toMillis ? new Date(p.createdAt.toMillis()).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+            const optsHtml = (p.options || []).map(o => {
+                const count = Object.values(votes).filter(v => v === o.id).length;
+                const pct = totalVotes ? Math.round(count / totalVotes * 100) : 0;
+                const mine = myVote === o.id;
+                return `<button type="button" ${p.closed ? 'disabled' : `onclick="votePoll('${escapeHtml(p.id)}','${escapeHtml(o.id)}')"`} class="w-full text-left relative rounded-xl overflow-hidden border ${mine ? 'border-[var(--theme-color)]' : 'border-[#3f4147]'} ${p.closed ? '' : 'hover:border-[var(--theme-color)]/60 cursor-pointer'} transition">
+                    <div class="absolute inset-y-0 left-0 bg-[var(--theme-color)]/20" style="width:${pct}%"></div>
+                    <div class="relative flex items-center justify-between gap-2 px-3 py-2 text-sm">
+                        <span class="flex items-center gap-1.5 truncate min-w-0">${mine ? '<i class="fa-solid fa-check text-[var(--theme-color)] text-xs shrink-0"></i>' : ''}<span class="truncate">${escapeHtml(o.text)}</span></span>
+                        <span class="text-xs text-[#80848e] shrink-0">${pct}% · ${count}</span>
+                    </div>
+                </button>`;
+            }).join('');
+            const adminBtns = isAdmin() ? `<div class="flex gap-3 pt-1">
+                ${!p.closed ? `<button type="button" onclick="closePoll('${escapeHtml(p.id)}')" class="text-xs font-semibold text-amber-400 hover:underline">Clore</button>` : ''}
+                <button type="button" onclick="deletePoll('${escapeHtml(p.id)}')" class="text-xs font-semibold text-rose-400 hover:underline">Supprimer</button>
+            </div>` : '';
+            return `<div class="bg-[#1e1f22] border border-[#3f4147] rounded-2xl p-3.5 space-y-2">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="font-semibold text-sm">${escapeHtml(p.question)}</div>
+                    ${p.closed ? '<span class="text-[10px] shrink-0 px-2 py-0.5 rounded-full bg-[#35373c] text-[#80848e]">Clos</span>' : '<span class="text-[10px] shrink-0 px-2 py-0.5 rounded-full bg-emerald-600/20 text-emerald-400">En cours</span>'}
+                </div>
+                <div class="space-y-1.5">${optsHtml}</div>
+                <div class="text-[10px] text-[#80848e]">${totalVotes} vote${totalVotes > 1 ? 's' : ''} · par ${escapeHtml(p.createdByName || 'Admin')} · ${when}</div>
+                ${adminBtns}
+            </div>`;
+        }
+        function renderPollsList() {
+            const box = $('polls-list');
+            box.innerHTML = pollsList.length ? pollsList.map(pollCardHtml).join('')
+                : `<p class="text-xs text-[#80848e] italic text-center py-6">Aucun sondage dans ce salon pour l'instant.</p>`;
+        }
+        window.openPollsModal = () => {
+            renderPollsList();
+            $('create-poll-btn').classList.toggle('hidden', !isAdmin());
+            $('polls-modal').classList.remove('hidden');
+        };
+        window.closePollsModal = () => $('polls-modal').classList.add('hidden');
+
+        window.votePoll = async (pollId, optionId) => {
+            if (!currentUser || currentTargetType !== 'channel') return;
+            try { await updateDoc(doc(db, `channels/${currentTargetId}/polls`, pollId), new FieldPath('votes', currentUser.uid), optionId); }
+            catch (e) { showToast("Vote impossible : " + e.message); }
+        };
+        window.closePoll = async (pollId) => {
+            if (!isAdmin() || currentTargetType !== 'channel') return;
+            try { await updateDoc(doc(db, `channels/${currentTargetId}/polls`, pollId), { closed: true }); }
+            catch (e) { showToast("Erreur : " + e.message); }
+        };
+        window.deletePoll = async (pollId) => {
+            if (!isAdmin() || currentTargetType !== 'channel') return;
+            const ok = await askConfirm('Supprimer ce sondage ?', 'Cette action est définitive.', 'Supprimer');
+            if (!ok) return;
+            try { await deleteDoc(doc(db, `channels/${currentTargetId}/polls`, pollId)); }
+            catch (e) { showToast("Erreur : " + e.message); }
+        };
+
+        window.addPollOption = () => {
+            const box = $('poll-options');
+            if (box.querySelectorAll('.poll-opt-input').length >= 6) return showToast('6 options maximum.');
+            const n = box.querySelectorAll('.poll-opt-input').length + 1;
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-2';
+            row.innerHTML = `<input type="text" placeholder="Option ${n}" maxlength="80" class="poll-opt-input flex-1 bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[var(--theme-color)]">
+                <button type="button" onclick="this.parentElement.remove()" class="w-8 h-8 shrink-0 rounded-lg text-[#80848e] hover:bg-[#35373c] hover:text-rose-400 transition"><i class="fa-solid fa-xmark"></i></button>`;
+            box.appendChild(row);
+        };
+        window.openCreatePoll = () => {
+            if (!isAdmin()) return;
+            $('poll-question').value = '';
+            $('poll-options').innerHTML = '';
+            addPollOption(); addPollOption();
+            $('create-poll-modal').classList.remove('hidden');
+        };
+        window.closeCreatePoll = () => $('create-poll-modal').classList.add('hidden');
+        window.submitPoll = async () => {
+            if (!isAdmin() || currentTargetType !== 'channel') return;
+            const question = $('poll-question').value.trim();
+            const opts = [...document.querySelectorAll('.poll-opt-input')].map(i => i.value.trim()).filter(Boolean);
+            if (!question) return showToast('Ajoute une question.');
+            if (opts.length < 2) return showToast('Il faut au moins 2 options.');
+            const options = opts.slice(0, 6).map((text, i) => ({ id: 'o' + i, text }));
+            try {
+                await addDoc(collection(db, `channels/${currentTargetId}/polls`), {
+                    question, options, votes: {}, createdBy: currentUser.uid, createdByName: userProfile.name,
+                    createdAt: serverTimestamp(), closed: false
+                });
+                // Annoncé aussi comme un message normal, pour qu'il apparaisse dans le fil de discussion
+                addDoc(collection(db, messagesPath()), {
+                    text: `📊 Nouveau sondage : "${question}" — vote via l'icône 📊 en haut du salon !`,
+                    uid: currentUser.uid, displayName: userProfile.name, avatar: userProfile.avatar || '',
+                    createdAt: serverTimestamp(), reactions: {}
+                }).catch(() => {});
+                closeCreatePoll();
+                showToast('📊 Sondage publié !');
+            } catch (e) { showToast("Erreur : " + e.message); }
+        };
 
         async function goToPin(id) {
             closePinsModal();
@@ -5504,6 +5818,7 @@ match /groups/{groupId}/reads/{uid} {
             if (unsubscribeMessages) { unsubscribeMessages(); unsubscribeMessages = null; }
             if (!currentUser) return;
             listenPins();
+            listenPolls();
 
             const token = ++messagesToken;       // toute réponse portant un autre token est ignorée
             const key = convKey();
