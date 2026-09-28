@@ -178,6 +178,26 @@
             [data-nfx][data-nfx-glow] { filter: none; text-shadow: 0 0 5px var(--nfx-glow, transparent), 0 0 10px var(--nfx-glow, transparent); }
         }
 
+        /* ===== Saison : présentation + micro-interactions (couche additive, rien de l'existant n'est modifié) ===== */
+        .nx-prog { height: 8px; border-radius: 9999px; background: #14151a; overflow: hidden; border: 1px solid #3f4147; }
+        .nx-prog > i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--theme-color), #38bdf8); transition: width .6s ease; }
+        .nx-prog.gold > i { background: linear-gradient(90deg, #f59e0b, #fde047); }
+        .nx-layer { position: fixed; left: 50%; top: 64px; transform: translateX(-50%); z-index: 80; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; max-width: calc(100vw - 24px); }
+        .nx-pill { background: rgba(30,31,34,.94); border: 1px solid rgba(245,158,11,.45); color: #fde68a; font-weight: 700; font-size: 13px; padding: 8px 14px; border-radius: 9999px; box-shadow: 0 8px 24px rgba(0,0,0,.45), 0 0 18px rgba(245,158,11,.18); animation: nxPill 2.8s ease forwards; }
+        @keyframes nxPill { 0% { opacity: 0; transform: translateY(-8px) scale(.96); } 12% { opacity: 1; transform: none; } 82% { opacity: 1; } 100% { opacity: 0; transform: translateY(-6px); } }
+        .nx-float { position: fixed; z-index: 80; pointer-events: none; font-weight: 800; font-size: 13px; color: #a5b4fc; text-shadow: 0 1px 6px rgba(0,0,0,.7); white-space: nowrap; animation: nxFloat 1.2s ease-out forwards; }
+        @keyframes nxFloat { 0% { opacity: 0; transform: translate(-50%, 4px); } 15% { opacity: 1; transform: translate(-50%, -4px); } 100% { opacity: 0; transform: translate(-50%, -34px); } }
+        .nx-fly { position: fixed; z-index: 80; pointer-events: none; font-weight: 800; font-size: 12px; color: #fbbf24; text-shadow: 0 1px 6px rgba(0,0,0,.7); white-space: nowrap; }
+        .nx-reveal { position: fixed; inset: 0; z-index: 90; display: flex; align-items: center; justify-content: center; pointer-events: none; padding: 16px; transition: opacity .3s ease; }
+        .nx-reveal-card { pointer-events: auto; position: relative; width: min(360px, 100%); text-align: center; padding: 22px 16px 18px; border-radius: 20px; border: 1px solid rgba(245,158,11,.4);
+            background: radial-gradient(120% 90% at 50% 0%, rgba(245,158,11,.16), transparent 60%), #2b2d31; box-shadow: 0 24px 70px rgba(0,0,0,.65), 0 0 40px rgba(245,158,11,.12); animation: nxCardIn .5s ease-out both; }
+        @keyframes nxCardIn { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+        .nx-step { opacity: 0; animation: nxStepIn .5s ease-out forwards; }
+        @keyframes nxStepIn { from { opacity: 0; transform: translateY(8px) scale(.92); } to { opacity: 1; transform: none; } }
+        .nx-parts { position: absolute; left: 0; right: 0; top: 0; height: 0; pointer-events: none; overflow: visible; }
+        .nx-part { position: absolute; left: 50%; top: 70px; width: 5px; height: 5px; border-radius: 50%; background: var(--c, #fbbf24); opacity: 0; animation: nxPart 1.7s ease-out forwards; }
+        @keyframes nxPart { 0% { opacity: 0; transform: translate(0, 0) scale(.6); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1); } }
+
         @media (prefers-reduced-motion: reduce) {
             * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
         }
@@ -3737,6 +3757,7 @@ match /groups/{groupId}/reads/{uid} {
             }
             if (kind === 'voice' && activeVoiceId) payload.lastVoiceRoom = activeVoiceId;
 
+            const xpBefore = xpOf(userProfile);   // pour détecter la montée de niveau (affichage uniquement)
             // Optimiste en local pour un affichage immédiat (corrigé de toute façon au prochain instantané "users")
             userProfile[CFG.field] = { toMillis: () => now };
             userProfile.xp = (userProfile.xp || 0) + CFG.amount;
@@ -3753,6 +3774,8 @@ match /groups/{groupId}/reads/{uid} {
                 await updateDoc(doc(db, "users", currentUser.uid), payload);
                 if (kind === 'daily') showToast(`🎁 Bonus quotidien : +${DAILY_BONUS_XP} XP · +${DAILY_COINS} 🪙`);
                 else bumpCoins(CFG.coins);   // petit "+2 🪙" flottant, discret : pas besoin d'interrompre la conversation à chaque message
+                nxGainFx(CFG.amount, CFG.coins, kind);   // micro-animations : +XP, pièces qui volent vers le compteur
+                if (levelInfo(xpBefore + CFG.amount).level > levelInfo(xpBefore).level) nxLevelUp(levelInfo(xpBefore + CFG.amount).level);
             }
             catch (e) { /* refusé par le serveur (cooldown/plafond non écoulé) : rien d'anormal, on ignore */ }
         }
@@ -4547,7 +4570,7 @@ match /groups/{groupId}/reads/{uid} {
         window.setHubType = (t) => { hubType = t; renderHub(); };
         function tickHub() {
             if (!hubIsOpen()) return;
-            if (hubTab === 'season') { updateCountdownEl(); const b = $('season-board'); if (b) b.innerHTML = seasonBoardHtml(currentSeason()); }
+            if (hubTab === 'season') { updateCountdownEl(); refreshSeasonLive(); }
         }
         function updateCountdownEl() {
             const el = $('season-countdown'); if (!el) return;
@@ -4557,10 +4580,11 @@ match /groups/{groupId}/reads/{uid} {
         // Appelé à chaque instantané "users" : on ne redessine la fenêtre que si TES données ont changé
         function hubOnUsersUpdate() {
             updateCoinsUI();
+            if (currentUser) { nxCheckBadges(); nxCheckRankUp(); nxCheckSeasonRewards().catch(() => {}); }   // micro-interactions (jamais bloquantes)
             if (!hubIsOpen() || !currentUser) return;
             const sig = myEconomySig();
             if (sig !== hubMySig) { hubMySig = sig; renderHub(); }
-            else if (hubTab === 'season') { const b = $('season-board'); if (b) b.innerHTML = seasonBoardHtml(currentSeason()); }
+            else if (hubTab === 'season') refreshSeasonLive();
         }
 
         function avatarCircle(u, cls, textCls) {
@@ -4589,13 +4613,11 @@ match /groups/{groupId}/reads/{uid} {
             else if (coins < price) action = btn('bg-[#35373c] text-[#b5bac1]', '', `Il manque ${fmtCoins(price - coins)} 🪙`, true);
             else action = btn('bg-amber-500 text-black hover:bg-amber-400', `buyItem('${d.id}')`, 'Acheter');
             const priceTxt = owned ? '<span class="text-emerald-400">Possédé</span>' : d.exclusive ? '<span class="text-amber-300">Exclusif</span>' : `<span class="text-amber-300">${fmtCoins(price || d.price || 0)} 🪙</span>`;
-            const details = d.exclusive ? `<details class="text-[11px] text-[#b5bac1] text-left"><summary class="cursor-pointer text-[#949ba4] select-none">Détails</summary>
-                    <div class="mt-1 space-y-0.5"><div class="font-semibold text-[#f2f3f5]">${escapeHtml(d.icon)} ${escapeHtml(d.name)}</div>
-                    <div>Récompense exclusive de la Saison ${d.season}.</div><div>Obtenue grâce au classement de fin de saison.</div><div class="text-amber-300">🔒 Exclusivité permanente</div></div></details>` : '';
+            const details = d.exclusive ? `<button type="button" onclick="openSeasonItem('${d.id}')" class="text-[11px] text-[#949ba4] hover:text-white underline underline-offset-2 transition">Détails</button>` : '';
             const rarity = rarityBadge(d.id);
             const rarityTag = rarity ? `<span class="absolute top-1.5 left-1.5 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full border ${rarity.cls}" title="${escapeHtml(rarity.title)}">${rarity.label}</span>` : '';
             return `<div class="relative bg-[#1e1f22] border ${d.exclusive ? 'border-amber-500/40' : 'border-[#3f4147]'} rounded-2xl p-3 flex flex-col items-center gap-2 text-center">
-                ${rarityTag}
+                ${rarityTag}${cosCategoryTag(d)}
                 <div class="h-16 flex items-center justify-center">${previewHtml(d)}</div>
                 <div class="min-w-0 w-full"><div class="text-sm font-semibold truncate">${escapeHtml(d.icon)} ${escapeHtml(d.name)}</div><div class="text-xs font-bold">${priceTxt}</div></div>
                 ${details}${action}</div>`;
@@ -4643,7 +4665,7 @@ match /groups/{groupId}/reads/{uid} {
             const rarity = rarityBadge(d.id);
             const rarityTag = rarity ? `<span class="absolute top-1.5 left-1.5 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full border ${rarity.cls}" title="${escapeHtml(rarity.title)}">${rarity.label}</span>` : '';
             return `<div class="relative bg-[#1e1f22] border ${d.exclusive ? 'border-amber-500/40' : 'border-[#3f4147]'} rounded-2xl p-3 flex flex-col items-center gap-2 text-center">
-                ${rarityTag}
+                ${rarityTag}${cosCategoryTag(d)}
                 <div class="h-16 flex items-center justify-center">${previewHtmlFor(d, u)}</div>
                 <div class="min-w-0 w-full"><div class="text-sm font-semibold truncate">${escapeHtml(d.icon)} ${escapeHtml(d.name)}</div>${d.exclusive ? `<div class="text-[10px] text-amber-300">Saison ${d.season}</div>` : ''}</div>
             </div>`;
@@ -4698,7 +4720,7 @@ match /groups/{groupId}/reads/{uid} {
             { id: 'coins1', icon: '🪙', name: 'Petit épargnant', desc: '200 🪙 en poche', test: u => coinsOf(u) >= 200 },
             { id: 'coins2', icon: '💰', name: 'Riche', desc: '1000 🪙 en poche', test: u => coinsOf(u) >= 1000 },
             { id: 'collec', icon: '🎒', name: 'Collectionneur', desc: '5 cosmétiques possédés', test: u => Object.keys(ownedOf(u)).length >= 5 },
-            { id: 'champ', icon: '🏆', name: 'Champion de saison', desc: 'Avoir gagné une récompense de saison', test: u => Object.keys(ownedOf(u)).some(id => COSMETICS[id]?.exclusive) },
+            { id: 'champ', icon: '🏆', name: 'Champion de saison', desc: 'Avoir gagné une récompense de saison', test: u => Object.keys(ownedOf(u)).some(id => cosmeticOf(id)?.exclusive) },
             { id: 'senior1', icon: '📅', name: 'Ancien', desc: 'Membre depuis 30 jours', test: u => u.joinedAt && (Date.now() - tsMillis(u.joinedAt)) >= 30 * 864e5 },
             { id: 'senior2', icon: '🎂', name: 'Vétéran', desc: 'Membre depuis 90 jours', test: u => u.joinedAt && (Date.now() - tsMillis(u.joinedAt)) >= 90 * 864e5 },
         ];
@@ -4804,24 +4826,359 @@ match /groups/{groupId}/reads/{uid} {
             html += seasonsHistory.map(s => `<div class="flex items-center justify-between gap-2 text-xs bg-[#1e1f22] rounded-lg px-2.5 py-2"><span class="min-w-0 truncate">Saison ${s.number} · lien récompense : ${rewardLinks[s.number] ? '✅ défini' : '— non défini'}</span><button type="button" onclick="setSeasonRewardLink(${s.number})" class="shrink-0 px-2.5 py-1.5 rounded-lg bg-[#35373c] text-[#dbdee1] font-semibold">Modifier</button></div>`).join('');
             return html + `</div>`;
         }
+        /* =========================================================
+           SAISON · PRÉSENTATION, DÉTAILS ET MICRO-INTERACTIONS (couche additive)
+           Aucune règle métier ici et aucune écriture Firestore : tout est LU à partir de fonctions/données
+           qui existent déjà (seasonRanking, seasonXpOf, cosmeticOf, ownedOf, seasonsHistory, rewardLinks).
+           ========================================================= */
+        const SEASON_TIER_LABEL = { top1: 'Top 1', top2: 'Top 2', top3: 'Top 3', active: 'Top 4 à 10' };
+        const rankMedal = (r) => r === 1 ? '🥇' : r === 2 ? '🥈' : r === 3 ? '🥉' : '';
+        // XP qu'il reste à GAGNER pour passer devant `target` (égalité départagée par le pseudo, comme dans seasonRanking)
+        function xpToPass(myXp, myName, target) {
+            const diff = target.xp - myXp;
+            return Math.max(1, diff + (String(myName).localeCompare(String(target.u.name)) < 0 ? 0 : 1));
+        }
+        function seasonMeInfo(n) {
+            const uid = currentUser?.uid, ranking = seasonRanking(n);
+            const me = userOf(uid) || userProfile;
+            const idx = ranking.findIndex(r => r.u.uid === uid);
+            return {
+                ranking, me, myXp: seasonXpOf(me, n), rank: idx >= 0 ? idx + 1 : 0,
+                ahead: idx > 0 ? ranking[idx - 1] : null, second: ranking[1] || null, tenth: ranking.length >= 10 ? ranking[9] : null
+            };
+        }
+
+        // Carte « Ton classement » : rang, XP, progression, objectif, distance avec le joueur devant (100 % dynamique)
+        function seasonMeHtml(n) {
+            const prep = n < 1;
+            const { me, myXp, rank, ahead, second, tenth } = seasonMeInfo(n);
+            const name = me?.name || '';
+            let rankTxt = 'Non classé', obj = '', hint = '', sub = '', pct = 0, gold = false, warn = false;
+
+            if (rank === 1) {
+                rankTxt = '🥇 #1'; obj = 'Conserver le Top 1'; pct = 100; gold = true;
+                hint = 'Tu es actuellement premier';
+                if (second) sub = myXp === second.xp ? `À égalité avec le #2 (${escapeHtml(second.u.name || '?')})` : `${fmtCoins(myXp - second.xp)} XP d’avance sur le #2`;
+            } else {
+                // cible : le joueur juste devant, sauf hors Top 10 (en saison) où l'objectif est d'entrer dans le Top 10
+                const wantTop10 = !prep && (!rank || rank > 10) && tenth;
+                const target = wantTop10 ? tenth : ahead;
+                if (rank) rankTxt = `${rankMedal(rank)} #${rank}`.trim();
+                if (target) {
+                    const need = xpToPass(myXp, name, target);
+                    pct = Math.round(myXp / (myXp + need) * 100);
+                    if (wantTop10) {
+                        obj = 'Entrer dans le Top 10'; warn = true;
+                        hint = `${rank ? '🔥' : '⚠️'} ${fmtCoins(need)} XP nécessaires pour entrer dans le Top 10`;
+                        if (ahead) sub = `Joueur juste devant toi : #${rank - 1} — ${escapeHtml(ahead.u.name || '?')} (${fmtCoins(ahead.xp)} XP)`;
+                    } else {
+                        obj = `Dépasser le #${rank - 1}`;
+                        hint = `↑ ${fmtCoins(need)} XP pour dépasser le #${rank - 1}`;
+                        sub = `${escapeHtml(ahead.u.name || '?')} · ${fmtCoins(ahead.xp)} XP`;
+                    }
+                } else if (rank) {   // classé mais personne à cibler (ne devrait pas arriver hors #1)
+                    obj = 'Continuer sur ta lancée';
+                } else {
+                    obj = prep ? 'Gagne de l’XP pour apparaître au classement' : 'Gagne de l’XP pour entrer dans le classement';
+                }
+                if (!prep && rank >= 2 && rank <= 10) sub += `${sub ? '<br>' : ''}${rank <= 3 ? '🎁 Zone Top 3 : cadre + badge exclusifs + récompense Brawl Stars' : '🎁 Zone Top 10 : badge exclusif « Actif »'}`;
+            }
+            return `<div class="rounded-2xl p-4 border border-[#3f4147] bg-[#1e1f22]">
+                <div class="flex items-end justify-between gap-3">
+                    <div><div class="text-[10px] uppercase tracking-wider text-[#80848e]">Ton classement</div><div class="text-2xl font-extrabold leading-tight">${rankTxt}</div></div>
+                    <div class="text-right"><div class="text-[10px] uppercase tracking-wider text-[#80848e]">XP de saison</div><div class="text-xl font-extrabold text-amber-300 leading-tight">${fmtCoins(myXp)} XP</div></div>
+                </div>
+                <div class="mt-3"><div class="flex justify-between text-[10px] text-[#80848e] mb-1"><span>Progression</span><span>${pct}%</span></div>
+                    <div class="nx-prog ${gold ? 'gold' : ''}"><i style="width:${pct}%"></i></div></div>
+                <div class="mt-3 text-xs"><span class="text-[#80848e]">Objectif :</span> <span class="font-bold">${obj}</span></div>
+                ${hint ? `<div class="mt-1 text-sm font-semibold ${warn ? 'text-amber-300' : 'text-emerald-300'}">${hint}</div>` : ''}
+                ${sub ? `<div class="mt-1 text-[11px] text-[#949ba4] leading-relaxed">${sub}</div>` : ''}
+            </div>`;
+        }
+
+        // Section « Récompenses de la Saison N » : uniquement les objets réels générés par cosmeticOf()
+        function seasonRewardsHtml(n) {
+            const tierRow = (k, title) => {
+                const f = cosmeticOf(`season${n}_top${k}_frame`), r = cosmeticOf(`season${n}_top${k}_role`);
+                if (!f || !r) return '';
+                return `<div class="flex items-center gap-3 bg-[#1e1f22] border border-amber-500/30 rounded-xl p-2.5">
+                    <div class="shrink-0 w-16 h-16 flex items-center justify-center">${previewHtml(f)}</div>
+                    <div class="min-w-0 flex-1 space-y-1">
+                        <div class="text-sm font-bold">${title}</div>
+                        <div>${roleChip(r)}</div>
+                        <div class="text-[11px] text-[#b5bac1]">🏅 Badge exclusif · 🖼️ Cadre « ${escapeHtml(f.name)} »</div>
+                        <div class="text-[11px] text-amber-300">🎮 Récompense Brawl Stars</div>
+                    </div></div>`;
+            };
+            const a = cosmeticOf(`season${n}_active_role`);
+            const activeRow = a ? `<div class="flex items-center gap-3 bg-[#1e1f22] border border-amber-500/30 rounded-xl p-2.5">
+                    <div class="shrink-0 w-16 h-16 flex items-center justify-center text-3xl">${escapeHtml(a.icon)}</div>
+                    <div class="min-w-0 flex-1 space-y-1"><div class="text-sm font-bold">🏅 Top 4–10</div><div>${roleChip(a)}</div><div class="text-[11px] text-[#b5bac1]">🏅 Badge exclusif de saison</div></div></div>` : '';
+            return `<div class="mb-4"><div class="text-sm font-bold mb-2">🎁 Récompenses de la Saison ${n}</div>
+                <div class="space-y-2">${tierRow(1, '🥇 Top 1')}${tierRow(2, '🥈 Top 2')}${tierRow(3, '🥉 Top 3')}${activeRow}</div>
+                <div class="text-[11px] text-[#949ba4] mt-2">Récompenses exclusives : jamais en vente dans la boutique, et plus jamais disponibles après la saison.</div></div>`;
+        }
+
+        // Résultat de la dernière saison clôturée, pour un joueur du Top 10 (données réelles : seasons/* + owned)
+        function seasonResultHtml() {
+            if (!currentUser || !seasonsLoaded || !seasonsHistory.length) return '';
+            const s = seasonsHistory[0], n = s.number;
+            const mine = (s.top10 || []).find(x => x.uid === currentUser.uid);
+            if (!mine) return '';
+            const owned = ownedOf(userOf(currentUser.uid) || userProfile);
+            const ids = mine.rank <= 3 ? [`season${n}_top${mine.rank}_frame`, `season${n}_top${mine.rank}_role`] : [`season${n}_active_role`];
+            const chips = ids.filter(id => owned[id]).map(cosmeticOf).filter(Boolean)
+                .map(d => `<span class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-200">${d.type === 'frame' ? '🖼️' : '🏅'} ${escapeHtml(d.name)}</span>`).join('');
+            let brawl = '';
+            if (mine.rank <= 3) {
+                const link = rewardLinks[n];
+                brawl = (link && safeUrl(link))
+                    ? `<a href="${escapeHtml(safeUrl(link))}" target="_blank" rel="noopener noreferrer" class="block mt-3 text-xs font-semibold text-amber-300 underline">🎮 Ta récompense Brawl Stars</a>`
+                    : `<div class="mt-3 text-xs text-amber-300">🎮 La récompense Brawl Stars te sera envoyée.</div>`;
+            }
+            return `<div class="rounded-2xl p-4 mb-4 border border-amber-500/40" style="background:linear-gradient(135deg,rgba(245,158,11,.14),#1e1f22)">
+                <div class="text-[10px] uppercase tracking-[.2em] text-amber-300">🎉 Saison ${n} terminée</div>
+                <div class="flex items-end justify-between gap-3 mt-1">
+                    <div><div class="text-[10px] uppercase tracking-wider text-[#80848e]">Ton classement final</div><div class="text-2xl font-extrabold leading-tight">${rankMedal(mine.rank)} #${mine.rank}</div></div>
+                    <div class="text-right"><div class="text-[10px] uppercase tracking-wider text-[#80848e]">XP</div><div class="text-lg font-extrabold text-amber-300 leading-tight">${fmtCoins(mine.xp || 0)} XP</div></div>
+                </div>
+                <div class="mt-3 text-[10px] uppercase tracking-wider text-[#80848e]">Récompenses obtenues</div>
+                <div class="flex flex-wrap gap-1.5 mt-1">${chips || '<span class="text-xs text-[#b5bac1]">Elles arrivent dans ta collection.</span>'}</div>${brawl}</div>`;
+        }
+
+        // Catégorie d'un objet : 🪙 Boutique · 🏆 Saison · 🎮 Événement (flag optionnel `event: true` sur une entrée de COSMETICS)
+        function cosCategoryTag(d) {
+            const c = d.exclusive ? ['🏆', 'Saison'] : d.event ? ['🎮', 'Événement'] : ['🪙', 'Boutique'];
+            return `<span class="absolute top-1.5 right-1.5 text-[11px]" title="Catégorie : ${c[1]}">${c[0]}</span>`;
+        }
+
+        // Fenêtre « Détails » d'un objet de saison (Collection)
+        window.openSeasonItem = (id) => {
+            const d = cosmeticOf(id);
+            if (!d || !d.exclusive || !currentUser) return;
+            const uid = currentUser.uid, own = ownsItem(uid, id);
+            const at = tsMillis(ownedOf(userOf(uid) || userProfile)[id]);
+            const n = d.season, tier = d.tier;
+            const sib = ['frame', 'role'].map(t => cosmeticOf(`season${n}_${tier}_${t}`)).filter(Boolean);
+            const rewards = sib.map(x => `<li>${x.type === 'frame' ? '🖼️' : '🏅'} ${escapeHtml(x.name)}</li>`).join('') + (tier !== 'active' ? '<li>🎮 Récompense Brawl Stars</li>' : '');
+            const desc = tier === 'active' ? `Décerné aux joueurs classés 4e à 10e de la Saison ${n}.` : `Décerné au ${SEASON_TIER_LABEL[tier]} de la Saison ${n}.`;
+            const row = (k, v) => `<div class="flex items-start justify-between gap-3 py-2 border-b border-[#3f4147]/60 last:border-0"><span class="text-[#80848e] text-xs shrink-0">${k}</span><span class="text-sm text-right">${v}</span></div>`;
+            let m = $('nx-item-modal');
+            if (!m) { m = document.createElement('div'); m.id = 'nx-item-modal'; document.body.appendChild(m); }
+            m.className = 'fixed inset-0 bg-black/70 flex items-end md:items-center justify-center z-[60] md:p-4';
+            m.onclick = (e) => { if (e.target === m) closeSeasonItem(); };
+            m.innerHTML = `<div class="modal-pop bg-[#2b2d31] border border-[#3f4147] w-full md:max-w-sm rounded-t-2xl md:rounded-2xl shadow-2xl p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] max-h-[88vh] overflow-y-auto">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0"><div class="text-[10px] uppercase tracking-[.2em] text-amber-300">Saison ${n}</div><div class="text-lg font-extrabold leading-tight">🏆 ${escapeHtml(d.name)}</div></div>
+                    <button type="button" onclick="closeSeasonItem()" class="w-8 h-8 shrink-0 rounded-full bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] text-sm" title="Fermer"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="h-20 flex items-center justify-center my-2">${previewHtml(d)}</div>
+                <div class="text-xs text-[#b5bac1] text-center mb-2">${desc}</div>
+                <div class="bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3">
+                    ${row('Saison', `Saison ${n}`)}
+                    ${row('Rang nécessaire', SEASON_TIER_LABEL[tier])}
+                    ${row('Type', d.type === 'frame' ? '🖼️ Cadre d’avatar' : '🏅 Badge (rôle)')}
+                    ${row('Récompenses du palier', `<ul class="space-y-0.5">${rewards}</ul>`)}
+                    ${row('Date d’obtention', at ? new Date(at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '—')}
+                    ${row('Statut', own ? '<span class="text-emerald-400 font-semibold">✓ Possédé</span>' : '<span class="text-[#949ba4]">🔒 Non obtenu</span>')}
+                </div>
+                <div class="text-[11px] text-[#80848e] mt-2 text-center">Exclusivité permanente : cet objet ne sera jamais en vente dans la boutique.</div></div>`;
+        };
+        window.closeSeasonItem = () => { const m = $('nx-item-modal'); if (m) m.remove(); };
+
+        // Mise à jour « en direct » de l'onglet Saison (classement + carte perso). La carte n'est réécrite que si elle a changé.
+        let lastSeasonMeHtml = '';
+        function refreshSeasonLive() {
+            const n = currentSeason();
+            const b = $('season-board'); if (b) b.innerHTML = seasonBoardHtml(n);
+            const m = $('season-me');
+            if (m) { const h = seasonMeHtml(n); if (h !== lastSeasonMeHtml) { m.innerHTML = h; lastSeasonMeHtml = h; } }
+        }
+
+        /* ---------- Animations : légères, non bloquantes, désactivables ---------- */
+        const nxReduced = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+        const nxFxOn = () => { try { if (localStorage.getItem('nx_fx') === '0') return false; } catch { /* stockage indisponible : animations actives */ } return !nxReduced(); };
+        window.toggleNxFx = () => { try { localStorage.setItem('nx_fx', localStorage.getItem('nx_fx') === '0' ? '1' : '0'); } catch { } renderHub(); };
+        function nxFxToggleHtml() {
+            const state = nxReduced() ? 'désactivées (réglage de ton appareil)' : nxFxOn() ? 'activées' : 'désactivées';
+            return `<div class="text-center mt-4"><button type="button" onclick="toggleNxFx()" class="text-[11px] text-[#80848e] hover:text-[#b5bac1] transition">✨ Animations : ${state}</button></div>`;
+        }
+        function nxLayer() {
+            let l = $('nx-layer');
+            if (!l) { l = document.createElement('div'); l.id = 'nx-layer'; l.className = 'nx-layer'; document.body.appendChild(l); }
+            return l;
+        }
+        function nxPill(html) {
+            if (!nxFxOn()) return false;
+            const l = nxLayer(), p = document.createElement('div');
+            p.className = 'nx-pill'; p.innerHTML = html;
+            l.appendChild(p);
+            while (l.children.length > 3) l.firstChild.remove();
+            p.addEventListener('animationend', () => p.remove());
+            return true;
+        }
+        function nxAnchor() {   // au-dessus de ta pastille de profil si elle est visible, sinon en bas de l'écran
+            const el = $('user-frame-wrap') || $('user-name');
+            if (el && el.offsetParent !== null) {
+                const r = el.getBoundingClientRect();
+                if (r.width && r.right > 0 && r.left < window.innerWidth && r.bottom > 0 && r.top < window.innerHeight) return { x: r.left + r.width / 2, y: r.top };
+            }
+            return { x: window.innerWidth / 2, y: window.innerHeight - 96 };
+        }
+        function nxFloatXp(n) {
+            const a = nxAnchor(), f = document.createElement('div');
+            f.className = 'nx-float'; f.textContent = `+${n} XP`;
+            f.style.left = a.x + 'px'; f.style.top = a.y + 'px';
+            document.body.appendChild(f);
+            f.addEventListener('animationend', () => f.remove());
+            return a;
+        }
+        function nxFlyCoins(n, from, bump) {   // « 🪙 +50 » qui file vers le compteur de pièces visible
+            const target = ['coins-count', 'mobile-coins-label', 'hub-coins'].map(id => $(id)).find(el => {
+                if (!el || el.offsetParent === null) return false;
+                const r = el.getBoundingClientRect();
+                return r.width && r.right > 0 && r.left < window.innerWidth && r.bottom > 0 && r.top < window.innerHeight;
+            });
+            if (!target || !target.animate) { if (bump) bumpCoins(n); return; }
+            const t = target.getBoundingClientRect(), sy = from.y - 24;
+            const dx = t.left + t.width / 2 - from.x, dy = t.top + t.height / 2 - sy;
+            const el = document.createElement('div');
+            el.className = 'nx-fly'; el.textContent = `🪙 +${n}`;
+            el.style.left = from.x + 'px'; el.style.top = sy + 'px';
+            document.body.appendChild(el);
+            const anim = el.animate([
+                { opacity: 0, transform: 'translate(-50%,0) scale(.8)' },
+                { opacity: 1, transform: 'translate(-50%,0) scale(1)', offset: .2 },
+                { opacity: 1, transform: `translate(calc(-50% + ${dx}px), ${dy}px) scale(.85)`, offset: .85 },
+                { opacity: 0, transform: `translate(calc(-50% + ${dx}px), ${dy}px) scale(.6)` }
+            ], { duration: 900, easing: 'ease-in-out' });
+            anim.onfinish = () => { el.remove(); if (bump) bumpCoins(n); };
+        }
+        // Gain d'XP / pièces : « +6 XP » discret, et les gros gains de pièces (bonus quotidien…) volent vers le compteur.
+        // Les petits gains de message/vocal gardent le « +2 » existant (bumpCoins).
+        function nxGainFx(xp, coins, kind) {
+            if (!nxFxOn()) return;
+            const a = nxFloatXp(xp);
+            if (kind === 'daily' || coins >= 10) nxFlyCoins(coins, a, kind === 'daily');
+        }
+
+        // Montée dans le classement de saison (limitée à 1 calcul / 4 s : appelée à chaque instantané « users »)
+        let nxRankPrev = null, nxRankAt = 0;
+        function nxCheckRankUp() {
+            if (!currentUser || Date.now() - nxRankAt < 4000) return;
+            nxRankAt = Date.now();
+            const n = currentSeason(), { rank } = seasonMeInfo(n);
+            const prev = nxRankPrev;
+            nxRankPrev = { n, rank };
+            if (!prev || prev.n !== n || !rank || !prev.rank || rank >= prev.rank) return;
+            if (!nxFxOn()) return;
+            nxPill(!(n < 1) && rank <= 10 && prev.rank > 10 ? '🔥 Tu entres dans le Top 10 !' : `▲ Tu passes ${rankMedal(rank)} #${rank} au classement de saison`.replace('  ', ' '));
+        }
+        function nxLevelUp(level) { nxPill(`⬆️ Niveau ${level} !`) || showToast(`⬆️ Niveau ${level} !`); }
+
+        // Badge débloqué (badges calculés par BADGE_DEFS). Première exécution : on mémorise l'existant sans rien animer.
+        function nxCheckBadges() {
+            const u = currentUser && userOf(currentUser.uid);
+            if (!u) return;
+            const key = 'nx_seen_badges_' + currentUser.uid;
+            let seen = null;
+            try { seen = JSON.parse(localStorage.getItem(key) || 'null'); } catch { seen = null; }
+            const earned = computeBadges(u).filter(b => b.earned);
+            const save = () => { try { localStorage.setItem(key, JSON.stringify(earned.map(b => b.id))); } catch { } };
+            if (!Array.isArray(seen)) { save(); return; }
+            const fresh = earned.filter(b => !seen.includes(b.id));
+            if (!fresh.length) return;
+            save();
+            fresh.forEach(b => { if (!nxPill(`${b.icon} Badge débloqué : ${escapeHtml(b.name)}`) && b === fresh[0]) showToast(`${b.icon} Badge débloqué : ${b.name}`); });
+        }
+
+        // Récompenses de saison reçues : petite carte « premium » (apparition progressive + quelques particules)
+        let nxRewardBusy = false, nxRevealTimer = null;
+        window.closeNxReveal = () => {
+            clearTimeout(nxRevealTimer);
+            const el = $('nx-reveal'); if (!el) return;
+            el.style.opacity = '0';
+            setTimeout(() => el.remove(), 320);
+        };
+        async function nxCheckSeasonRewards() {
+            if (!currentUser || nxRewardBusy) return;
+            const u = userOf(currentUser.uid) || userProfile;
+            const ids = Object.keys(ownedOf(u)).map(cosmeticOf).filter(d => d && d.exclusive).map(d => d.id);
+            const key = 'nx_seen_rewards_' + currentUser.uid;
+            let seen = null;
+            try { seen = JSON.parse(localStorage.getItem(key) || 'null'); } catch { seen = null; }
+            let fresh;
+            if (!Array.isArray(seen)) {   // première exécution sur cet appareil : seules les récompenses de la saison qui vient de se terminer sont « nouvelles »
+                const recent = currentSeason() - 1;
+                fresh = ids.filter(id => cosmeticOf(id).season === recent);
+            } else fresh = ids.filter(id => !seen.includes(id));
+            if (Array.isArray(seen) ? fresh.length : true) { try { localStorage.setItem(key, JSON.stringify(ids)); } catch { } }
+            if (!fresh.length) return;
+            nxRewardBusy = true;
+            try { await nxShowRewardReveal(fresh); } finally { nxRewardBusy = false; }
+        }
+        async function nxShowRewardReveal(ids) {
+            const defs = ids.map(cosmeticOf).filter(Boolean);
+            if (!defs.length) return;
+            const n = Math.max(...defs.map(d => d.season));
+            const mineDefs = defs.filter(d => d.season === n).sort((a, b) => a.type.localeCompare(b.type));   // cadre puis badge
+            let rank = 0, xp = null;
+            try {
+                await ensureSeasonsHistory(!seasonsHistory.some(x => x.number === n));
+                const m = (seasonsHistory.find(x => x.number === n)?.top10 || []).find(x => x.uid === currentUser.uid);
+                if (m) { rank = m.rank; xp = m.xp; }
+            } catch { /* l'XP est un bonus d'affichage */ }
+            if (!rank) { const t = mineDefs[0].tier; rank = t === 'active' ? 0 : Number(t.slice(3)); }
+            if (!nxFxOn()) return showToast(`🏆 Saison ${n} terminée : ${mineDefs.length} récompense${mineDefs.length > 1 ? 's' : ''} ajoutée${mineDefs.length > 1 ? 's' : ''} à ta collection`, 5000);
+            const old = $('nx-reveal'); if (old) old.remove();
+            const brawl = mineDefs[0].tier !== 'active';
+            const items = mineDefs.map((d, i) => `<div class="nx-step flex items-center justify-center gap-3" style="animation-delay:${(0.55 + i * 0.35).toFixed(2)}s">
+                    ${d.type === 'frame' ? previewHtml(d) : roleChip(d)}
+                    <div class="text-xs text-left"><div class="font-semibold">${escapeHtml(d.name)}</div><div class="text-[#949ba4]">${d.type === 'frame' ? 'Cadre exclusif' : 'Badge exclusif'}</div></div></div>`).join('');
+            const wrap = document.createElement('div');
+            wrap.id = 'nx-reveal'; wrap.className = 'nx-reveal';
+            wrap.innerHTML = `<div class="nx-reveal-card"><div class="nx-parts"></div>
+                <div class="nx-step text-[11px] uppercase tracking-[.25em] text-amber-300" style="animation-delay:.05s">🎉 Saison ${n} terminée</div>
+                <div class="nx-step text-3xl font-extrabold mt-1" style="animation-delay:.2s">${rank ? `${rankMedal(rank)} #${rank}` : 'Top 10'}</div>
+                ${xp != null ? `<div class="nx-step text-sm text-[#b5bac1]" style="animation-delay:.3s">${fmtCoins(xp)} XP</div>` : ''}
+                <div class="mt-4 space-y-3">${items}</div>
+                ${brawl ? `<div class="nx-step text-[11px] text-amber-300 mt-3" style="animation-delay:${(0.6 + mineDefs.length * 0.35).toFixed(2)}s">🎮 Ta récompense Brawl Stars t’attend dans l’onglet Saison</div>` : ''}
+                <button type="button" onclick="closeNxReveal()" class="nx-step mt-4 px-5 py-2 rounded-xl bg-[var(--theme-color)] text-white text-xs font-semibold" style="animation-delay:${(0.8 + mineDefs.length * 0.35).toFixed(2)}s">Super !</button></div>`;
+            document.body.appendChild(wrap);
+            const parts = wrap.querySelector('.nx-parts'), colors = ['#fbbf24', '#fde68a', '#a78bfa', '#38bdf8'];
+            for (let i = 0; i < 22; i++) {
+                const p = document.createElement('span'), ang = Math.random() * Math.PI * 2, dist = 70 + Math.random() * 110;
+                p.className = 'nx-part';
+                p.style.cssText = `--dx:${Math.round(Math.cos(ang) * dist)}px;--dy:${Math.round(Math.sin(ang) * dist * 0.8 - 20)}px;--c:${colors[i % colors.length]};animation-delay:${(0.3 + Math.random() * 0.6).toFixed(2)}s`;
+                parts.appendChild(p);
+            }
+            clearTimeout(nxRevealTimer);
+            nxRevealTimer = setTimeout(closeNxReveal, 9000);
+        }
+        function nxReset() {
+            nxRankPrev = null; nxRankAt = 0; lastSeasonMeHtml = ''; nxRewardBusy = false;
+            clearTimeout(nxRevealTimer);
+            ['nx-reveal', 'nx-item-modal', 'nx-layer'].forEach(id => { const el = $(id); if (el) el.remove(); });
+        }
+
         function renderSeasonTab() {
             const n = currentSeason(), prep = n < 1;
             const startMs = seasonStartMs(prep ? 1 : n), endMs = seasonStartMs(n + 1);
             let html = `<div class="rounded-2xl p-4 mb-4 border border-[#3f4147]" style="background:linear-gradient(135deg,var(--theme-color),#1e1f22)">
                 <div class="text-xs uppercase tracking-widest text-[#b5bac1]">${prep ? 'Préparation' : 'Saison en cours'}</div>
-                <div class="text-2xl font-extrabold">SAISON ${Math.max(0, n)}</div>
+                <div class="text-2xl font-extrabold">🏆 SAISON ${Math.max(0, n)}</div>
                 <div class="text-xs text-[#b5bac1] mt-0.5">${prep ? `La Saison 1 démarre le ${fmtDateUtc(startMs)} à 00:00 (UTC).` : `Du ${fmtDateUtc(startMs)} au ${fmtDateUtc(endMs - 1000)} à 23:59:59 (UTC).`}</div>
                 <div class="mt-3 text-xs text-[#b5bac1]">${prep ? 'La Saison 1 commence dans :' : 'Fin de la saison dans :'}</div>
                 <div id="season-countdown" class="text-lg font-bold text-amber-300">${fmtCountdown(endMs - serverNow())}</div>
                 ${prep ? `<div class="text-[11px] text-[#949ba4] mt-2">Saison 0 = période de préparation : pas de récompenses de classement. L’XP gagnée ici compte déjà pour ton niveau.</div>` : ''}</div>`;
-            if (!prep) {
-                const r1 = cosmeticOf(`season${n}_top1_frame`), r2 = cosmeticOf(`season${n}_top2_frame`), r3 = cosmeticOf(`season${n}_top3_frame`);
-                html += `<div class="mb-4"><div class="text-sm font-bold mb-2">🎁 Récompenses de fin de saison</div><div class="grid grid-cols-3 gap-2">${[r1, r2, r3].map((d, i) => `<div class="bg-[#1e1f22] border border-amber-500/30 rounded-xl p-2 text-center"><div class="h-16 flex items-center justify-center">${previewHtml(d)}</div><div class="text-[11px] font-semibold truncate">${['🥇 Top 1', '🥈 Top 2', '🥉 Top 3'][i]}</div><div class="text-[10px] text-[#949ba4] truncate">${escapeHtml(d.name)}</div></div>`).join('')}</div>
-                    <div class="text-[11px] text-[#949ba4] mt-2">Top 1-3 : cadre + rôle exclusifs de la saison et une récompense Brawl Stars. Top 4-10 : rôle « Actif ». Ces récompenses ne sont plus jamais disponibles après la saison.</div></div>`;
-            }
+            html += seasonResultHtml();
+            const meHtml = seasonMeHtml(n); lastSeasonMeHtml = meHtml;
+            html += `<div id="season-me" class="mb-4">${meHtml}</div>`;
+            if (!prep) html += seasonRewardsHtml(n);
             html += `<div class="text-sm font-bold mb-1">🏆 Classement de la saison</div><div id="season-board" class="mb-4">${seasonBoardHtml(n)}</div>`;
             html += `<div class="text-sm font-bold mb-2">📜 Saisons précédentes</div><div class="space-y-2 mb-4">${seasonHistoryHtml()}</div>`;
             html += seasonAdminHtml();
+            html += nxFxToggleHtml();
             return html;
         }
 
@@ -4843,6 +5200,7 @@ match /groups/{groupId}/reads/{uid} {
             catalogDoc = null; catalogLoaded = false;
             seasonsHistory = []; seasonsLoaded = false; seasonsError = ''; rewardLinks = {};
             serverOffsetMs = 0; buying = false; closingSeason = false;
+            nxReset();
             clearInterval(hubTimer); hubTimer = null;
             ['coins-count', 'mobile-coins-label', 'hub-coins'].forEach(id => { const el = $(id); if (el) el.textContent = '0'; });
         }
