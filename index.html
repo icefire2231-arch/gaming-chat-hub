@@ -145,12 +145,13 @@
            de 768px / 480px et ne font que resserrer inset/padding/box-shadow/filter,
            sans jamais toucher aux couleurs, dégradés (--fr-bg/--nfx-bg) ou animations. */
         @media (max-width: 768px) {
-            /* Cadres (avatars taille normale, ex: messages du chat) : anneau plus fin, glow resserré */
+            /* Cadres (avatars taille normale, ex: messages du chat) : anneau plus fin, mais un halo
+               plus marqué qu'avant pour se rapprocher du rendu PC. */
             .cos-av[data-frame]::before { inset: -3px; padding: 2px; }
-            .cos-av[data-frame]::after { inset: -3px; box-shadow: 0 0 5px 0px var(--fr-glow, transparent); }
-            /* Cadres (avatars petits, ex: sidebar/DM) : encore plus resserrés pour rester proportionnés */
+            .cos-av[data-frame]::after { inset: -3px; box-shadow: 0 0 9px 1px var(--fr-glow, transparent); }
+            /* Cadres (avatars petits, ex: sidebar/DM) : resserrés mais toujours bien visibles */
             .cos-av-sm[data-frame]::before { inset: -2px; padding: 1.5px; }
-            .cos-av-sm[data-frame]::after { inset: -2px; box-shadow: 0 0 3px 0px var(--fr-glow, transparent); }
+            .cos-av-sm[data-frame]::after { inset: -2px; box-shadow: 0 0 6px 1px var(--fr-glow, transparent); }
 
             /* Cadres en image PNG : légèrement resserrés vs desktop, mais pas au point de laisser
                un vide en bas du cercle sur les artworks dont le centre visuel n'est pas au milieu
@@ -158,23 +159,23 @@
             .cos-av-frame-png { --fscale: 128%; }
             .cos-av-sm .cos-av-frame-png { --fscale: 118%; }
 
-            /* Pseudos : le halo (drop-shadow) sur du texte à remplissage transparent (background-clip:
-               text) rend flou sur certains navigateurs mobiles (rastérisation du filtre sur un buffer
-               basse résolution). On le retire entièrement sur mobile plutôt que de le rétrécir : le
-               dégradé de couleur (--nfx-bg) reste net sans lui. */
-            [data-nfx][data-nfx-glow] { filter: none; }
+            /* Pseudos : filter:drop-shadow sur du texte à remplissage transparent (background-clip:
+               text) rendait flou sur certains navigateurs mobiles (rastérisation du filtre sur un
+               buffer basse résolution). On garde filter:none, mais on remplace le halo par un
+               text-shadow (rendu par glyphe, jamais flou) — plus marqué, sans le bug d'origine. */
+            [data-nfx][data-nfx-glow] { filter: none; text-shadow: 0 0 6px var(--nfx-glow, transparent), 0 0 12px var(--nfx-glow, transparent); }
         }
 
         @media (max-width: 480px) {
             /* Petits écrans : anneau CSS un peu plus fin, mais cadres PNG inchangés par rapport au
                palier précédent pour ne pas recréer le vide en bas du cercle. */
             .cos-av[data-frame]::before { inset: -2px; padding: 1.5px; }
-            .cos-av[data-frame]::after { inset: -2px; box-shadow: 0 0 4px 0px var(--fr-glow, transparent); }
+            .cos-av[data-frame]::after { inset: -2px; box-shadow: 0 0 7px 1px var(--fr-glow, transparent); }
             .cos-av-sm[data-frame]::before { inset: -1.5px; padding: 1px; }
-            .cos-av-sm[data-frame]::after { inset: -1.5px; box-shadow: 0 0 2px 0px var(--fr-glow, transparent); }
+            .cos-av-sm[data-frame]::after { inset: -1.5px; box-shadow: 0 0 5px 1px var(--fr-glow, transparent); }
 
-            /* Pseudo bien net même sur les très petits écrans (ex: "Fire2") : toujours pas de halo */
-            [data-nfx][data-nfx-glow] { filter: none; }
+            /* Pseudo net même sur les très petits écrans (ex: "Fire2"), mais halo toujours présent */
+            [data-nfx][data-nfx-glow] { filter: none; text-shadow: 0 0 5px var(--nfx-glow, transparent), 0 0 10px var(--nfx-glow, transparent); }
         }
 
         @media (prefers-reduced-motion: reduce) {
