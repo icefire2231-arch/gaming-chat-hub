@@ -266,6 +266,27 @@
         ::-webkit-scrollbar-thumb { background: #232428; border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
         ::-webkit-scrollbar-thumb:hover { background: #1a1b1e; background-clip: padding-box; }
 
+        /* ===== Lignes de la sidebar (salons, vocaux, groupes, amis) : sortir du gris plat ===== */
+        #channels-list button[data-type], #voice-channels-list > button,
+        #groups-list button[data-type], #dm-conversations-list button[data-type] {
+            background: rgba(255,255,255,.025); border: 1px solid rgba(255,255,255,.035);
+        }
+        #channels-list button[data-type]:not(.nx-active):hover, #voice-channels-list > button:not(.nx-active):hover,
+        #groups-list button[data-type]:hover, #dm-conversations-list button[data-type]:hover {
+            border-color: rgba(255,255,255,.08); box-shadow: inset 3px 0 0 rgba(255,255,255,.14);
+        }
+        #channels-list button[data-type] > i:first-child, #groups-list button[data-type] > i:first-child,
+        #voice-channels-list > button i.fa-volume-high {
+            display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px;
+            border-radius: 8px; background: rgba(255,255,255,.05); font-size: 12px; flex-shrink: 0;
+        }
+        #channels-list button[data-type] > span.w-5 { width: 24px; height: 24px; border-radius: 8px; background: rgba(255,255,255,.05); padding: 2px; }
+        #channels-list button[data-type] > span.w-5 img { border-radius: 6px; }
+        #channels-list i.fa-hashtag { color: color-mix(in srgb, var(--theme-color) 65%, #b5bac1); }
+        #channels-list i.fa-bullhorn, #channels-list i.fa-megaphone { color: #f59e0b; background: rgba(245,158,11,.12) !important; }
+        #voice-channels-list i.fa-volume-high { color: #34d399; background: rgba(52,211,153,.12) !important; }
+        #groups-list i.fa-users { color: #818cf8; background: rgba(129,140,248,.12) !important; }
+
         @media (prefers-reduced-motion: reduce) {
             * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
         }
