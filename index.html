@@ -311,6 +311,9 @@
 .cos-av-frame-png[src*="winstreak-60-legende"]{animation:wsLegend 2.6s ease-in-out infinite;will-change:filter}
 @media (prefers-reduced-motion:reduce){.cos-av-frame-png[src*="winstreak-60-legende"]{animation:none}}
 .cos-av-frame-png[style*="--fk"]{width:calc(var(--fscale) * var(--fk));height:calc(var(--fscale) * var(--fk));left:calc(50% - (var(--hx,.5) * var(--fscale) * var(--fk)));top:calc(50% - (var(--hy,.5) * var(--fscale) * var(--fk)))}
+.nx-pv-av{width:64px!important;height:64px;margin:6px 0}
+.nx-pv-av>img:not(.cos-av-frame-png){width:100%;height:100%;object-fit:cover;border-radius:9999px}
+#user-frame-wrap{margin-left:4px}
 .ws-bar{height:10px;border-radius:999px;background:#1e1f22;overflow:hidden;border:1px solid #3f4147}
 .ws-bar>i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#0ea5e9,#22d3ee,#e0f2fe);box-shadow:0 0 10px #22d3ee;transition:width .6s}
 .ws-card{background:#1e1f22;border:1px solid #3f4147;border-radius:14px}
@@ -406,7 +409,7 @@
             </div>
 
             <div class="p-3 border-t border-[#3f4147] flex items-center justify-between bg-[#1e1f22]/50 shrink-0">
-                <div class="flex items-center gap-2 truncate cursor-pointer flex-1" onclick="openProfileModal()">
+                <div class="flex items-center gap-2 min-w-0 pl-2 cursor-pointer flex-1" onclick="openProfileModal()">
                     <div id="user-frame-wrap" class="cos-av cos-av-sm" data-cos-av="">
                     <div id="user-avatar-container" class="w-9 h-9 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-sm font-bold overflow-hidden border border-[var(--theme-color)] shrink-0">
                         <span id="user-avatar-text">U</span>
@@ -4762,12 +4765,13 @@ match /groups/{groupId}/reads/{uid} {
             if (equipped) action = btn('bg-emerald-600/20 text-emerald-300 border border-emerald-600/40', `equipItem('${d.id}')`, 'Équipé ✓ · Retirer');
             else if (owned) action = btn('bg-[var(--theme-color)] text-white hover:opacity-90', `equipItem('${d.id}')`, 'Équiper');
             else if (d.exclusive) action = `<div class="text-[11px] text-center text-[#80848e] py-1.5">🔒 Récompense de saison</div>`;
+            else if (d.ws) action = `<div class="text-[11px] text-center text-cyan-300 py-1.5">🔒 ${wsNeedOf(d.id)} jours de série <span class="text-[#80848e]">(encore ${Math.max(0, wsNeedOf(d.id) - wsNorm(userOf(uid)?.winstreak).best)})</span></div>`;
             else if (!price) action = btn('bg-[#35373c] text-[#949ba4]', '', 'Bientôt', true);
             else if (coins < price) action = btn('bg-[#35373c] text-[#b5bac1]', '', `Il manque ${fmtCoins(price - coins)} 🪙`, true);
             else action = btn('bg-amber-500 text-black hover:bg-amber-400', `buyItem('${d.id}')`, 'Acheter');
-            const priceTxt = owned ? '<span class="text-emerald-400">Possédé</span>' : d.exclusive ? '<span class="text-amber-300">Exclusif</span>' : `<span class="text-amber-300">${fmtCoins(price || d.price || 0)} 🪙</span>`;
+            const priceTxt = owned ? '<span class="text-emerald-400">Possédé</span>' : d.exclusive ? '<span class="text-amber-300">Exclusif</span>' : d.ws ? `<span class="text-cyan-300">🔥 ${wsNeedOf(d.id)} jours</span>` : `<span class="text-amber-300">${fmtCoins(price || d.price || 0)} 🪙</span>`;
             const details = d.exclusive ? `<button type="button" onclick="openSeasonItem('${d.id}')" class="text-[11px] text-[#949ba4] hover:text-white underline underline-offset-2 transition">Détails</button>` : '';
-            const previewLink = (owned && !equipped) ? `<button type="button" onclick="previewEquip('${d.id}')" class="text-[11px] text-[#949ba4] hover:text-white underline underline-offset-2 transition">👁 Aperçu</button>` : '';
+            const previewLink = ((owned || d.ws) && !equipped) ? `<button type="button" onclick="previewEquip('${d.id}')" class="text-[11px] text-[#949ba4] hover:text-white underline underline-offset-2 transition">👁 Aperçu</button>` : '';
             const linksRow = [details, previewLink].filter(Boolean).join('<span class="mx-1 text-[#3f4147]">·</span>');
             const rarity = rarityBadge(d.id);
             const rarityTag = rarity ? `<span class="absolute top-1.5 left-1.5 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full border ${rarity.cls}" title="${escapeHtml(rarity.title)}">${rarity.label}</span>` : '';
@@ -4794,6 +4798,8 @@ match /groups/{groupId}/reads/{uid} {
                 const g = items.filter(d => d.game === k);
                 if (g.length) html += `<div class="text-sm font-bold mt-5 mb-2">${title}</div>` + grid(g);
             });
+            const wsItems = Object.keys(COSMETICS).filter(id => COSMETICS[id].ws).map(cosmeticOf).filter(d => d && d.type === hubType).sort((a, b) => wsNeedOf(a.id) - wsNeedOf(b.id));
+            if (wsItems.length) html += `<div class="text-sm font-bold mt-5 mb-1">🔥 WinStreak <span class="text-[10px] font-normal text-[#80848e]">non achetables · à débloquer avec ta Série Nexus</span></div><div class="text-[11px] text-[#80848e] mb-2">Valide chaque jour (5 min d'activité + 1 message) pour monter dans la série.</div>` + grid(wsItems);
             html += `<p class="text-[11px] text-[#80848e] mt-3">Les cosmétiques sont purement visuels : aucun avantage de jeu.</p>`;
             html += howToEarnCoinsHtml();
             return html;
@@ -4834,7 +4840,7 @@ match /groups/{groupId}/reads/{uid} {
             const admin = isAdminUid(uid);
             let all;
             if (admin) {
-                all = shopEntries();
+                all = shopEntries().concat(Object.keys(COSMETICS).filter(id => COSMETICS[id].ws).map(cosmeticOf));   // le créateur a aussi les WinStreak
                 for (let n = 1; n <= Math.max(1, currentSeason()); n++) ['top1', 'top2', 'top3'].forEach(k => ['frame', 'role'].forEach(t => all.push(cosmeticOf(`season${n}_${k}_${t}`))));
                 for (let n = 1; n <= Math.max(1, currentSeason()); n++) all.push(cosmeticOf(`season${n}_active_role`));
             } else all = Object.keys(ownedOf(u)).map(cosmeticOf).filter(Boolean);
@@ -4892,6 +4898,7 @@ match /groups/{groupId}/reads/{uid} {
            Récompenses : cosmétiques ajoutés dans `owned` (système existant, jamais équipés automatiquement) ;
            badges calculés depuis winstreak.best (BADGE_DEFS). Tout est revérifié par firestore.rules (winstreakOk).
            ========================================================= */
+        const wsNeedOf = (id) => WS_TIERS.find(t => (t.ids || []).includes(id))?.d || 0;
         const WS_NEED = 300, WS_TICK = 30, WS_MAX_FREEZE = 2;
         const WS_TIERS = [
             { d: 5,  icon: '🤍', name: 'Pseudo blanc exclusif WinStreak', ids: ['nfx_ws_white'] },
@@ -5053,7 +5060,7 @@ match /groups/{groupId}/reads/{uid} {
             const me = userOf(uid) || userProfile;
             let all;
             if (admin) {
-                all = shopEntries();
+                all = shopEntries().concat(Object.keys(COSMETICS).filter(id => COSMETICS[id].ws).map(cosmeticOf));   // le créateur a aussi les WinStreak
                 for (let n = 1; n <= Math.max(1, currentSeason()); n++) ['top1', 'top2', 'top3'].forEach(k => ['frame', 'role'].forEach(t => all.push(cosmeticOf(`season${n}_${k}_${t}`))));
                 for (let n = 1; n <= Math.max(1, currentSeason()); n++) all.push(cosmeticOf(`season${n}_active_role`));
             } else all = Object.keys(ownedOf(me)).map(cosmeticOf).filter(Boolean);
@@ -5654,7 +5661,7 @@ match /groups/{groupId}/reads/{uid} {
                 return `<div class="flex-1 text-center">
                     <div class="text-[10px] uppercase tracking-wider ${emph ? 'text-amber-300' : 'text-[#80848e]'} mb-2">${label}</div>
                     <div class="flex flex-col items-center gap-1.5">
-                        <div class="cos-av cos-av-sm" ${frameAttrs(set.frame)}>${avatarInner}${frameImgTag(set.frame)}</div>
+                        <div class="cos-av cos-av-sm nx-pv-av" ${frameAttrs(set.frame)}>${avatarInner}${frameImgTag(set.frame)}</div>
                         <div ${set.name ? `data-nfx="${escapeHtml(set.name.id)}" data-nfx-anim="${set.name.anim || ''}"${set.name.glow ? ' data-nfx-glow' : ''}` : ''} style="${nameStyle}" class="text-sm font-bold">${escapeHtml(me.name || 'Toi')}</div>
                         ${set.role ? roleChip(set.role) : '<div class="h-[22px]"></div>'}
                     </div></div>`;
@@ -5669,7 +5676,7 @@ match /groups/{groupId}/reads/{uid} {
                     <button type="button" onclick="closePreviewEquip()" class="w-8 h-8 rounded-full bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] text-sm"><i class="fa-solid fa-xmark"></i></button>
                 </div>
                 <div class="flex items-stretch gap-2">${block(sets.avant, 'Avant', false)}<div class="w-px bg-[#3f4147]"></div>${block(sets.après, 'Après', true)}</div>
-                <button type="button" onclick="closePreviewEquip();equipItem('${d.id}')" class="w-full mt-4 px-3 py-2.5 rounded-xl text-sm font-semibold bg-[var(--theme-color)] text-white hover:opacity-90 transition">Équiper</button>
+                ${ownsItem(uid, d.id) ? `<button type="button" onclick="closePreviewEquip();equipItem('${d.id}')" class="w-full mt-4 px-3 py-2.5 rounded-xl text-sm font-semibold bg-[var(--theme-color)] text-white hover:opacity-90 transition">Équiper</button>` : `<div class="mt-4 text-center text-xs text-[#949ba4]">🔒 ${d.ws ? `Se débloque à ${wsNeedOf(d.id)} jours de série` : 'Pas encore débloqué'}</div>`}
             </div>`;
         };
         window.closePreviewEquip = () => { const m = $('nx-preview-modal'); if (m) m.remove(); };
