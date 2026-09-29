@@ -303,7 +303,18 @@
         @media (prefers-reduced-motion: reduce) {
             * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
         }
-    </style>
+    
+/* ===== WinStreak / Série Nexus ===== */
+.cos-av-frame-png[style*="--fk"]{width:calc(var(--fscale) * var(--fk));height:calc(var(--fscale) * var(--fk));left:calc(50% - (var(--hx,.5) * var(--fscale) * var(--fk)));top:calc(50% - (var(--hy,.5) * var(--fscale) * var(--fk)))}
+.ws-bar{height:10px;border-radius:999px;background:#1e1f22;overflow:hidden;border:1px solid #3f4147}
+.ws-bar>i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#0ea5e9,#22d3ee,#e0f2fe);box-shadow:0 0 10px #22d3ee;transition:width .6s}
+.ws-card{background:#1e1f22;border:1px solid #3f4147;border-radius:14px}
+.ws-rare{border-color:rgba(251,191,36,.6);box-shadow:0 0 14px rgba(34,211,238,.25)}
+#ws-celebrate{position:fixed;inset:0;z-index:70;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.72);padding:16px}
+#ws-celebrate.on{display:flex}
+#ws-celebrate .ws-pop{max-width:340px;width:100%;text-align:center;padding:26px 20px;border-radius:22px;background:linear-gradient(160deg,#0b1a3d,#111827);border:1px solid #22d3ee;box-shadow:0 0 40px rgba(34,211,238,.45);animation:wsPop .5s cubic-bezier(.2,1.4,.4,1)}
+@keyframes wsPop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+</style>
 </head>
 <body id="body-theme" class="bg-[#1e1f22] text-[#f2f3f5] h-[100dvh] flex flex-col overflow-hidden font-sans theme-violet">
 
@@ -345,6 +356,7 @@
             <button type="button" onclick="openHub('shop')" class="nx-rail-btn" title="Boutique &amp; saisons"><span>🪙</span><span id="coins-count" class="nx-rail-sub">0</span></button>
             <button type="button" onclick="openLeaderboardModal()" class="nx-rail-btn" title="Classement"><i class="fa-solid fa-trophy text-amber-400"></i></button>
             <button type="button" onclick="openHub('season')" class="nx-rail-btn" title="Saison"><i class="fa-solid fa-medal text-sky-400"></i></button>
+            <button type="button" onclick="openWinstreak()" class="nx-rail-btn" title="Série Nexus"><span>🔥</span><span id="ws-count" class="nx-rail-sub">0</span></button>
         </nav>
 
         <div id="sidebar" class="absolute md:relative inset-y-0 left-0 w-80 md:w-60 max-w-[85vw] bg-[#2b2d31] border-r border-[#3f4147] flex flex-col z-30 transform -translate-x-full md:translate-x-0">
@@ -570,6 +582,9 @@
         <button onclick="openOnlineModal()" class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[#949ba4] hover:text-white active:text-[var(--theme-color)] transition">
             <i class="fa-solid fa-circle-user"></i><span class="text-[10px] font-medium">En ligne</span>
         </button>
+        <button onclick="openWinstreak()" class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[#949ba4] hover:text-white active:text-[var(--theme-color)] transition">
+            <span class="text-base leading-none">🔥</span><span id="ws-count-m" class="text-[10px] font-medium">0</span>
+        </button>
         <button onclick="openHub('shop')" class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[#949ba4] hover:text-white active:text-[var(--theme-color)] transition">
             <i class="fa-solid fa-store"></i><span class="text-[10px] font-medium">🪙 <span id="mobile-coins-label">0</span></span>
         </button>
@@ -609,6 +624,13 @@
     </div>
 
     <!-- Boutique · Collection · Saison (les données viennent de users/{uid}, settings/shop_catalog et seasons/*) -->
+    <div id="ws-modal" class="fixed inset-0 bg-black/70 flex items-end md:items-center justify-center z-50 hidden md:p-4" onclick="if(event.target===this)closeWinstreak()">
+        <div class="bg-[#2b2d31] w-full md:max-w-md rounded-t-2xl md:rounded-2xl max-h-[92vh] flex flex-col border border-[#3f4147]">
+            <div class="flex items-center justify-between p-4 pb-2"><h3 class="text-lg font-bold">🔥 Série Nexus</h3><button type="button" onclick="closeWinstreak()" class="text-[#949ba4] hover:text-white px-2 text-xl" aria-label="Fermer">✕</button></div>
+            <div id="ws-body" class="px-4 pb-5 overflow-y-auto flex-1 min-h-0"></div>
+        </div>
+    </div>
+    <div id="ws-celebrate" onclick="this.classList.remove('on')"></div>
     <div id="hub-modal" class="fixed inset-0 bg-black/70 flex items-end md:items-center justify-center z-50 hidden md:p-4" onclick="if(event.target===this)closeHub()">
         <div class="modal-pop bg-[#2b2d31] border border-[#3f4147] w-full md:max-w-2xl rounded-t-2xl md:rounded-2xl shadow-2xl h-[92vh] md:h-auto md:max-h-[88vh] flex flex-col pb-[env(safe-area-inset-bottom)] md:pb-0">
             <div class="p-4 pb-2 shrink-0 space-y-3">
@@ -2802,6 +2824,7 @@ match /groups/{groupId}/reads/{uid} {
             updateAdminUI();
             tryAwardXp('daily');   // bonus de connexion quotidien (cooldown 20h vérifié côté serveur)
             startHeartbeat();
+            wsInit();
             const usersReady = listenUsers();
             listenChannels();
             listenChannelMeta();
@@ -2937,6 +2960,7 @@ match /groups/{groupId}/reads/{uid} {
                 checkSelfModeration();
                 if (indexUsers()) refreshCosmeticsDom();   // quelqu'un a changé de cadre / d'effet / de rôle
                 hubOnUsersUpdate();
+                wsOnUsers();
                 updateOnlineCount();
                 initSidebarUI();
                 if (usersReadyResolve) usersReadyResolve();
@@ -3969,6 +3993,7 @@ match /groups/{groupId}/reads/{uid} {
         function bumpMsgCount() {
             if (!currentUser) return;
             userProfile.msgCount = (userProfile.msgCount || 0) + 1;
+            wsAfterMessage();
             updateDoc(doc(db, "users", currentUser.uid), { msgCount: increment(1) }).catch(() => {});
         }
 
@@ -4080,6 +4105,7 @@ match /groups/{groupId}/reads/{uid} {
                     </div>
                     ${badges.length ? `<div class="flex flex-wrap gap-1.5">${badges.map(b => `<span class="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-1 rounded-full border ${b.c}"><i class="fa-solid ${b.i} text-[10px]"></i>${b.t}</span>`).join('')}</div>` : ''}
                     ${seasonRewardsOwned(u).length ? `<div><div class="text-[10px] uppercase tracking-wider text-[#80848e] mb-1.5">Récompenses de saison</div><div class="flex flex-wrap gap-1.5">${seasonRewardsOwned(u).map(d => `<span class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-200">${escapeHtml(d.icon)} ${escapeHtml(d.name)}</span>`).join('')}</div></div>` : ''}
+                    ${wsProfileHtml(u)}
                     <div class="text-sm ${bio ? 'text-[#dbdee1]' : 'text-[#80848e] italic'} break-words">${bio ? escapeHtml(bio) : 'Aucune bio pour le moment.'}</div>
                     ${games.length ? `<div><div class="text-[10px] uppercase tracking-wider text-[#80848e] mb-1.5">Jeux favoris</div><div class="flex flex-wrap gap-1.5">${games.map(g => `<span class="px-2.5 py-1 rounded-full text-xs bg-[#35373c] text-[#dbdee1]">${escapeHtml(g)}</span>`).join('')}</div></div>` : ''}
                     <div class="bg-[#1e1f22] border border-[#3f4147] rounded-xl px-3 py-2.5">
@@ -4302,10 +4328,12 @@ match /groups/{groupId}/reads/{uid} {
             'frames/clashofclan-cowboy.png':   { hx: 0.5020, hy: 0.5439 },
             'frames/clashofclan-princess.png': { hx: 0.4961, hy: 0.5557 },
             'frames/clashofclans-dragon.png':  { hx: 0.4863, hy: 0.5713 },
+            'frames/winstreak-20-flamme.png':  { hx: 0.5010, hy: 0.5010 },
+            'frames/winstreak-60-legende.png': { hx: 0.5020, hy: 0.4670, k: 1.156 },   // k = agrandissement pour que le trou colle à l'avatar
         };
         function frameHoleStyle(img) {
             const h = img && FRAME_HOLE[img];
-            return h ? `--hx:${h.hx};--hy:${h.hy}` : '';
+            return h ? `--hx:${h.hx};--hy:${h.hy}${h.k ? `;--fk:${h.k}` : ''}` : '';
         }
         const COSMETICS = {
             // ----- Cadres d'avatar -----
@@ -4352,7 +4380,15 @@ match /groups/{groupId}/reads/{uid} {
             role_clash_of_clans:  { type: 'role', name: 'Clash of Clans', icon: '🛡️', price: 500,  color: '#eab308' },
             role_roblox:          { type: 'role', name: 'Roblox',         icon: '🧱', price: 500,  color: '#38bdf8' },
             role_100k:            { type: 'role', name: '100K',           icon: '💯', price: 2000, color: '#ef4444' },
-            role_super_donateur:  { type: 'role', name: 'Super Donateur', icon: '💎', price: 3000, color: '#f59e0b' }
+            role_super_donateur:  { type: 'role', name: 'Super Donateur', icon: '💎', price: 3000, color: '#f59e0b' },
+
+            // ----- WinStreak (récompenses de série : sans prix, donc jamais dans la boutique) -----
+            // Pour ajouter un autre cadre WinStreak : 1 ligne ici + 1 ligne dans WS_TIERS + FRAME_HOLE + l'id dans firestore.rules (wsGrantOk/wsNeed).
+            nfx_ws_white:    { type: 'name',  ws: true, name: 'Blanc WinStreak', icon: '🤍', bg: solid('#ffffff'), glow: '#cbd5e1', anim: '' },
+            frame_ws_flame:  { type: 'frame', ws: true, name: 'Nexus · Flamme', icon: '🔥', img: 'frames/winstreak-20-flamme.png' },
+            nfx_ws_crystal:  { type: 'name',  ws: true, name: 'Cristal WinStreak', icon: '💎', bg: 'linear-gradient(90deg,#22d3ee,#e0f2fe,#3b82f6,#e0f2fe,#22d3ee)', glow: '#22d3ee', anim: 'shift' },
+            frame_ws_legend: { type: 'frame', ws: true, name: 'Légende', icon: '⚡', img: 'frames/winstreak-60-legende.png' },
+            role_ws_legend:  { type: 'role',  ws: true, name: 'Légende des WinStreak', icon: '⚡', color: '#22d3ee' }
         };
 
         /* ---------- Récompenses de saison : générées automatiquement pour TOUTES les saisons ----------
@@ -4837,8 +4873,146 @@ match /groups/{groupId}/reads/{uid} {
             { id: 'champ', icon: '🏆', name: 'Champion de saison', desc: 'Avoir gagné une récompense de saison', test: u => Object.keys(ownedOf(u)).some(id => cosmeticOf(id)?.exclusive) },
             { id: 'senior1', icon: '📅', name: 'Ancien', desc: 'Membre depuis 30 jours', test: u => u.joinedAt && (Date.now() - tsMillis(u.joinedAt)) >= 30 * 864e5 },
             { id: 'senior2', icon: '🎂', name: 'Vétéran', desc: 'Membre depuis 90 jours', test: u => u.joinedAt && (Date.now() - tsMillis(u.joinedAt)) >= 90 * 864e5 },
+            { id: 'ws10', icon: '🔥', name: 'WinStreak avancé', desc: '10 jours de série Nexus', test: u => (Number(u.winstreak?.best) || 0) >= 10 },
+            { id: 'ws30', icon: '👑', name: 'Roi des WinStreak', desc: '30 jours de série Nexus', test: u => (Number(u.winstreak?.best) || 0) >= 30 },
+            { id: 'ws60', icon: '⚡', name: 'Légende des WinStreak', desc: '60 jours de série Nexus', test: u => (Number(u.winstreak?.best) || 0) >= 60 },
         ];
         const computeBadges = (u) => BADGE_DEFS.map(b => ({ ...b, earned: !!b.test(u) }));
+
+        /* =========================================================
+           WINSTREAK / SÉRIE NEXUS  (régularité quotidienne — indépendant de l'XP)
+           Données : users/{uid}.winstreak = { cur, best, day, sec, msg, mc, done, fz, tickAt }
+             cur/best = série actuelle / record · day = jour (Paris) suivi · sec = secondes actives du jour
+             msg = 1 message envoyé aujourd'hui · mc = msgCount au début du jour · done = dernier jour validé · fz = gels
+           Récompenses : cosmétiques ajoutés dans `owned` (système existant, jamais équipés automatiquement) ;
+           badges calculés depuis winstreak.best (BADGE_DEFS). Tout est revérifié par firestore.rules (winstreakOk).
+           ========================================================= */
+        const WS_NEED = 300, WS_TICK = 30, WS_MAX_FREEZE = 2;
+        const WS_TIERS = [
+            { d: 5,  icon: '🤍', name: 'Pseudo blanc exclusif WinStreak', ids: ['nfx_ws_white'] },
+            { d: 10, icon: '🔥', name: 'Badge « WinStreak avancé »' },
+            { d: 20, icon: '🖼️', name: 'Cadre Nexus · Flamme', ids: ['frame_ws_flame'] },
+            { d: 30, icon: '👑', name: 'Badge « Roi des WinStreak »' },
+            { d: 45, icon: '💎', name: 'Effet de pseudo exclusif WinStreak', ids: ['nfx_ws_crystal'] },
+            { d: 60, icon: '⚡', name: 'Cadre « Légende » + titre « Légende des WinStreak »', ids: ['frame_ws_legend', 'role_ws_legend'], rare: true }
+        ];
+        // Jour calendaire de Paris (heure serveur, DST géré) en nombre de jours depuis 1970 : c'est ce que vérifient les règles.
+        const wsDayNum = () => {
+            const [y, m, d] = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(serverNow())).split('-').map(Number);
+            return Math.floor(Date.UTC(y, m - 1, d) / 864e5);
+        };
+        const wsNorm = (w) => { w = w || {}; const n = (k) => Math.max(0, Math.floor(Number(w[k]) || 0)); return { cur: n('cur'), best: n('best'), day: n('day'), sec: n('sec'), msg: !!w.msg, mc: n('mc'), done: n('done'), fz: n('fz') }; };
+        // Série affichée : vivante si la dernière journée validée est hier/aujourd'hui (ou avant-hier avec un gel disponible)
+        function wsShown(u, today = wsDayNum()) {
+            const w = wsNorm(u?.winstreak), gap = today - w.done;
+            return (w.done > 0 && (gap <= 1 || (gap === 2 && w.fz > 0))) ? w.cur : 0;
+        }
+        const wsTodayState = (u) => { const w = wsNorm(u?.winstreak), t = wsDayNum(); return w.day === t ? { sec: w.sec, msg: w.msg, ok: w.done === t } : { sec: 0, msg: false, ok: false }; };
+        const wsNext = (n) => WS_TIERS.find(t => t.d > n) || null;
+
+        let wsLastAct = Date.now(), wsBusy = false, wsTimer = null, wsOpen = false;
+        ['pointerdown', 'keydown', 'touchstart', 'scroll', 'mousemove'].forEach(ev => addEventListener(ev, () => { wsLastAct = Date.now(); }, { passive: true, capture: true }));
+        // Actif = onglet visible + fenêtre au premier plan + interaction dans les 60 dernières secondes
+        const wsActive = () => document.visibilityState === 'visible' && document.hasFocus() && Date.now() - wsLastAct < 60000;
+        const wsMe = () => currentUser ? (usersByUid.get(currentUser.uid) || null) : null;
+
+        function wsInit() {
+            if (!wsTimer) wsTimer = setInterval(() => wsTick(false), WS_TICK * 1000);
+            setTimeout(() => wsTick(false), 4000);
+            wsRender();
+        }
+        function wsAfterMessage() { setTimeout(() => wsTick(true), 2500); }   // laisse partir le msgCount avant, les règles le comparent
+        function wsOnUsers() { wsRender(); }
+
+        async function wsTick(afterMsg) {
+            if (!currentUser || wsBusy) return;
+            const me = wsMe(); if (!me) return;
+            const w = wsNorm(me.winstreak), today = wsDayNum(), msgCount = Math.floor(Number(me.msgCount) || 0);
+            let n = { ...w }, dirty = false, validated = false;
+            if (w.day !== today) { n = { ...w, day: today, sec: 0, msg: false, mc: msgCount }; dirty = true; }
+            if (n.done !== today) {
+                if (!afterMsg && wsActive() && n.sec < WS_NEED) { n.sec = Math.min(WS_NEED, n.sec + WS_TICK); dirty = true; }
+                if (!n.msg && msgCount > n.mc) { n.msg = true; dirty = true; }
+                if (n.sec >= WS_NEED && n.msg && w.day === today) {   // validation : 2 conditions remplies, une seule fois par jour
+                    const gap = today - n.done;
+                    let f = n.fz, cur = 1;
+                    if (n.done > 0 && gap === 1) cur = n.cur + 1;
+                    else if (n.done > 0 && gap === 2 && f > 0) { cur = n.cur + 1; f--; }
+                    if (cur % 30 === 0) f = Math.min(WS_MAX_FREEZE, f + 1);
+                    n = { ...n, cur, best: Math.max(n.best, cur), done: today, fz: f };
+                    validated = true; dirty = true;
+                }
+            }
+            const owned = ownedOf(me), claims = {};
+            WS_TIERS.forEach(t => (t.ids || []).forEach(id => { if (n.best >= t.d && !owned[id]) claims['owned.' + id] = serverTimestamp(); }));
+            if (!dirty && !Object.keys(claims).length) return;
+            wsBusy = true;
+            try {
+                await updateDoc(doc(db, 'users', currentUser.uid), { winstreak: { ...n, tickAt: serverTimestamp() }, ...claims });
+                if (validated) {
+                    const tier = WS_TIERS.find(t => t.d === n.cur);
+                    if (tier) wsCelebrate(tier); else showToast(`✅ Journée validée ! 🔥 Série portée à ${n.cur} jour${n.cur > 1 ? 's' : ''}`);
+                }
+            } catch (e) { /* refusé/hors ligne : on réessaie au prochain passage, rien n'est perdu */ }
+            wsBusy = false;
+        }
+
+        function wsCelebrate(t) {
+            const el = $('ws-celebrate'); if (!el) return;
+            el.innerHTML = `<div class="ws-pop ${t.rare ? 'ws-rare' : ''}">
+                <div class="text-xs tracking-widest text-cyan-300 font-bold">${t.rare ? '⚡ RÉCOMPENSE LÉGENDAIRE' : '🔥 NOUVEAU PALIER !'}</div>
+                <div class="text-3xl font-extrabold mt-2">${t.d} jours de série</div>
+                <div class="text-sm text-[#b5bac1] mt-3">Tu viens de débloquer :</div>
+                <div class="text-lg font-bold mt-1">${t.icon} ${escapeHtml(t.name)}</div>
+                <div class="text-[11px] text-[#949ba4] mt-3">${t.ids ? 'Ajouté à ta Collection — équipe-le quand tu veux.' : 'Visible dans tes badges de profil.'}</div>
+                <button type="button" class="mt-4 px-5 py-2 rounded-lg bg-cyan-500/20 border border-cyan-400/60 text-cyan-200 font-semibold">Super !</button></div>`;
+            el.classList.add('on'); setTimeout(() => el.classList.remove('on'), 9000);
+        }
+
+        function wsBarHtml(n) {
+            const nx = wsNext(n), prev = [...WS_TIERS].reverse().find(t => t.d <= n)?.d || 0;
+            const pct = nx ? Math.round((n - prev) / (nx.d - prev) * 100) : 100;
+            return `<div class="ws-bar my-2"><i style="width:${pct}%"></i></div>` + (nx
+                ? `<div class="text-xs text-[#b5bac1]">Prochaine récompense : ${nx.icon} <b>${nx.d} jours</b> — ${escapeHtml(nx.name)} <span class="text-[#80848e]">(encore ${nx.d - n})</span></div>`
+                : `<div class="text-xs text-amber-300">⚡ Tous les paliers sont débloqués — légende !</div>`);
+        }
+        function wsUpcomingHtml(n) {
+            const up = WS_TIERS.filter(t => t.d > n).slice(0, 3);
+            return up.length ? `<div class="mt-2 space-y-0.5">${up.map(t => `<div class="text-xs text-[#949ba4]">${t.icon} ${t.d} jours → ${escapeHtml(t.name)}</div>`).join('')}</div>` : '';
+        }
+        function wsProfileHtml(u) {
+            if (!u) return '';
+            const n = wsShown(u), best = wsNorm(u.winstreak).best;
+            return `<div class="ws-card p-3"><div class="text-[10px] uppercase tracking-wider text-[#80848e] mb-1">🔥 Série Nexus</div>
+                <div class="text-xl font-extrabold text-cyan-300">${n} jour${n > 1 ? 's' : ''} <span class="text-[11px] font-normal text-[#80848e]">record ${best}</span></div>${wsBarHtml(n)}${wsUpcomingHtml(n)}</div>`;
+        }
+        function wsBodyHtml() {
+            const me = wsMe() || userProfile, n = wsShown(me), w = wsNorm(me.winstreak), st = wsTodayState(me);
+            const min = Math.floor(Math.min(st.sec, WS_NEED) / 60), sc = String(Math.min(st.sec, WS_NEED) % 60).padStart(2, '0');
+            const secOk = st.sec >= WS_NEED, prot = w.done > 0 && wsDayNum() - w.done === 2 && w.fz > 0;
+            const today = st.ok
+                ? `<div class="text-emerald-300 font-bold">✅ Journée validée !</div><div class="text-sm">🔥 Série portée à ${w.cur} jour${w.cur > 1 ? 's' : ''}</div>`
+                : `<div class="text-xs text-[#949ba4] mb-1">Aujourd'hui :</div>
+                   <div class="text-sm">${secOk ? '☑' : '☐'} 5 min d'activité <span class="text-[#80848e]">(${min}:${sc} / 5:00)</span></div>
+                   <div class="text-sm">${st.msg ? '☑' : '☐'} 1 message</div>`;
+            return `<div class="text-center py-2"><div class="text-4xl font-extrabold text-cyan-300">🔥 ${n} jour${n > 1 ? 's' : ''}</div>
+                <div class="text-[11px] text-[#80848e]">Record : ${w.best} · ${prot ? '🛡️ protégée par un gel — valide aujourd\'hui !' : 'XP = activité, Série = régularité'}</div></div>
+                ${wsBarHtml(n)}
+                <div class="ws-card p-3 mt-3">${today}</div>
+                <div class="ws-card p-3 mt-3 text-sm">🛡️ Gels de série : <b>${w.fz}/${WS_MAX_FREEZE}</b><div class="text-[11px] text-[#80848e]">+1 gel tous les 30 jours de série (max ${WS_MAX_FREEZE}). Un gel sauve UNE journée manquée.</div></div>
+                <div class="text-sm font-bold mt-4 mb-2">Récompenses</div>
+                <div class="space-y-2">${WS_TIERS.map(t => { const got = w.best >= t.d; return `<div class="ws-card p-2.5 flex items-center gap-3 ${t.rare ? 'ws-rare' : ''} ${got ? '' : 'opacity-70'}">
+                    <div class="text-2xl">${t.icon}</div><div class="min-w-0 flex-1"><div class="text-sm font-semibold">${t.d} jours${t.rare ? ' · <span class="text-amber-300">très rare</span>' : ''}</div><div class="text-xs text-[#b5bac1]">${escapeHtml(t.name)}</div></div>
+                    <div class="text-xs ${got ? 'text-emerald-400' : 'text-[#80848e]'}">${got ? '✅ Débloqué' : '🔒'}</div></div>`; }).join('')}</div>
+                <div class="text-[11px] text-[#80848e] mt-3">Les cosmétiques débloqués sont dans 🎒 Collection (rien n'est équipé automatiquement).</div>`;
+        }
+        function wsRender() {
+            const n = currentUser ? wsShown(wsMe() || userProfile) : 0;
+            ['ws-count', 'ws-count-m'].forEach(id => { const e = $(id); if (e) e.textContent = n; });
+            if (wsOpen) { const b = $('ws-body'); if (b) b.innerHTML = wsBodyHtml(); }
+        }
+        window.openWinstreak = () => { if (!currentUser) return; wsOpen = true; $('ws-modal').classList.remove('hidden'); wsRender(); wsTick(false); };
+        window.closeWinstreak = () => { wsOpen = false; $('ws-modal').classList.add('hidden'); };
 
         function badgesHtml(u) {
             const badges = computeBadges(u);
@@ -5067,7 +5241,7 @@ match /groups/{groupId}/reads/{uid} {
 
         // Catégorie d'un objet : 🪙 Boutique · 🏆 Saison · 🎮 Événement (flag optionnel `event: true` sur une entrée de COSMETICS)
         function cosCategoryTag(d) {
-            const c = d.exclusive ? ['🏆', 'Saison'] : d.event ? ['🎮', 'Événement'] : ['🪙', 'Boutique'];
+            const c = d.exclusive ? ['🏆', 'Saison'] : d.ws ? ['🔥', 'WinStreak'] : d.event ? ['🎮', 'Événement'] : ['🪙', 'Boutique'];
             return `<span class="absolute top-1.5 right-1.5 text-[11px]" title="Catégorie : ${c[1]}">${c[0]}</span>`;
         }
 
