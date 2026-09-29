@@ -305,11 +305,12 @@
         }
     
 /* ===== WinStreak / Série Nexus ===== */
-/* Cadre Légende (60 jours) animé : pulsation lumineuse cyan + touches dorées, léger balayage de teinte */
-@keyframes wsLegend{0%,100%{filter:drop-shadow(0 0 2px rgba(34,211,238,.55)) brightness(1) hue-rotate(0deg)}
-50%{filter:drop-shadow(0 0 7px rgba(56,189,248,.95)) drop-shadow(0 0 3px rgba(251,191,36,.65)) brightness(1.22) hue-rotate(-14deg)}}
-.cos-av-frame-png[src*="winstreak-60-legende"]{animation:wsLegend 2.6s ease-in-out infinite;will-change:filter}
-@media (prefers-reduced-motion:reduce){.cos-av-frame-png[src*="winstreak-60-legende"]{animation:none}}
+/* Cadre Légende (60 jours) : lueur bleue PERMANENTE (fixe, aucun clignotement) */
+.cos-av-frame-png[src*="winstreak-60-legende"]{filter:drop-shadow(0 0 3px rgba(56,189,248,.95)) drop-shadow(0 0 9px rgba(34,211,238,.6))}
+/* Cadre 20 jours : halo blanc-bleuté fixe pour bien le voir sur le fond sombre */
+.cos-av-frame-png[src*="winstreak-20-flamme"]{filter:drop-shadow(0 0 2px rgba(255,255,255,.9)) drop-shadow(0 0 6px rgba(186,230,253,.55))}
+/* Pseudo blanc WinStreak : blanc glacé + halo bleu, plus gras, reflet très lent (se distingue du pseudo par défaut) */
+[data-nfx="nfx_ws_white"]{font-weight:800;letter-spacing:.015em;-webkit-text-stroke:.5px rgba(125,211,252,.6);animation-duration:8s!important}
 .cos-av-frame-png[style*="--fk"]{width:calc(var(--fscale) * var(--fk));height:calc(var(--fscale) * var(--fk));left:calc(50% - (var(--hx,.5) * var(--fscale) * var(--fk)));top:calc(50% - (var(--hy,.5) * var(--fscale) * var(--fk)))}
 .nx-pv-av{width:64px!important;height:64px;margin:6px 0}
 .nx-pv-av>img:not(.cos-av-frame-png){width:100%;height:100%;object-fit:cover;border-radius:9999px}
@@ -4336,7 +4337,7 @@ match /groups/{groupId}/reads/{uid} {
             'frames/clashofclan-cowboy.png':   { hx: 0.5020, hy: 0.5439 },
             'frames/clashofclan-princess.png': { hx: 0.4961, hy: 0.5557 },
             'frames/clashofclans-dragon.png':  { hx: 0.4863, hy: 0.5713 },
-            'frames/winstreak-20-flamme.png':  { hx: 0.5010, hy: 0.5010 },
+            'frames/winstreak-20-flamme.png':  { hx: 0.5000, hy: 0.5000, k: 1.21 },
             'frames/winstreak-60-legende.png': { hx: 0.5020, hy: 0.4670, k: 1.156 },   // k = agrandissement pour que le trou colle à l'avatar
         };
         function frameHoleStyle(img) {
@@ -4392,7 +4393,7 @@ match /groups/{groupId}/reads/{uid} {
 
             // ----- WinStreak (récompenses de série : sans prix, donc jamais dans la boutique) -----
             // Pour ajouter un autre cadre WinStreak : 1 ligne ici + 1 ligne dans WS_TIERS + FRAME_HOLE + l'id dans firestore.rules (wsGrantOk/wsNeed).
-            nfx_ws_white:    { type: 'name',  ws: true, name: 'Blanc WinStreak', icon: '🤍', bg: solid('#ffffff'), glow: '#cbd5e1', anim: '' },
+            nfx_ws_white:    { type: 'name',  ws: true, name: 'Blanc WinStreak', icon: '🤍', bg: 'linear-gradient(90deg,#ffffff,#a5e8ff,#ffffff,#7dd3fc,#ffffff)', glow: '#38bdf8', anim: 'shift' },
             frame_ws_flame:  { type: 'frame', ws: true, name: 'Nexus · Flamme', icon: '🔥', img: 'frames/winstreak-20-flamme.png' },
             nfx_ws_crystal:  { type: 'name',  ws: true, name: 'Cristal WinStreak', icon: '💎', bg: 'linear-gradient(90deg,#22d3ee,#e0f2fe,#3b82f6,#e0f2fe,#22d3ee)', glow: '#22d3ee', anim: 'shift' },
             frame_ws_legend: { type: 'frame', ws: true, name: 'Légende', icon: '⚡', img: 'frames/winstreak-60-legende.png' },
