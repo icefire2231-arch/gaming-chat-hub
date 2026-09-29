@@ -305,6 +305,11 @@
         }
     
 /* ===== WinStreak / Série Nexus ===== */
+/* Cadre Légende (60 jours) animé : pulsation lumineuse cyan + touches dorées, léger balayage de teinte */
+@keyframes wsLegend{0%,100%{filter:drop-shadow(0 0 2px rgba(34,211,238,.55)) brightness(1) hue-rotate(0deg)}
+50%{filter:drop-shadow(0 0 7px rgba(56,189,248,.95)) drop-shadow(0 0 3px rgba(251,191,36,.65)) brightness(1.22) hue-rotate(-14deg)}}
+.cos-av-frame-png[src*="winstreak-60-legende"]{animation:wsLegend 2.6s ease-in-out infinite;will-change:filter}
+@media (prefers-reduced-motion:reduce){.cos-av-frame-png[src*="winstreak-60-legende"]{animation:none}}
 .cos-av-frame-png[style*="--fk"]{width:calc(var(--fscale) * var(--fk));height:calc(var(--fscale) * var(--fk));left:calc(50% - (var(--hx,.5) * var(--fscale) * var(--fk)));top:calc(50% - (var(--hy,.5) * var(--fscale) * var(--fk)))}
 .ws-bar{height:10px;border-radius:999px;background:#1e1f22;overflow:hidden;border:1px solid #3f4147}
 .ws-bar>i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#0ea5e9,#22d3ee,#e0f2fe);box-shadow:0 0 10px #22d3ee;transition:width .6s}
