@@ -287,6 +287,19 @@
         #voice-channels-list i.fa-volume-high { color: #34d399; background: rgba(52,211,153,.12) !important; }
         #groups-list i.fa-users { color: #818cf8; background: rgba(129,140,248,.12) !important; }
 
+        /* ===== Séparateur "Nouveaux messages", saisie animée, fil de réponse, balayage mobile, filtres Collection ===== */
+        .nx-new-sep { display: flex; align-items: center; gap: 8px; margin: 12px 6px 8px; user-select: none; }
+        .nx-new-sep::before, .nx-new-sep::after { content: ''; flex: 1; height: 1px; background: rgba(244,63,94,.45); }
+        .nx-new-sep span { font-size: 10px; font-weight: 800; color: #fb7185; text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+        .nx-dots { display: inline-flex; gap: 2px; margin-left: 3px; vertical-align: middle; }
+        .nx-dots i { width: 3px; height: 3px; border-radius: 50%; background: currentColor; display: inline-block; animation: nxDotBounce 1.1s infinite ease-in-out; }
+        .nx-dots i:nth-child(2) { animation-delay: .15s; } .nx-dots i:nth-child(3) { animation-delay: .3s; }
+        @keyframes nxDotBounce { 0%, 80%, 100% { transform: translateY(0); opacity: .4; } 40% { transform: translateY(-3px); opacity: 1; } }
+        .reply-quote-btn { position: relative; padding-left: 12px !important; }
+        .reply-quote-btn::before { content: ''; position: absolute; left: 0; top: 1px; bottom: 1px; width: 2px; border-radius: 2px; background: rgba(148,155,164,.45); }
+        .message-row { touch-action: pan-y; }
+        .nx-status-ago { color: #80848e; }
+
         @media (prefers-reduced-motion: reduce) {
             * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
         }
@@ -3683,7 +3696,7 @@ match /groups/{groupId}/reads/{uid} {
             unsubscribeTyping = onSnapshot(collection(db, typingPath()), (snap) => {
                 if (token !== typingToken) return;
                 const typers = snap.docs.filter(d => d.id !== currentUser?.uid).map(d => d.data().name);
-                $('typing-indicator').textContent = typers.length ? `${typers.join(', ')} écrit...` : "";
+                setHtml($('typing-indicator'), nxTypingHtml(typers));
             });
         }
 
@@ -4008,7 +4021,7 @@ match /groups/{groupId}/reads/{uid} {
             hideSheet();
             userProfile.status = st;
             refreshMyStatusUI();
-            try { await updateDoc(doc(db, "users", currentUser.uid), { status: st }); }
+            try { await updateDoc(doc(db, "users", currentUser.uid), { status: st, statusChangedAt: serverTimestamp() }); }
             catch (e) { showToast("Statut non enregistré : " + e.message); }
         };
 
@@ -4024,6 +4037,7 @@ match /groups/{groupId}/reads/{uid} {
             const av = safeUrl(u.avatar);
             const key = isMe ? statusOf(u) : (isOnline(u) ? statusOf(u) : 'offline');   // pas d'heure de connexion exacte : seulement en ligne / hors ligne
             const label = key === 'offline' ? 'Hors ligne' : STATUS_META[key].label;
+            const statusAgo = (key !== 'offline' && u.statusChangedAt) ? ` <span class="nx-status-ago">· depuis ${nxAgo(tsMillis(u.statusChangedAt))}</span>` : '';
             const dot = key === 'offline' ? 'bg-slate-600' : STATUS_META[key].dot;
             const lv = levelInfo(xpOf(u));
             const joined = tsMillis(u.joinedAt);
@@ -4062,7 +4076,7 @@ match /groups/{groupId}/reads/{uid} {
                     </div>
                     <div>
                         <div class="text-xl font-bold break-words"><span ${nameFx(uid)}>${escapeHtml(u.name || 'Anonyme')}</span>${isMe ? ' <span class="text-xs font-normal text-[#80848e]">(toi)</span>' : ''} ${roleTag(uid)}</div>
-                        <div class="text-xs text-[#949ba4] flex items-center gap-1.5"><span class="w-2 h-2 rounded-full ${dot}"></span>${label}</div>
+                        <div class="text-xs text-[#949ba4] flex items-center gap-1.5"><span class="w-2 h-2 rounded-full ${dot}"></span>${label}${statusAgo}</div>
                     </div>
                     ${badges.length ? `<div class="flex flex-wrap gap-1.5">${badges.map(b => `<span class="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-1 rounded-full border ${b.c}"><i class="fa-solid ${b.i} text-[10px]"></i>${b.t}</span>`).join('')}</div>` : ''}
                     ${seasonRewardsOwned(u).length ? `<div><div class="text-[10px] uppercase tracking-wider text-[#80848e] mb-1.5">Récompenses de saison</div><div class="flex flex-wrap gap-1.5">${seasonRewardsOwned(u).map(d => `<span class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-200">${escapeHtml(d.icon)} ${escapeHtml(d.name)}</span>`).join('')}</div></div>` : ''}
@@ -4712,13 +4726,15 @@ match /groups/{groupId}/reads/{uid} {
             else action = btn('bg-amber-500 text-black hover:bg-amber-400', `buyItem('${d.id}')`, 'Acheter');
             const priceTxt = owned ? '<span class="text-emerald-400">Possédé</span>' : d.exclusive ? '<span class="text-amber-300">Exclusif</span>' : `<span class="text-amber-300">${fmtCoins(price || d.price || 0)} 🪙</span>`;
             const details = d.exclusive ? `<button type="button" onclick="openSeasonItem('${d.id}')" class="text-[11px] text-[#949ba4] hover:text-white underline underline-offset-2 transition">Détails</button>` : '';
+            const previewLink = (owned && !equipped) ? `<button type="button" onclick="previewEquip('${d.id}')" class="text-[11px] text-[#949ba4] hover:text-white underline underline-offset-2 transition">👁 Aperçu</button>` : '';
+            const linksRow = [details, previewLink].filter(Boolean).join('<span class="mx-1 text-[#3f4147]">·</span>');
             const rarity = rarityBadge(d.id);
             const rarityTag = rarity ? `<span class="absolute top-1.5 left-1.5 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full border ${rarity.cls}" title="${escapeHtml(rarity.title)}">${rarity.label}</span>` : '';
             return `<div class="relative bg-[#1e1f22] border ${d.exclusive ? 'border-amber-500/40' : 'border-[#3f4147]'} rounded-2xl p-3 flex flex-col items-center gap-2 text-center">
                 ${rarityTag}${cosCategoryTag(d)}
                 <div class="h-16 flex items-center justify-center">${previewHtml(d)}</div>
                 <div class="min-w-0 w-full"><div class="text-sm font-semibold truncate">${escapeHtml(d.icon)} ${escapeHtml(d.name)}</div><div class="text-xs font-bold">${priceTxt}</div></div>
-                ${details}${action}</div>`;
+                ${linksRow ? `<div class="flex items-center justify-center">${linksRow}</div>` : ''}${action}</div>`;
         }
 
         function renderShopTab() {
@@ -4872,11 +4888,16 @@ match /groups/{groupId}/reads/{uid} {
             }).join('');
             let html = `<div class="text-xs text-[#949ba4] mb-2">Équipé actuellement</div><div class="grid grid-cols-3 gap-2 mb-4">${equippedRow}</div>`;
             if (admin) html += `<div class="mb-3 p-2.5 rounded-xl border border-amber-500/30 bg-amber-500/5 text-[11px] text-amber-200">👑 Compte créateur : tous les cosmétiques sont débloqués gratuitement (vérifié par les règles Firestore).</div>`;
+            html += nxCollFilterBar();
+            const rewardsAll = rewards, shopAll = shop;
+            const rewardsF = nxApplyCollFilter(rewardsAll, uid), shopF = nxApplyCollFilter(shopAll, uid);
             html += `<div class="text-sm font-bold mb-2 flex items-center gap-2">🏆 Récompenses de saison <span class="text-[10px] font-normal text-[#80848e]">exclusives · impossibles à obtenir après la fin de la saison</span></div>`;
-            html += rewards.length ? `<div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-4">${rewards.map(cosCard).join('')}</div>`
+            html += rewardsF.length ? `<div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-4">${rewardsF.map(cosCard).join('')}</div>`
+                : rewardsAll.length ? `<div class="text-xs text-[#80848e] italic mb-4">Aucun résultat avec ces filtres.</div>`
                 : `<div class="text-xs text-[#80848e] italic mb-4">Aucune pour l’instant. Termine dans le Top 3 d’une saison pour décrocher un cadre exclusif !</div>`;
             html += `<div class="text-sm font-bold mb-2">🛍️ Cosmétiques de la boutique</div>`;
-            html += shop.length ? `<div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">${shop.sort((a, b) => a.type.localeCompare(b.type) || a.price - b.price).map(cosCard).join('')}</div>`
+            html += shopF.length ? `<div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">${shopF.sort((a, b) => a.type.localeCompare(b.type) || a.price - b.price).map(cosCard).join('')}</div>`
+                : shopAll.length ? `<div class="text-xs text-[#80848e] italic">Aucun résultat avec ces filtres.</div>`
                 : `<div class="text-xs text-[#80848e] italic">Rien pour l’instant : va faire un tour à la boutique.</div>`;
             html += `<div class="mt-4">${purchaseHistoryHtml(me)}${badgesHtml(me)}</div>`;
             return html;
@@ -5351,6 +5372,162 @@ match /groups/{groupId}/reads/{uid} {
             setInterval(nxScheduleMembers, 30000);   // « en ligne » dépend de l'heure : on rafraîchit régulièrement
             nxScheduleMembers();
         })();
+
+        /* =========================================================
+           NOUVEAUTÉS (couche additive) : séparateur "Nouveaux messages", saisie animée,
+           raccourci de recherche, filtres Collection, aperçu avant/après, balayage mobile,
+           « depuis Xmin » sur le statut. Aucune règle Firestore modifiée par ce bloc,
+           sauf statusChangedAt (champ ajouté et documenté séparément dans firestore.rules).
+           ========================================================= */
+
+        // Indicateur de saisie : "Untel écrit" + petits points qui rebondissent
+        function nxTypingHtml(typers) {
+            if (!typers.length) return '';
+            const verb = typers.length > 1 ? 'écrivent' : 'écrit';
+            return `<span class="inline-flex items-center gap-1.5">${escapeHtml(typers.join(', '))} ${verb}<span class="nx-dots"><i></i><i></i><i></i></span></span>`;
+        }
+
+        // Durée écoulée, en français, pour "depuis Xmin" (statut)
+        function nxAgo(ms) {
+            if (!ms) return '';
+            const s = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+            if (s < 60) return 'moins d’une min';
+            const m = Math.floor(s / 60); if (m < 60) return `${m} min`;
+            const h = Math.floor(m / 60); if (h < 24) return `${h} h`;
+            return `${Math.floor(h / 24)} j`;
+        }
+
+        // Séparateur « Nouveaux messages » : purement local (aucune écriture Firestore),
+        // basé sur le dernier horodatage vu sur CET appareil pour cette conversation.
+        function nxLastSeenKey(key) { return 'nx_seen_' + (currentUser?.uid || '') + '_' + key; }
+        function nxGetLastSeen(key) { try { return Number(localStorage.getItem(nxLastSeenKey(key))) || 0; } catch { return 0; } }
+        function nxSetLastSeen(key, ts) { try { localStorage.setItem(nxLastSeenKey(key), String(ts)); } catch { /* stockage indisponible */ } }
+        function nxInsertNewSeparator(key, docsArr) {
+            const lastSeen = nxGetLastSeen(key);
+            let maxTs = lastSeen, firstNewIdx = -1;
+            docsArr.forEach((d, i) => {
+                const ts = (d.data.createdAt && typeof d.data.createdAt.toMillis === 'function') ? d.data.createdAt.toMillis() : 0;
+                if (ts > maxTs) maxTs = ts;
+                if (firstNewIdx === -1 && ts > lastSeen && (!currentUser || d.data.uid !== currentUser.uid)) firstNewIdx = i;
+            });
+            if (lastSeen > 0 && firstNewIdx > -1) {
+                const el = msgList.children[firstNewIdx];
+                if (el) el.insertAdjacentHTML('beforebegin', '<div class="nx-new-sep"><span>Nouveaux messages</span></div>');
+            }
+            if (maxTs > lastSeen) nxSetLastSeen(key, maxTs);
+        }
+
+        // Raccourci clavier : Ctrl/Cmd+K ouvre la recherche, où qu'on soit sur le site
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === 'k' || e.key === 'K')) {
+                if (!currentUser) return;
+                e.preventDefault();
+                openSearchModal();
+            }
+        });
+
+        /* ---------- Filtres + tri de la Collection ---------- */
+        let collFilter = { type: 'all', rarity: 'all', owned: 'all', sort: 'default' };
+        function nxCollFilterBar() {
+            const opt = (v, l, cur) => `<option value="${v}" ${cur === v ? 'selected' : ''}>${l}</option>`;
+            const sel = (id, onchange, opts) => `<select id="${id}" onchange="${onchange}" class="bg-[#1e1f22] border border-[#3f4147] rounded-lg px-2 py-1.5 text-[11px] text-[#dbdee1]">${opts}</select>`;
+            return `<div class="flex flex-wrap gap-1.5 mb-3">
+                ${sel('coll-f-type', "setCollFilter('type',this.value)",
+                    opt('all', 'Tous les types', collFilter.type) + opt('frame', 'Cadres', collFilter.type) + opt('name', 'Pseudos', collFilter.type) + opt('role', 'Rôles', collFilter.type))}
+                ${sel('coll-f-rarity', "setCollFilter('rarity',this.value)",
+                    opt('all', 'Toute rareté', collFilter.rarity) + opt('Commun', 'Commun', collFilter.rarity) + opt('Rare', 'Rare', collFilter.rarity) + opt('Unique', 'Unique', collFilter.rarity))}
+                ${sel('coll-f-owned', "setCollFilter('owned',this.value)",
+                    opt('all', 'Tout', collFilter.owned) + opt('owned', 'Possédés', collFilter.owned) + opt('missing', 'Non obtenus', collFilter.owned))}
+                ${sel('coll-f-sort', "setCollFilter('sort',this.value)",
+                    opt('default', 'Tri par défaut', collFilter.sort) + opt('name', 'Nom (A-Z)', collFilter.sort) + opt('price', 'Prix', collFilter.sort))}
+            </div>`;
+        }
+        window.setCollFilter = (k, v) => { collFilter[k] = v; renderHub(); };
+        function nxApplyCollFilter(list, uid) {
+            let out = list.filter(d => {
+                if (collFilter.type !== 'all' && d.type !== collFilter.type) return false;
+                if (collFilter.owned === 'owned' && !ownsItem(uid, d.id)) return false;
+                if (collFilter.owned === 'missing' && ownsItem(uid, d.id)) return false;
+                if (collFilter.rarity !== 'all' && (rarityBadge(d.id)?.label || 'Commun') !== collFilter.rarity) return false;
+                return true;
+            });
+            if (collFilter.sort === 'name') out = out.slice().sort((a, b) => String(a.name).localeCompare(String(b.name)));
+            else if (collFilter.sort === 'price') out = out.slice().sort((a, b) => (a.price || 0) - (b.price || 0));
+            return out;
+        }
+
+        /* ---------- Aperçu avant/après d'un cosmétique avant de l'équiper ---------- */
+        window.previewEquip = (id) => {
+            const d = cosmeticOf(id);
+            if (!d || !currentUser) return;
+            const uid = currentUser.uid, me = userOf(uid) || userProfile;
+            const other = {};
+            ['frame', 'name', 'role'].forEach(t => { if (t !== d.type) other[t] = equippedDef(uid, t); });
+            const currentForSlot = equippedDef(uid, d.type);
+            const sets = {
+                avant: { frame: d.type === 'frame' ? currentForSlot : other.frame, name: d.type === 'name' ? currentForSlot : other.name, role: d.type === 'role' ? currentForSlot : other.role },
+                après: { frame: d.type === 'frame' ? d : other.frame, name: d.type === 'name' ? d : other.name, role: d.type === 'role' ? d : other.role }
+            };
+            const av = safeUrl(me.avatar);
+            const avatarInner = av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover rounded-full">` : `<div class="w-full h-full rounded-full bg-[var(--theme-color)] flex items-center justify-center text-lg font-bold">${escapeHtml((me.name || '?').charAt(0))}</div>`;
+            const block = (set, label, emph) => {
+                const nameStyle = set.name ? `--nfx-bg:${set.name.bg};--nfx-glow:${set.name.glow || 'transparent'}` : '';
+                return `<div class="flex-1 text-center">
+                    <div class="text-[10px] uppercase tracking-wider ${emph ? 'text-amber-300' : 'text-[#80848e]'} mb-2">${label}</div>
+                    <div class="flex flex-col items-center gap-1.5">
+                        <div class="cos-av cos-av-sm" ${frameAttrs(set.frame)}>${avatarInner}${frameImgTag(set.frame)}</div>
+                        <div ${set.name ? `data-nfx="${escapeHtml(set.name.id)}" data-nfx-anim="${set.name.anim || ''}"${set.name.glow ? ' data-nfx-glow' : ''}` : ''} style="${nameStyle}" class="text-sm font-bold">${escapeHtml(me.name || 'Toi')}</div>
+                        ${set.role ? roleChip(set.role) : '<div class="h-[22px]"></div>'}
+                    </div></div>`;
+            };
+            let m = $('nx-preview-modal');
+            if (!m) { m = document.createElement('div'); m.id = 'nx-preview-modal'; document.body.appendChild(m); }
+            m.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4';
+            m.onclick = (e) => { if (e.target === m) closePreviewEquip(); };
+            m.innerHTML = `<div class="modal-pop bg-[#2b2d31] border border-[#3f4147] rounded-2xl max-w-sm w-full p-4 shadow-2xl">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="text-sm font-bold">👁 Aperçu : ${escapeHtml(d.name)}</div>
+                    <button type="button" onclick="closePreviewEquip()" class="w-8 h-8 rounded-full bg-[#35373c] hover:bg-[#3f4147] text-[#dbdee1] text-sm"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="flex items-stretch gap-2">${block(sets.avant, 'Avant', false)}<div class="w-px bg-[#3f4147]"></div>${block(sets.après, 'Après', true)}</div>
+                <button type="button" onclick="closePreviewEquip();equipItem('${d.id}')" class="w-full mt-4 px-3 py-2.5 rounded-xl text-sm font-semibold bg-[var(--theme-color)] text-white hover:opacity-90 transition">Équiper</button>
+            </div>`;
+        };
+        window.closePreviewEquip = () => { const m = $('nx-preview-modal'); if (m) m.remove(); };
+
+        /* ---------- Balayer un message vers la droite pour y répondre (mobile) ---------- */
+        setTimeout(function nxSwipeToReply() {
+            if (!('ontouchstart' in window)) return;
+            let row = null, sx = 0, sy = 0, dx = 0, mode = null;
+            msgList.addEventListener('touchstart', (e) => {
+                const r = e.target.closest('.message-row');
+                if (!r || e.target.closest('button,a,img,[data-target]')) { row = null; return; }
+                const t = e.touches[0]; row = r; sx = t.clientX; sy = t.clientY; dx = 0; mode = null;
+            }, { passive: true });
+            msgList.addEventListener('touchmove', (e) => {
+                if (!row) return;
+                const t = e.touches[0], ddx = t.clientX - sx, ddy = t.clientY - sy;
+                if (!mode) {
+                    if (Math.abs(ddx) < 8 && Math.abs(ddy) < 8) return;
+                    mode = Math.abs(ddx) > Math.abs(ddy) * 1.3 ? 'h' : 'v';
+                    if (mode !== 'h') { row = null; return; }
+                }
+                dx = Math.max(0, Math.min(ddx, 84));
+                row.style.transition = 'none';
+                row.style.transform = `translateX(${dx}px)`;
+            }, { passive: true });
+            const end = () => {
+                if (row) {
+                    const r = row, d = dx;
+                    r.style.transition = 'transform .18s ease';
+                    r.style.transform = 'translateX(0)';
+                    if (d > 60) { try { navigator.vibrate?.(8); } catch { } startReply(r.dataset.id); }
+                }
+                row = null; dx = 0; mode = null;
+            };
+            msgList.addEventListener('touchend', end, { passive: true });
+            msgList.addEventListener('touchcancel', end, { passive: true });
+        }, 0);
 
         function renderSeasonTab() {
             const n = currentSeason(), prep = n < 1;
@@ -6148,7 +6325,7 @@ match /groups/{groupId}/reads/{uid} {
             // Citation du message auquel on répond (clic = on saute jusqu'à l'original)
             const rp = (msg.replyTo && typeof msg.replyTo === 'object') ? msg.replyTo : null;
             const replyHtml = rp
-                ? `<button type="button" data-target="${escapeHtml(rp.id || '')}" onclick="goToMessage(this.dataset.target)" class="flex items-center gap-1.5 max-w-full text-left text-xs text-[#949ba4] hover:text-[#dbdee1] mb-0.5 transition" title="Voir le message d'origine">
+                ? `<button type="button" data-target="${escapeHtml(rp.id || '')}" onclick="goToMessage(this.dataset.target)" class="reply-quote-btn flex items-center gap-1.5 max-w-full text-left text-xs text-[#949ba4] hover:text-[#dbdee1] mb-0.5 transition" title="Voir le message d'origine">
                         <i class="fa-solid fa-reply text-[10px] shrink-0"></i>
                         <span class="font-semibold text-[#b5bac1] shrink-0">@${escapeHtml(rp.name || 'Anonyme')}</span>
                         <span class="truncate min-w-0">${escapeHtml(rp.text || '')}</span>
@@ -6390,6 +6567,7 @@ match /groups/{groupId}/reads/{uid} {
                         msgData.set(d.id, data);
                         return rowHtml(d.id, data);
                     }).join('');
+                    nxInsertNewSeparator(key, snapshot.docs.map(d => ({ id: d.id, data: msgData.get(d.id) })));
                     renderedKey = key;
                     $('messages-skeleton').classList.add('hidden');
                     refreshListChrome(snapshot.size);
