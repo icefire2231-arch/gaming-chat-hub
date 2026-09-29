@@ -198,6 +198,74 @@
         .nx-part { position: absolute; left: 50%; top: 70px; width: 5px; height: 5px; border-radius: 50%; background: var(--c, #fbbf24); opacity: 0; animation: nxPart 1.7s ease-out forwards; }
         @keyframes nxPart { 0% { opacity: 0; transform: translate(0, 0) scale(.6); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1); } }
 
+        /* ===== Interface façon Discord × NexusChat : rail, salons, en-tête, messages groupés, composer, membres ===== */
+        #chat-main { background: #313338; }
+        #chat-bg { background-color: #313338; }
+        #server-rail { scrollbar-width: none; }
+        #server-rail::-webkit-scrollbar { display: none; }
+        #server-rail .nx-rail-btn { position: relative; width: 48px; height: 48px; border-radius: 24px; background: #313338; color: #dbdee1; display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; font-size: 18px; line-height: 1; transition: border-radius .18s ease, background .18s ease, color .18s ease; }
+        #server-rail .nx-rail-btn:hover { border-radius: 16px; background: var(--theme-color); color: #fff; }
+        #server-rail .nx-rail-btn::before { content: ''; position: absolute; left: -12px; top: 50%; width: 4px; height: 20px; border-radius: 0 4px 4px 0; background: #fff; transform: translateY(-50%) scaleY(0); transition: transform .18s ease; }
+        #server-rail .nx-rail-btn:hover::before { transform: translateY(-50%) scaleY(.4); }
+        #server-rail .nx-rail-home { border-radius: 16px; background: var(--theme-color); box-shadow: 0 0 18px color-mix(in srgb, var(--theme-color) 45%, transparent); }
+        #server-rail .nx-rail-home::before { transform: translateY(-50%) scaleY(1); }
+        #server-rail .nx-rail-home:hover::before { transform: translateY(-50%) scaleY(1); }
+        #server-rail .nx-rail-sub { font-size: 9px; font-weight: 800; color: #fbbf24; margin-top: 2px; }
+        #server-rail .nx-rail-btn:hover .nx-rail-sub { color: #fff; }
+        @media (min-width: 768px) {
+            #sidebar > div:first-child { padding: 0 16px; height: 48px; border-bottom: 1px solid rgba(0,0,0,.28); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+            #chat-header { height: 48px; background: #313338; backdrop-filter: none; border-bottom: 1px solid rgba(0,0,0,.28); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+            #composer-wrap { padding: 0 16px 20px; }
+        }
+        #sidebar > div:last-child { background: #232428; }
+        #chat-header h2 { font-size: 16px; }
+        #chat-header > div:last-child > button:not(#header-call-btn):not(#pwa-install-btn) { background: transparent; border-color: transparent; border-radius: 6px; color: #b5bac1; }
+        #chat-header > div:last-child > button:not(#header-call-btn):not(#pwa-install-btn):hover { background: rgba(78,80,88,.55); }
+        #composer-wrap { background: transparent; border-top: 0; backdrop-filter: none; }
+        #message-form { background: #383a40; border: 1px solid transparent; border-radius: 10px; padding: 2px 6px; transition: border-color .15s ease, box-shadow .15s ease; }
+        #message-form:focus-within { border-color: color-mix(in srgb, var(--theme-color) 60%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-color) 14%, transparent); }
+        #message-form #message-input { background: transparent; border: 0; box-shadow: none; outline: none; }
+        #messages-list > .message-row:not(.msg-cont) { margin-top: 10px; }
+        #messages-list > .message-row.msg-cont { margin-top: 0; padding-top: 0; padding-bottom: 0; }
+        .message-row.msg-cont > div:first-child { visibility: hidden; height: 0; }
+        .message-row.msg-cont .msg-head { display: none; }
+        .message-row.msg-cont::before { content: attr(data-time); position: absolute; left: .5rem; top: 4px; width: 2.5rem; text-align: center; font-size: 10px; color: #80848e; opacity: 0; pointer-events: none; }
+        .message-row.msg-cont:hover::before { opacity: 1; }
+        .nx-cat-h { cursor: pointer; user-select: none; transition: color .15s ease; }
+        .nx-cat-h:hover { color: #dbdee1; }
+        .nx-caret { font-size: 9px; margin-right: 4px; transition: transform .15s ease; }
+        .nx-collapsed .nx-caret { transform: rotate(-90deg); }
+        .nx-collapsed > :not(:first-child) { display: none !important; }
+        .nx-active { background: linear-gradient(90deg, color-mix(in srgb, var(--theme-color) 34%, transparent), color-mix(in srgb, var(--theme-color) 14%, transparent)); box-shadow: inset 3px 0 0 var(--theme-color); }
+        #members-panel { width: 240px; background: #2b2d31; flex-shrink: 0; overflow-y: auto; padding: 12px 8px; overscroll-behavior: contain; }
+        #members-panel.nx-off { display: none; }
+        .nx-mhead { padding: 12px 8px 4px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #949ba4; }
+        .nx-moff { opacity: .5; }
+        .nx-moff:hover { opacity: 1; }
+
+        /* ===== Modernisation visuelle : boutons, cartes, modales (aucune classe ni fonction déplacée, uniquement du style additif) ===== */
+        .modal-pop { animation: nxModalPop .22s cubic-bezier(.16,1,.3,1); }
+        @keyframes nxModalPop { from { opacity: 0; transform: scale(.94) translateY(6px); } to { opacity: 1; transform: none; } }
+        [class*="fixed inset-0 bg-black/"] { animation: nxBackdropIn .16s ease-out; backdrop-filter: blur(3px) saturate(110%); -webkit-backdrop-filter: blur(3px) saturate(110%); }
+        @keyframes nxBackdropIn { from { opacity: 0; } to { opacity: 1; } }
+        div[class*="bg-[#2b2d31]"][class*="border-[#3f4147]"] { box-shadow: 0 24px 60px -12px rgba(0,0,0,.55), 0 2px 0 rgba(255,255,255,.03) inset; }
+        div[class*="bg-[#1e1f22]"][class*="rounded-2xl"][class*="border"], div[class*="bg-[#1e1f22]"][class*="rounded-xl"][class*="border"] { box-shadow: 0 8px 20px -8px rgba(0,0,0,.4), 0 1px 0 rgba(255,255,255,.025) inset; transition: box-shadow .2s ease, border-color .2s ease, transform .2s ease; }
+        button, [role="button"] { transition: background-color .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease, opacity .15s ease, transform .1s ease; }
+        button:not(:disabled):active, [role="button"]:not([aria-disabled="true"]):active { transform: scale(.96); }
+        button:disabled, button[disabled] { transform: none !important; }
+        button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible {
+            outline: 2px solid color-mix(in srgb, var(--theme-color) 70%, transparent); outline-offset: 2px;
+        }
+        button[class*="bg-[var(--theme-color)]"]:not(:disabled):hover, button[class*="bg-amber-500"]:not(:disabled):hover { filter: brightness(1.08); box-shadow: 0 6px 16px -4px color-mix(in srgb, var(--theme-color) 45%, transparent); }
+        button[class*="rounded-full"][class*="bg-[#35373c]"]:not(:disabled):hover { box-shadow: 0 0 0 4px rgba(255,255,255,.04); }
+        input[type="text"], input[type="search"], input[type="password"], input[type="email"], textarea {
+            transition: border-color .15s ease, box-shadow .15s ease;
+        }
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #232428; border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+        ::-webkit-scrollbar-thumb:hover { background: #1a1b1e; background-clip: padding-box; }
+
         @media (prefers-reduced-motion: reduce) {
             * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
         }
@@ -237,10 +305,18 @@
     <div id="app-screen" class="flex h-full w-full hidden relative overflow-hidden">
         <div id="sidebar-overlay" onclick="toggleMobileSidebar()" class="fixed inset-0 bg-black/60 z-20 md:hidden opacity-0 pointer-events-none"></div>
 
-        <div id="sidebar" class="absolute md:relative inset-y-0 left-0 w-80 max-w-[85vw] bg-[#2b2d31] border-r border-[#3f4147] flex flex-col z-30 transform -translate-x-full md:translate-x-0">
+        <nav id="server-rail" class="hidden md:flex w-[72px] shrink-0 bg-[#1e1f22] flex-col items-center py-3 gap-2 overflow-y-auto z-30">
+            <button type="button" onclick="goHome()" class="nx-rail-btn nx-rail-home" title="NexusChat"><img data-logo alt="" class="w-8 h-8 object-contain logo-glow-sm"></button>
+            <div class="w-8 h-0.5 rounded bg-[#35373c] my-1"></div>
+            <button type="button" onclick="openHub('shop')" class="nx-rail-btn" title="Boutique &amp; saisons"><span>🪙</span><span id="coins-count" class="nx-rail-sub">0</span></button>
+            <button type="button" onclick="openLeaderboardModal()" class="nx-rail-btn" title="Classement"><i class="fa-solid fa-trophy text-amber-400"></i></button>
+            <button type="button" onclick="openHub('season')" class="nx-rail-btn" title="Saison"><i class="fa-solid fa-medal text-sky-400"></i></button>
+        </nav>
+
+        <div id="sidebar" class="absolute md:relative inset-y-0 left-0 w-80 md:w-60 max-w-[85vw] bg-[#2b2d31] border-r border-[#3f4147] flex flex-col z-30 transform -translate-x-full md:translate-x-0">
             <div class="p-4 border-b border-[#3f4147] flex items-center justify-between shrink-0">
                 <span class="font-bold text-lg flex items-center gap-2.5">
-                    <img data-logo alt="" class="w-9 h-9 object-contain logo-glow-sm">
+                    <img data-logo alt="" class="w-9 h-9 object-contain logo-glow-sm md:hidden">
                     NexusChat
                 </span>
                 <button onclick="toggleMobileSidebar()" class="md:hidden text-[#949ba4] hover:text-white p-2 -mr-2"><i class="fa-solid fa-xmark text-lg"></i></button>
@@ -295,8 +371,8 @@
             </div>
         </div>
 
-        <div class="flex-1 flex flex-col bg-[#1e1f22] w-full h-full overflow-hidden">
-            <div class="h-14 md:h-16 border-b border-[#3f4147] px-3 md:px-4 flex items-center justify-between bg-[#2b2d31]/50 backdrop-blur shrink-0">
+        <div id="chat-main" class="flex-1 flex flex-col bg-[#1e1f22] w-full h-full overflow-hidden">
+            <div id="chat-header" class="h-14 md:h-16 border-b border-[#3f4147] px-3 md:px-4 flex items-center justify-between bg-[#2b2d31]/50 backdrop-blur shrink-0">
                 <div class="flex items-center gap-2 md:gap-3 truncate">
                     <button onclick="toggleMobileSidebar()" class="md:hidden text-[#dbdee1] hover:text-white text-lg p-2 -ml-2"><i class="fa-solid fa-bars"></i></button>
                     <h2 id="current-channel-title" class="font-bold text-base md:text-lg truncate"># Général</h2>
@@ -324,15 +400,12 @@
                         <i class="fa-solid fa-bell text-[#dbdee1] text-sm"></i>
                         <span id="notif-badge" class="hidden absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold min-w-[16px] h-4 px-0.5 rounded-full items-center justify-center">0</span>
                     </button>
-                    <button onclick="openOnlineModal()" class="flex items-center gap-1.5 bg-[#35373c]/60 hover:bg-[#35373c] px-2.5 py-1.5 rounded-full border border-[#4e5058]/50 text-xs transition" title="Voir qui est en ligne">
+                    <button onclick="onlineBtnClick()" class="flex items-center gap-1.5 bg-[#35373c]/60 hover:bg-[#35373c] px-2.5 py-1.5 rounded-full border border-[#4e5058]/50 text-xs transition" title="Voir qui est en ligne / afficher la liste des membres">
                         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                         <span id="online-count" class="text-[#dbdee1] font-medium">0</span>
                     </button>
-                    <button onclick="openLeaderboardModal()" class="flex items-center justify-center bg-[#35373c]/60 hover:bg-[#35373c] w-9 h-9 rounded-full border border-[#4e5058]/50 transition" title="Classement">
+                    <button onclick="openLeaderboardModal()" class="md:hidden flex items-center justify-center bg-[#35373c]/60 hover:bg-[#35373c] w-9 h-9 rounded-full border border-[#4e5058]/50 transition" title="Classement">
                         <i class="fa-solid fa-trophy text-amber-400 text-sm"></i>
-                    </button>
-                    <button onclick="openHub('shop')" class="hidden md:flex items-center gap-1.5 bg-[#35373c]/60 hover:bg-[#35373c] h-9 px-3 rounded-full border border-[#4e5058]/50 text-xs font-bold text-amber-300 transition" title="Boutique &amp; saisons">
-                        <span>🪙</span><span id="coins-count">0</span>
                     </button>
                     <button id="admin-stats-btn" onclick="openAdminStatsModal()" class="hidden items-center justify-center bg-[#35373c]/60 hover:bg-[#35373c] w-9 h-9 rounded-full border border-[#4e5058]/50 transition" title="Vie du serveur (admin)">
                         <i class="fa-solid fa-chart-simple text-emerald-400 text-sm"></i>
@@ -413,7 +486,7 @@
                 </div>
             </div>
 
-            <div class="p-2 md:p-4 pb-[calc(0.5rem+64px)] md:pb-4 border-t border-[#3f4147] bg-[#2b2d31]/80 backdrop-blur shrink-0 safe-bottom">
+            <div id="composer-wrap" class="p-2 md:p-4 pb-[calc(0.5rem+64px)] md:pb-4 border-t border-[#3f4147] bg-[#2b2d31]/80 backdrop-blur shrink-0 safe-bottom">
                 <!-- Barre "Répondre à…" (style Discord) -->
                 <div id="reply-bar" class="hidden items-center gap-2 px-3 py-2 mb-2 bg-[#1e1f22] border border-[#3f4147] rounded-xl text-xs" style="border-left:3px solid var(--theme-color)">
                     <i class="fa-solid fa-reply text-[var(--theme-color)] shrink-0"></i>
@@ -444,6 +517,9 @@
                 </div>
             </div>
         </div>
+        <aside id="members-panel" class="hidden lg:flex flex-col">
+            <div id="members-list"></div>
+        </aside>
     </div>
 
     <div id="mobile-bottom-nav" class="md:hidden hidden fixed bottom-0 inset-x-0 bg-[#2b2d31]/95 backdrop-blur border-t border-[#3f4147] flex items-stretch z-40 safe-bottom">
@@ -2077,7 +2153,7 @@ match /groups/{groupId}/reads/{uid} {
                 const badge = unreadBadgeHtml('channel', c.id, isActive, isAdmin() ? 'mr-12' : 'mr-6');
                 return `
                     <div class="chan-row relative group">
-                        <button data-type="channel" data-id="${escapeHtml(c.id)}" data-name="${escapeHtml(c.name)}" onclick="goTo(this)" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2.5 transition ${isActive ? 'bg-[var(--theme-color)] text-white shadow-lg' : 'text-[#949ba4] hover:bg-[#35373c] hover:text-[#dbdee1]'}">
+                        <button data-type="channel" data-id="${escapeHtml(c.id)}" data-name="${escapeHtml(c.name)}" onclick="goTo(this)" class="w-full text-left px-2 py-2 md:py-1.5 rounded-md text-[15px] font-medium flex items-center gap-2.5 transition ${isActive ? 'nx-active text-white' : 'text-[#949ba4] hover:bg-[#35373c] hover:text-[#dbdee1]'}">
                             ${channelIconHtml(c)}
                             <span class="truncate ${badge ? 'text-white font-bold' : ''}">${escapeHtml(c.name)}</span>
                             ${muted ? '<i class="fa-solid fa-bell-slash text-[10px] text-[#80848e] shrink-0"></i>' : ''}
@@ -2093,7 +2169,7 @@ match /groups/{groupId}/reads/{uid} {
                   const members = (voiceParticipants[v.id] || []).filter(isVoiceAlive);
                 return `
                     <div class="space-y-1">
-                        <button onclick="requestJoinVoice('${v.id}', '${escapeHtml(v.name)}')" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center justify-between transition ${isConnected ? 'bg-emerald-600/20 border border-emerald-500/40 text-emerald-300' : 'text-[#949ba4] hover:bg-[#35373c] hover:text-[#dbdee1]'}">
+                        <button onclick="requestJoinVoice('${v.id}', '${escapeHtml(v.name)}')" class="w-full text-left px-2 py-2 md:py-1.5 rounded-md text-[15px] font-medium flex items-center justify-between transition ${isConnected ? 'bg-emerald-600/20 border border-emerald-500/40 text-emerald-300' : 'text-[#949ba4] hover:bg-[#35373c] hover:text-[#dbdee1]'}">
                             <div class="flex items-center gap-2.5 truncate">
                                 <i class="fa-solid fa-volume-high w-4 text-center shrink-0"></i>
                                 <span class="truncate">${escapeHtml(v.name)}</span>
@@ -2122,7 +2198,7 @@ match /groups/{groupId}/reads/{uid} {
                 const badge = unreadBadgeHtml('group', g.id, isActive);
                 return `
                     <div class="chan-row relative group">
-                        <button data-type="group" data-id="${escapeHtml(g.id)}" data-name="${escapeHtml(g.name)}" onclick="goTo(this)" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2.5 transition ${isActive ? 'bg-[var(--theme-color)] text-white' : 'text-[#949ba4] hover:bg-[#35373c] hover:text-[#dbdee1]'}">
+                        <button data-type="group" data-id="${escapeHtml(g.id)}" data-name="${escapeHtml(g.name)}" onclick="goTo(this)" class="w-full text-left px-2 py-2 md:py-1.5 rounded-md text-[15px] font-medium flex items-center gap-2.5 transition ${isActive ? 'nx-active text-white' : 'text-[#949ba4] hover:bg-[#35373c] hover:text-[#dbdee1]'}">
                             <i class="fa-solid fa-users w-4 text-center shrink-0"></i>
                             <span class="truncate ${badge ? 'text-white font-bold' : ''}">${escapeHtml(g.name)}</span>
                             ${badge}
@@ -2154,7 +2230,7 @@ match /groups/{groupId}/reads/{uid} {
                     : `<button onclick="friendAction('add','${escapeHtml(u.uid)}')" class="chan-edit transition absolute right-1 top-1/2 -translate-y-1/2 text-[var(--theme-color)] bg-[#2b2d31]/80 rounded p-1.5" title="Ajouter en ami"><i class="fa-solid fa-user-plus text-xs"></i></button>`;
                 return `
                     <div class="chan-row relative group">
-                    <button onclick="openDirectMessage('${escapeHtml(u.uid)}')" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2.5 transition ${isActive ? 'bg-[var(--theme-color)] text-white' : 'text-[#949ba4] hover:bg-[#35373c] hover:text-[#dbdee1]'}">
+                    <button onclick="openDirectMessage('${escapeHtml(u.uid)}')" class="w-full text-left px-2 py-2 md:py-1.5 rounded-md text-[15px] font-medium flex items-center gap-2.5 transition ${isActive ? 'nx-active text-white' : 'text-[#949ba4] hover:bg-[#35373c] hover:text-[#dbdee1]'}">
                         <div onclick="event.stopPropagation();openUserCard('${escapeHtml(u.uid)}')" class="w-6 h-6 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-xs font-bold overflow-hidden shrink-0" title="Voir le profil">
                             ${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((u.name || '?').charAt(0))}
                         </div>
@@ -2165,6 +2241,7 @@ match /groups/{groupId}/reads/{uid} {
                     ${sideBtn}
                     </div>`;
             }).join('') : `<div class="px-3 py-2 text-xs text-[#80848e] italic">${friendFilter ? 'Aucun ami trouvé.' : "Aucun ami pour l'instant. Utilise le bouton en haut à droite pour en ajouter."}</div>`);
+            nxScheduleMembers();
         }
 
         /* ---------- Salons (admin uniquement) + upload d'image ---------- */
@@ -4580,7 +4657,7 @@ match /groups/{groupId}/reads/{uid} {
         // Appelé à chaque instantané "users" : on ne redessine la fenêtre que si TES données ont changé
         function hubOnUsersUpdate() {
             updateCoinsUI();
-            if (currentUser) { nxCheckBadges(); nxCheckRankUp(); nxCheckSeasonRewards().catch(() => {}); }   // micro-interactions (jamais bloquantes)
+            if (currentUser) { nxCheckBadges(); nxCheckRankUp(); nxScheduleMembers(); nxCheckSeasonRewards().catch(() => {}); }   // micro-interactions (jamais bloquantes)
             if (!hubIsOpen() || !currentUser) return;
             const sig = myEconomySig();
             if (sig !== hubMySig) { hubMySig = sig; renderHub(); }
@@ -5160,6 +5237,99 @@ match /groups/{groupId}/reads/{uid} {
             clearTimeout(nxRevealTimer);
             ['nx-reveal', 'nx-item-modal', 'nx-layer'].forEach(id => { const el = $(id); if (el) el.remove(); });
         }
+
+        /* =========================================================
+           INTERFACE FAÇON DISCORD × NEXUSCHAT (présentation uniquement, aucune donnée ni règle modifiée)
+           - rail de raccourcis à gauche, catégories repliables, messages consécutifs regroupés,
+             liste des membres (En ligne / Hors ligne) à droite sur grand écran
+           ========================================================= */
+        window.goHome = () => { const c = textChannels[0]; if (c) switchTarget('channel', c.id, c.name); };
+
+        // Catégories repliables (état mémorisé sur l'appareil)
+        function nxInitCategories() {
+            const dm = $('dm-conversations-list');
+            const sections = ['channels-section', 'voice-section', 'groups-section'].map(id => $(id)).concat([dm && dm.parentElement]).filter(Boolean);
+            sections.forEach(sec => {
+                const h = sec.firstElementChild;
+                if (!h || h.dataset.nxcat) return;
+                const key = 'nx_cat_' + (sec.id || 'friends');
+                h.dataset.nxcat = key; h.classList.add('nx-cat-h');
+                const host = (h.firstElementChild && h.firstElementChild.tagName === 'SPAN') ? h.firstElementChild : h;
+                host.insertAdjacentHTML('afterbegin', '<i class="fa-solid fa-chevron-down nx-caret"></i>');
+                try { if (localStorage.getItem(key) === '1') sec.classList.add('nx-collapsed'); } catch { /* stockage indisponible */ }
+                h.addEventListener('click', (e) => {
+                    if (e.target.closest('button,input')) return;
+                    sec.classList.toggle('nx-collapsed');
+                    try { localStorage.setItem(key, sec.classList.contains('nx-collapsed') ? '1' : '0'); } catch { }
+                });
+            });
+        }
+
+        // Messages consécutifs du même auteur (moins de 7 min) : on masque avatar + en-tête, l'heure apparaît au survol
+        var nxRegroupRaf = 0;
+        function nxRegroup() {
+            nxRegroupRaf = 0;
+            const list = $('messages-list'); if (!list) return;
+            let prev = null;
+            for (const row of list.children) {
+                if (!row.classList.contains('message-row')) { prev = null; continue; }
+                const uid = row.dataset.uid || '', ts = Number(row.dataset.ts) || 0;
+                const cont = !!(prev && uid && prev.uid === uid && ts && prev.ts && ts >= prev.ts && ts - prev.ts < 420000
+                    && !row.querySelector(':scope > .msg-bubble-bg > button[data-target]')
+                    && new Date(ts).toDateString() === new Date(prev.ts).toDateString());
+                row.classList.toggle('msg-cont', cont);
+                prev = { uid, ts };
+            }
+        }
+        function nxScheduleRegroup() { if (!nxRegroupRaf) nxRegroupRaf = requestAnimationFrame(nxRegroup); }
+
+        // Liste des membres (salon : tout le monde · groupe : ses membres · MP : les deux personnes)
+        var nxMembersRaf = 0;
+        var nxMembersOpen = (() => { try { return localStorage.getItem('nx_members') !== '0'; } catch { return true; } })();
+        function nxScheduleMembers() { if (!nxMembersRaf) nxMembersRaf = requestAnimationFrame(() => { nxMembersRaf = 0; nxRenderMembers(); }); }
+        window.toggleMembersPanel = () => {
+            nxMembersOpen = !nxMembersOpen;
+            try { localStorage.setItem('nx_members', nxMembersOpen ? '1' : '0'); } catch { }
+            const p = $('members-panel'); if (p) p.classList.toggle('nx-off', !nxMembersOpen);
+            if (nxMembersOpen) nxScheduleMembers();
+        };
+        window.onlineBtnClick = () => (window.innerWidth >= 1024 ? toggleMembersPanel() : openOnlineModal());
+        function nxRenderMembers() {
+            const panel = $('members-panel');
+            if (!panel || !currentUser || !nxMembersOpen || window.innerWidth < 1024) return;
+            let users = allUsersList.filter(u => u && u.uid);
+            if (currentTargetType === 'group') {
+                const g = myGroups.find(x => x.id === currentTargetId), set = new Set(g?.members || []);
+                users = users.filter(u => set.has(u.uid));
+            } else if (currentTargetType === 'dm') {
+                const set = new Set(String(currentTargetId).split('_').slice(1));
+                users = users.filter(u => set.has(u.uid));
+            }
+            const byName = (a, b) => String(a.name || '').localeCompare(String(b.name || ''));
+            const on = users.filter(isOnline).sort(byName), off = users.filter(u => !isOnline(u)).sort(byName);
+            const MAX_OFF = 100;
+            const row = (u, offline) => {
+                const av = safeUrl(u.avatar);
+                const inner = `<div class="w-9 h-9 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-sm font-bold overflow-hidden">${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((u.name || '?').charAt(0))}</div>`;
+                return `<button type="button" onclick="openUserCard('${escapeHtml(u.uid)}')" class="${offline ? 'nx-moff ' : ''}w-full flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-[#35373c] text-left transition">
+                    <div class="relative shrink-0">${cosAv(u.uid, inner, true)}<span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#2b2d31] ${dotClass(u)}"></span></div>
+                    <div class="min-w-0 flex items-center gap-1.5"><span class="text-sm font-medium truncate" ${nameFx(u.uid, 'color:#dbdee1')}>${escapeHtml(u.name || 'Anonyme')}</span>${roleTag(u.uid)}</div></button>`;
+            };
+            const html = (on.length ? `<div class="nx-mhead">En ligne — ${on.length}</div>` + on.map(u => row(u, false)).join('') : '')
+                + (off.length ? `<div class="nx-mhead">Hors ligne — ${off.length}</div>` + off.slice(0, MAX_OFF).map(u => row(u, true)).join('')
+                    + (off.length > MAX_OFF ? `<div class="px-2 py-1 text-[11px] text-[#80848e]">… et ${off.length - MAX_OFF} autres</div>` : '') : '');
+            setHtml($('members-list'), html || '<div class="px-2 py-3 text-xs text-[#80848e] italic">Personne ici pour l’instant.</div>');
+        }
+
+        (function nxInitDiscordUi() {
+            nxInitCategories();
+            const list = $('messages-list');
+            if (list) new MutationObserver(nxScheduleRegroup).observe(list, { childList: true });
+            const p = $('members-panel'); if (p) p.classList.toggle('nx-off', !nxMembersOpen);
+            window.addEventListener('resize', nxScheduleMembers);
+            setInterval(nxScheduleMembers, 30000);   // « en ligne » dépend de l'heure : on rafraîchit régulièrement
+            nxScheduleMembers();
+        })();
 
         function renderSeasonTab() {
             const n = currentSeason(), prep = n < 1;
@@ -5971,11 +6141,11 @@ match /groups/{groupId}/reads/{uid} {
 
             // La barre d'actions (répondre / réactions / suppression) est remplie au survol : deux fois moins d'éléments dans la page.
             return `
-                <div class="message-row group flex gap-3 px-2 py-1.5 hover:bg-white/[0.035] rounded-md relative ${highlightMe ? 'msg-mention-me' : ''}" data-id="${escapeHtml(id)}" data-ts="${ts}" data-del="${canDelete ? 1 : 0}">
+                <div class="message-row group flex gap-3 px-2 py-1.5 hover:bg-white/[0.035] rounded-md relative ${highlightMe ? 'msg-mention-me' : ''}" data-id="${escapeHtml(id)}" data-ts="${ts}" data-uid="${escapeHtml(msg.uid || '')}" data-time="${time}" data-del="${canDelete ? 1 : 0}">
                     <div class="shrink-0 mt-0.5 ${msg.uid ? 'cursor-pointer' : ''}" ${msg.uid ? `onclick="event.stopPropagation();openUserCard('${escapeHtml(msg.uid)}')" title="Voir le profil"` : ''}>${avatarHtml}</div>
                     <div class="min-w-0 flex-1 msg-bubble-bg">
                         ${replyHtml}
-                        <div class="flex items-baseline gap-2 flex-wrap">
+                        <div class="msg-head flex items-baseline gap-2 flex-wrap">
                             ${(isMe || !msg.uid)
                                 ? `<span class="text-sm font-semibold truncate max-w-[55vw] sm:max-w-[16rem] inline-block align-bottom" ${nameFx(msg.uid, `color:${isMe ? 'var(--theme-color)' : '#f2f3f5'}`)}>${escapeHtml(name)}</span>`
                                 : `<button type="button" data-uid="${escapeHtml(msg.uid)}" onclick="mentionFromEl(this)" class="text-sm font-semibold hover:underline cursor-pointer truncate max-w-[55vw] sm:max-w-[16rem] inline-block align-bottom" ${nameFx(msg.uid, 'color:#f2f3f5')} title="Cliquer pour mentionner">${escapeHtml(name)}</button>`}
