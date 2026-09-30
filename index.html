@@ -1205,14 +1205,14 @@ match /groups/{groupId}/reads/{uid} {
            sinon le serveur refusera les écritures. Le cooldown + le plafond quotidien empêchent le spam de rapporter
            beaucoup d'XP : ce n'est pas juste une protection côté client, le serveur revérifie tout. */
         const MSG_XP = 6, MSG_XP_COOLDOWN_MS = 45 * 1000, MSG_XP_DAILY_CAP = 40;
-        const VOICE_XP = 6, VOICE_XP_COOLDOWN_MS = 5 * 60 * 1000, VOICE_XP_DAILY_CAP = 30;
+        const VOICE_XP = 6, VOICE_XP_COOLDOWN_MS = 5 * 60 * 1000, VOICE_XP_DAILY_CAP = 13;   // vocal ≈ 1/4 des gains quotidiens (13 × 6 = 78 XP)
         const DAILY_BONUS_XP = 20, DAILY_BONUS_COOLDOWN_MS = 20 * 3600 * 1000;
 
         /* ---------- Pièces & saisons : ces valeurs doivent rester identiques à celles des règles Firestore ----------
            Les pièces se gagnent AVEC chaque gain d'XP ci-dessus (mêmes cooldowns et mêmes plafonds quotidiens, revérifiés par le serveur) :
            maximum ≈ 40×2 (messages) + 30×3 (vocal) + 50 (bonus quotidien) ≈ 220 pièces par jour.
            Saison 0 = septembre 2026 (préparation). Le numéro de saison est CALCULÉ depuis la date, jamais saisi à la main. */
-        const MSG_COINS = 2, VOICE_COINS = 3, DAILY_COINS = 50;
+        const MSG_COINS = 2, VOICE_COINS = 2, DAILY_COINS = 50;   // vocal : 13 × 2 = 26 pièces/jour (≈ 1/4 du total)
         const SEASON_ANCHOR_YEAR = 2026, SEASON_ANCHOR_MONTH = 9;   // septembre 2026 = Saison 0 (mois de 1 à 12, en UTC)
 
         // Nombre de messages chargés d'un coup (un bouton "Charger les messages plus anciens" permet d'en voir plus)
