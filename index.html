@@ -5542,7 +5542,7 @@ match /groups/{groupId}/reads/{uid} {
                 const inner = `<div class="w-9 h-9 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-sm font-bold overflow-hidden">${av ? `<img src="${escapeHtml(av)}" class="w-full h-full object-cover" onerror="this.remove()">` : escapeHtml((u.name || '?').charAt(0))}</div>`;
                 return `<button type="button" onclick="openUserCard('${escapeHtml(u.uid)}')" class="${offline ? 'nx-moff ' : ''}w-full flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-[#35373c] text-left transition">
                     <div class="relative shrink-0">${cosAv(u.uid, inner, true)}<span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#2b2d31] ${dotClass(u)}"></span></div>
-                    <div class="min-w-0 flex items-center gap-1.5"><span class="text-sm font-medium truncate" ${nameFx(u.uid, 'color:#dbdee1')}>${escapeHtml(u.name || 'Anonyme')}</span>${roleTag(u.uid)}</div></button>`;
+                    <div class="min-w-0 flex items-center gap-1.5"><span class="text-sm font-medium truncate" ${nameFx(u.uid, 'color:#dbdee1')}>${escapeHtml(u.name || 'Anonyme')}</span></div></button>`;   // tag de rôle volontairement absent ici : visible seulement dans le chat et le profil
             };
             const html = (on.length ? `<div class="nx-mhead">En ligne — ${on.length}</div>` + on.map(u => row(u, false)).join('') : '')
                 + (off.length ? `<div class="nx-mhead">Hors ligne — ${off.length}</div>` + off.slice(0, MAX_OFF).map(u => row(u, true)).join('')
