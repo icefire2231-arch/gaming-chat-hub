@@ -1204,15 +1204,16 @@ match /groups/{groupId}/reads/{uid} {
            Ces valeurs doivent rester identiques à celles des règles Firestore (msgXpOk/voiceXpOk/dailyBonusOk),
            sinon le serveur refusera les écritures. Le cooldown + le plafond quotidien empêchent le spam de rapporter
            beaucoup d'XP : ce n'est pas juste une protection côté client, le serveur revérifie tout. */
-        const MSG_XP = 6, MSG_XP_COOLDOWN_MS = 45 * 1000, MSG_XP_DAILY_CAP = 40;
-        const VOICE_XP = 6, VOICE_XP_COOLDOWN_MS = 5 * 60 * 1000, VOICE_XP_DAILY_CAP = 13;   // vocal ≈ 1/4 des gains quotidiens (13 × 6 = 78 XP)
+        const MSG_XP = 6, MSG_XP_COOLDOWN_MS = 20 * 1000, MSG_XP_DAILY_CAP = 40;
+        const VOICE_XP = 40, VOICE_XP_COOLDOWN_MS = 5 * 60 * 1000, VOICE_XP_DAILY_CAP = 2;   // vocal : 2 gains/jour × 40 = 80 XP ≈ 1/4 des gains quotidiens
+const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bonus quotidien dès 5 jours de série
         const DAILY_BONUS_XP = 20, DAILY_BONUS_COOLDOWN_MS = 20 * 3600 * 1000;
 
         /* ---------- Pièces & saisons : ces valeurs doivent rester identiques à celles des règles Firestore ----------
            Les pièces se gagnent AVEC chaque gain d'XP ci-dessus (mêmes cooldowns et mêmes plafonds quotidiens, revérifiés par le serveur) :
            maximum ≈ 40×2 (messages) + 30×3 (vocal) + 50 (bonus quotidien) ≈ 220 pièces par jour.
            Saison 0 = septembre 2026 (préparation). Le numéro de saison est CALCULÉ depuis la date, jamais saisi à la main. */
-        const MSG_COINS = 2, VOICE_COINS = 2, DAILY_COINS = 50;   // vocal : 13 × 2 = 26 pièces/jour (≈ 1/4 du total)
+        const MSG_COINS = 2, VOICE_COINS = 13, DAILY_COINS = 50;   // vocal : 2 × 13 = 26 pièces/jour (≈ 1/4 du total)
         const SEASON_ANCHOR_YEAR = 2026, SEASON_ANCHOR_MONTH = 9;   // septembre 2026 = Saison 0 (mois de 1 à 12, en UTC)
 
         // Nombre de messages chargés d'un coup (un bouton "Charger les messages plus anciens" permet d'en voir plus)
@@ -1327,6 +1328,15 @@ match /groups/{groupId}/reads/{uid} {
             return Date.now() - ms < ONLINE_WINDOW_MS;
         }
 
+        // Date + heure pour l'en-tête des messages (le mobile n'a pas de survol : on l'affiche en clair)
+        function formatDateTime(ts) {
+            if (!ts || typeof ts.toDate !== "function") return "";
+            const d = ts.toDate(), t = formatTime(ts), now = new Date(), y = new Date(now);
+            y.setDate(now.getDate() - 1);
+            if (d.toDateString() === now.toDateString()) return `Aujourd'hui ${t}`;
+            if (d.toDateString() === y.toDateString()) return `Hier ${t}`;
+            return `${d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${t}`;
+        }
         function formatTime(ts) {
             if (!ts || typeof ts.toDate !== "function") return "";
             return ts.toDate().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
@@ -3880,17 +3890,20 @@ match /groups/{groupId}/reads/{uid} {
                 voice: { field: 'lastVoiceXpAt',    cd: VOICE_XP_COOLDOWN_MS,    dailyField: 'dailyVoiceXpCount', dateField: 'dailyVoiceXpDate', cap: VOICE_XP_DAILY_CAP, amount: VOICE_XP,       coins: VOICE_COINS },
                 daily: { field: 'lastDailyBonusAt', cd: DAILY_BONUS_COOLDOWN_MS, amount: DAILY_BONUS_XP, coins: DAILY_COINS }
             }[kind];
+            // Série Nexus : à partir de 5 jours de série, le bonus quotidien donne +10 XP en plus (les règles Firestore revérifient)
+            const streakBonus = (kind === 'daily' && typeof wsShown === 'function' && wsShown(userProfile) >= WS_BONUS_FROM) ? WS_BONUS_XP : 0;
+            const AMT = CFG.amount + streakBonus;
 
             if (now - tsMillis(userProfile[CFG.field]) < CFG.cd) return;   // pas encore le moment (vérif locale ; le serveur revérifie de toute façon)
 
             const weekId = isoWeekId();
             const weekRolled = userProfile.weeklyWeekId !== weekId;
-            const payload = { xp: increment(CFG.amount), weeklyWeekId: weekId, [CFG.field]: serverTimestamp() };
-            payload.weeklyXp = weekRolled ? CFG.amount : increment(CFG.amount);
+            const payload = { xp: increment(AMT), weeklyWeekId: weekId, [CFG.field]: serverTimestamp() };
+            payload.weeklyXp = weekRolled ? AMT : increment(AMT);
             // Pièces + XP de saison : dans la MÊME écriture que l'XP, donc soumis au même cooldown et au même plafond (règles Firestore)
             const sKey = seasonKey(currentSeason());
             payload.coins = increment(CFG.coins);
-            payload['seasonXp.' + sKey] = increment(CFG.amount);
+            payload['seasonXp.' + sKey] = increment(AMT);
 
             let dayRolled = false;
             if (CFG.dailyField) {
@@ -3904,11 +3917,11 @@ match /groups/{groupId}/reads/{uid} {
             const xpBefore = xpOf(userProfile);   // pour détecter la montée de niveau (affichage uniquement)
             // Optimiste en local pour un affichage immédiat (corrigé de toute façon au prochain instantané "users")
             userProfile[CFG.field] = { toMillis: () => now };
-            userProfile.xp = (userProfile.xp || 0) + CFG.amount;
+            userProfile.xp = (userProfile.xp || 0) + AMT;
             userProfile.weeklyWeekId = weekId;
-            userProfile.weeklyXp = weekRolled ? CFG.amount : (userProfile.weeklyXp || 0) + CFG.amount;
+            userProfile.weeklyXp = weekRolled ? AMT : (userProfile.weeklyXp || 0) + AMT;
             userProfile.coins = (userProfile.coins || 0) + CFG.coins;
-            userProfile.seasonXp = { ...(userProfile.seasonXp || {}), [sKey]: ((userProfile.seasonXp || {})[sKey] || 0) + CFG.amount };
+            userProfile.seasonXp = { ...(userProfile.seasonXp || {}), [sKey]: ((userProfile.seasonXp || {})[sKey] || 0) + AMT };
             if (CFG.dailyField) {
                 userProfile[CFG.dailyField] = dayRolled ? 1 : (userProfile[CFG.dailyField] || 0) + 1;
                 if (dayRolled) userProfile[CFG.dateField] = { toMillis: () => now };
@@ -3916,10 +3929,10 @@ match /groups/{groupId}/reads/{uid} {
 
             try {
                 await updateDoc(doc(db, "users", currentUser.uid), payload);
-                if (kind === 'daily') showToast(`🎁 Bonus quotidien : +${DAILY_BONUS_XP} XP · +${DAILY_COINS} 🪙`);
+                if (kind === 'daily') showToast(`🎁 Bonus quotidien : +${AMT} XP · +${DAILY_COINS} 🪙${streakBonus ? ` · 🔥 série +${streakBonus} XP` : ''}`);
                 else bumpCoins(CFG.coins);   // petit "+2 🪙" flottant, discret : pas besoin d'interrompre la conversation à chaque message
-                nxGainFx(CFG.amount, CFG.coins, kind);   // micro-animations : +XP, pièces qui volent vers le compteur
-                if (levelInfo(xpBefore + CFG.amount).level > levelInfo(xpBefore).level) nxLevelUp(levelInfo(xpBefore + CFG.amount).level);
+                nxGainFx(AMT, CFG.coins, kind);   // micro-animations : +XP, pièces qui volent vers le compteur
+                if (levelInfo(xpBefore + AMT).level > levelInfo(xpBefore).level) nxLevelUp(levelInfo(xpBefore + AMT).level);
             }
             catch (e) { /* refusé par le serveur (cooldown/plafond non écoulé) : rien d'anormal, on ignore */ }
         }
@@ -4815,9 +4828,9 @@ match /groups/{groupId}/reads/{uid} {
                 </div>`;
             return `<div class="mt-4 p-3.5 rounded-2xl border border-amber-500/25 bg-amber-500/5">
                 <div class="text-sm font-bold text-amber-300 flex items-center gap-1.5 mb-1">🪙 Comment gagner des pièces ?</div>
-                ${row('💬', 'Envoyer un message', MSG_COINS, `toutes les 45s · jusqu'à ${MSG_XP_DAILY_CAP}/jour`)}
-                ${row('🎙️', 'Rester en vocal', VOICE_COINS, `toutes les 4 min 30 · jusqu'à ${VOICE_XP_DAILY_CAP}/jour`)}
-                ${row('📅', 'Bonus de connexion quotidien', DAILY_COINS, `1 fois toutes les 20h`)}
+                ${row('💬', 'Envoyer un message', MSG_COINS, `toutes les 20s · jusqu'à ${MSG_XP_DAILY_CAP}/jour`)}
+                ${row('🎙️', 'Rester en vocal', VOICE_COINS, `toutes les 5 min · jusqu'à ${VOICE_XP_DAILY_CAP}/jour`)}
+                ${row('📅', 'Bonus de connexion quotidien', DAILY_COINS, `1 fois toutes les 20h · 🔥 +${WS_BONUS_XP} XP dès ${WS_BONUS_FROM} jours de série`)}
             </div>`;
         }
 
@@ -6546,7 +6559,7 @@ match /groups/{groupId}/reads/{uid} {
                                 ? `<span class="text-sm font-semibold truncate max-w-[55vw] sm:max-w-[16rem] inline-block align-bottom" ${nameFx(msg.uid, `color:${isMe ? 'var(--theme-color)' : '#f2f3f5'}`)}>${escapeHtml(name)}</span>`
                                 : `<button type="button" data-uid="${escapeHtml(msg.uid)}" onclick="mentionFromEl(this)" class="text-sm font-semibold hover:underline cursor-pointer truncate max-w-[55vw] sm:max-w-[16rem] inline-block align-bottom" ${nameFx(msg.uid, 'color:#f2f3f5')} title="Cliquer pour mentionner">${escapeHtml(name)}</button>`}
                             ${roleTag(msg.uid)}
-                            <span class="msg-time text-[11px] text-[#80848e]">${time}</span>
+                            <span class="msg-time text-[11px] text-[#80848e]">${formatDateTime(msg.createdAt) || time}</span>
                             ${msg.editedAt ? '<span class="text-[10px] text-[#80848e] italic" title="Ce message a été modifié">(modifié)</span>' : ''}
                         </div>
                         <div class="text-sm text-[#dbdee1] break-words leading-snug whitespace-pre-wrap">${content}</div>
@@ -6808,7 +6821,7 @@ match /groups/{groupId}/reads/{uid} {
                             const ts = (data.createdAt && typeof data.createdAt.toMillis === 'function') ? data.createdAt.toMillis() : 0;
                             old.dataset.ts = String(ts);
                             const tEl = old.querySelector('.msg-time');
-                            if (tEl) tEl.textContent = formatTime(data.createdAt);
+                            if (tEl) tEl.textContent = formatDateTime(data.createdAt);
                             return;
                         }
                         const el = buildRow(id, data);
