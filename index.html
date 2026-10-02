@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#1e1f22">
+    <meta name="nx-version" content="2026-10-03-c">
     <title>NexusChat - Ultimate Gaming Hub</title>
 
     <!-- Logo intégré directement dans la page : plus besoin du fichier logo5.png, il s'affiche toujours -->
@@ -316,6 +317,12 @@
 .nx-pv-av>img:not(.cos-av-frame-png){width:100%;height:100%;object-fit:cover;border-radius:9999px}
 #user-frame-wrap{margin-left:4px}
 .cos-av[data-frame-sq] > :is(.rounded-full, img):not(.absolute):not(.cos-av-frame-png){border-radius:9% !important}
+.ws-warn{color:#fb923c!important;font-weight:800}
+#nx-update,#adm-season-banner{position:fixed;left:50%;transform:translateX(-50%);z-index:80;max-width:94vw;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:14px;font-size:13px;box-shadow:0 8px 28px rgba(0,0,0,.5)}
+#nx-update{bottom:84px;background:#1e1f22;border:1px solid #22d3ee;color:#e0f2fe}
+#adm-season-banner{top:10px;background:#2b2111;border:1px solid #f59e0b;color:#fde68a}
+#nx-update button,#adm-season-banner button{padding:5px 10px;border-radius:9px;font-weight:700;background:#334155;color:#fff;white-space:nowrap}
+#nx-update button.nx-go,#adm-season-banner button.nx-go{background:#f59e0b;color:#1e1f22}
 .ws-bar{height:10px;border-radius:999px;background:#1e1f22;overflow:hidden;border:1px solid #3f4147}
 .ws-bar>i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#0ea5e9,#22d3ee,#e0f2fe);box-shadow:0 0 10px #22d3ee;transition:width .6s}
 .ws-card{background:#1e1f22;border:1px solid #3f4147;border-radius:14px}
@@ -4963,7 +4970,13 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
         const wsMe = () => currentUser ? (usersByUid.get(currentUser.uid) || null) : null;
 
         function wsInit() {
-            if (!wsTimer) wsTimer = setInterval(() => wsTick(false), WS_TICK * 1000);
+            if (!wsTimer) {
+                wsTimer = setInterval(() => wsTick(false), WS_TICK * 1000);
+                setInterval(wsReminder, 10 * 60 * 1000); setTimeout(wsReminder, 9000);
+                setInterval(nxAdminSeasonWatch, 10 * 60 * 1000); setTimeout(nxAdminSeasonWatch, 6000);
+                setInterval(nxCheckUpdate, 5 * 60 * 1000); setTimeout(nxCheckUpdate, 60000);
+                document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') nxCheckUpdate(); });
+            }
             setTimeout(() => wsTick(false), 4000);
             wsRender();
         }
@@ -5041,7 +5054,10 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
                 : `<div class="text-xs text-[#949ba4] mb-1">Aujourd'hui :</div>
                    <div class="text-sm">${secOk ? '☑' : '☐'} 5 min d'activité <span class="text-[#80848e]">(${min}:${sc} / 5:00)</span></div>
                    <div class="text-sm">${st.msg ? '☑' : '☐'} 1 message</div>`;
-            return `<div class="text-center py-2"><div class="text-4xl font-extrabold text-cyan-300">🔥 ${n} jour${n > 1 ? 's' : ''}</div>
+            const pm = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date(serverNow()));
+            const minsLeft = 1440 - (Number(pm.find(x => x.type === 'hour').value) % 24) * 60 - Number(pm.find(x => x.type === 'minute').value);
+            const leftTxt = (n > 0 && !st.ok) ? `<div class="text-xs text-orange-300 mt-1">⏰ Il te reste ${Math.floor(minsLeft / 60)} h ${String(minsLeft % 60).padStart(2, '0')} pour valider ta journée (minuit, heure de Paris)</div>` : '';
+            return `<div class="text-center py-2"><div class="text-4xl font-extrabold text-cyan-300">🔥 ${n} jour${n > 1 ? 's' : ''}</div>${leftTxt}
                 <div class="text-[11px] text-[#80848e]">Record : ${w.best} · ${prot ? '🛡️ protégée par un gel — valide aujourd\'hui !' : 'XP = activité, Série = régularité'}</div></div>
                 ${wsBarHtml(n)}
                 <div class="ws-card p-3 mt-3">${today}</div>
@@ -5054,11 +5070,69 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
         }
         function wsRender() {
             const n = currentUser ? wsShown(wsMe() || userProfile) : 0;
-            ['ws-count', 'ws-count-m'].forEach(id => { const e = $(id); if (e) e.textContent = n; });
+            const warn = n > 0 && !wsTodayState(wsMe() || userProfile).ok;   // série en cours mais journée pas encore validée
+            ['ws-count', 'ws-count-m'].forEach(id => { const e = $(id); if (e) { e.textContent = n; e.classList.toggle('ws-warn', warn); e.title = warn ? 'Journée pas encore validée' : ''; } });
             if (wsOpen) { const b = $('ws-body'); if (b) b.innerHTML = wsBodyHtml(); }
         }
         window.openWinstreak = () => { if (!currentUser) return; wsOpen = true; $('ws-modal').classList.remove('hidden'); wsRender(); wsTick(false); };
         window.closeWinstreak = () => { wsOpen = false; $('ws-modal').classList.add('hidden'); };
+
+        // Rappel de série (dans l'app, sans notification push) : 1 fois à la 1re ouverture du jour, 1 fois en soirée (≥ 18 h Paris)
+        function wsReminder() {
+            if (!currentUser) return;
+            const me = wsMe() || userProfile, n = wsShown(me);
+            if (n < 1 || wsTodayState(me).ok) return;
+            const h = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', hour: '2-digit', hour12: false }).format(new Date(serverNow()))) % 24;
+            const key = 'ws_remind_' + (h >= 18 ? 'soir_' : 'jour_') + wsDayNum();
+            try {
+                if (localStorage.getItem(key)) return;
+                localStorage.setItem(key, '1');
+            } catch (e) { return; }
+            showToast(h >= 18 ? `🔥 Ta série de ${n} jour${n > 1 ? 's' : ''} expire ce soir ! 5 min d'activité + 1 message pour la garder.` : `🔥 Série de ${n} jour${n > 1 ? 's' : ''} : valide ta journée aujourd'hui (5 min + 1 message).`);
+        }
+
+        // Admin : rappel visible pour clôturer la saison (l'app ne peut pas le faire seule sans Cloud Function)
+        async function nxAdminSeasonWatch() {
+            const old = $('adm-season-banner');
+            if (!currentUser || !isAdmin()) { if (old) old.remove(); return; }
+            try { await ensureSeasonsHistory(); } catch (e) { return; }
+            const cur = currentSeason(), done = new Set(seasonsHistory.map(x => x.number));
+            let pending = null;
+            for (let n = 1; n < cur; n++) if (!done.has(n)) { pending = n; break; }
+            const left = seasonStartMs(cur + 1) - serverNow();
+            let msg = '';
+            if (pending) msg = `🛠️ Saison ${pending} terminée : clôture-la pour distribuer les récompenses.`;
+            else if (cur >= 1 && left < 3 * 864e5) msg = `⏳ La saison ${cur} se termine dans ${fmtCountdown(left)}. Pense à la clôturer juste après.`;
+            if (!msg) { if (old) old.remove(); return; }
+            try { if (!pending && sessionStorage.getItem('adm_season_hide_' + cur)) return; } catch (e) { }
+            if (old) old.remove();
+            const b = document.createElement('div'); b.id = 'adm-season-banner';
+            b.innerHTML = `<span>${msg}</span><button type="button" class="nx-go" onclick="openHub('season')">Ouvrir</button><button type="button" aria-label="Masquer" onclick="try{sessionStorage.setItem('adm_season_hide_${cur}','1')}catch(e){}this.parentNode.remove()">✕</button>`;
+            document.body.appendChild(b);
+        }
+
+        // Nouvelle version : compare la version de la page en ligne avec celle chargée, propose de recharger sans Ctrl+F5
+        const NX_VERSION = document.querySelector('meta[name="nx-version"]')?.content || '';
+        async function nxCheckUpdate() {
+            if (!NX_VERSION || $('nx-update')) return;
+            try {
+                const r = await fetch(location.pathname + '?_=' + Date.now(), { cache: 'no-store' });
+                const m = (await r.text()).match(/name="nx-version" content="([^"]+)"/);
+                if (!m || m[1] === NX_VERSION) return;
+                const d = document.createElement('div'); d.id = 'nx-update';
+                d.innerHTML = `<span>🆕 Nouvelle version de Nexus disponible</span><button type="button" class="nx-go" onclick="nxReload()">Recharger</button><button type="button" aria-label="Plus tard" onclick="this.parentNode.remove()">✕</button>`;
+                document.body.appendChild(d);
+            } catch (e) { /* hors ligne : on réessaiera */ }
+        }
+        window.nxReload = async () => {
+            try {
+                const regs = (await navigator.serviceWorker?.getRegistrations()) || [];
+                await Promise.all(regs.map(r => r.update()));
+                if (window.caches) await Promise.all((await caches.keys()).map(k => caches.delete(k)));
+            } catch (e) { }
+            location.reload();
+        };
+
 
         function badgesHtml(u) {
             const badges = computeBadges(u);
