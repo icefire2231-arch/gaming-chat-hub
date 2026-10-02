@@ -4801,8 +4801,8 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
             const rarityTag = rarity ? `<span class="absolute top-1.5 left-1.5 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full border ${rarity.cls}" title="${escapeHtml(rarity.title)}">${rarity.label}</span>` : '';
             return `<div class="relative bg-[#1e1f22] border ${d.limited != null ? 'border-fuchsia-500/60 shadow-[0_0_14px_rgba(217,70,239,.25)]' : d.exclusive ? 'border-amber-500/40' : 'border-[#3f4147]'} rounded-2xl p-3 flex flex-col items-center gap-2 text-center">
                 ${rarityTag}${cosCategoryTag(d)}
-                ${d.limited != null ? `<div class="absolute -top-2 left-1/2 -translate-x-1/2 text-[9px] font-extrabold tracking-widest px-2 py-0.5 rounded-full bg-gradient-to-r from-fuchsia-600 to-indigo-600 text-white shadow">⏳ LIMITED · S${d.limited}</div>` : ''}
-                <div class="h-16 flex items-center justify-center">${previewHtml(d)}</div>
+                ${d.limited != null ? `<div class="text-[9px] font-extrabold tracking-widest px-2.5 py-0.5 rounded-full bg-gradient-to-r from-fuchsia-600 to-indigo-600 text-white shadow whitespace-nowrap">⏳ LIMITED · S${d.limited}</div>` : ''}
+                <div class="h-16 flex items-center justify-center ${d.limited != null ? 'my-2' : ''}">${previewHtml(d)}</div>
                 <div class="min-w-0 w-full"><div class="text-sm font-semibold truncate">${escapeHtml(d.icon)} ${escapeHtml(d.name)}</div><div class="text-xs font-bold">${priceTxt}</div>${d.limited != null && !owned ? `<div class="text-[10px] text-fuchsia-300 ws-limited-left" data-lim="${d.limited}">⏳ ${limitedLeft(d)}</div>` : ''}</div>
                 ${linksRow ? `<div class="flex items-center justify-center">${linksRow}</div>` : ''}${action}</div>`;
         }
@@ -5294,6 +5294,7 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
         // Catégorie d'un objet : 🪙 Boutique · 🏆 Saison · 🎮 Événement (flag optionnel `event: true` sur une entrée de COSMETICS)
         function cosCategoryTag(d) {
             const c = d.limited != null ? ['⏳', 'Limited'] : d.exclusive ? ['🏆', 'Saison'] : d.ws ? ['🔥', 'WinStreak'] : d.event ? ['🎮', 'Événement'] : ['🪙', 'Boutique'];
+            if (d.limited != null) return '';
             return `<span class="absolute top-1.5 right-1.5 text-[11px]" title="Catégorie : ${c[1]}">${c[0]}</span>`;
         }
 
