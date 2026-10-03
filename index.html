@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#1e1f22">
-    <meta name="nx-version" content="2026-10-03-l">
+    <meta name="nx-version" content="2026-10-03-m">
     <title>NexusChat - Ultimate Gaming Hub</title>
 
     <!-- Logo intégré directement dans la page : plus besoin du fichier logo5.png, il s'affiche toujours -->
@@ -4990,38 +4990,49 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
         function wsAfterMessage() { setTimeout(() => wsTick(true), 2500); }   // laisse partir le msgCount avant, les règles le comparent
         function wsOnUsers() { wsRender(); if (!$('rules-gate')?.classList.contains('on')) rulesGateCheck(); }
 
+        // Enregistrement en 3 étapes séparées (plus simple à valider côté règles et à diagnostiquer) :
+        //   1) 'temps' : secondes actives / message du jour  2) 'validation' : journée validée (+1 série)  3) 'récompense' : cosmétiques du palier
         async function wsTick(afterMsg) {
             if (!currentUser || wsBusy) return;
             const me = wsMe(); if (!me) return;
             const w = wsNorm(me.winstreak), today = wsDayNum(), msgCount = Math.floor(Number(me.msgCount) || 0);
-            let n = { ...w }, dirty = false, validated = false;
-            if (w.day !== today) { n = { ...w, day: today, sec: 0, msg: false, mc: msgCount }; dirty = true; }
-            if (n.done !== today) {
-                if (!afterMsg && wsActive() && n.sec < WS_NEED && Date.now() - wsLastWriteAt >= 27000) { n.sec = Math.min(WS_NEED, n.sec + WS_TICK); dirty = true; }
-                if (!n.msg && msgCount > n.mc) { n.msg = true; dirty = true; }
-                if (n.sec >= WS_NEED && n.msg && w.day === today) {   // validation : 2 conditions remplies, une seule fois par jour
-                    const gap = today - n.done;
-                    let f = n.fz, cur = 1;
-                    if (n.done > 0 && gap === 1) cur = n.cur + 1;
-                    else if (n.done > 0 && gap === 2 && f > 0) { cur = n.cur + 1; f--; }
+            let n = null, step = '';
+            if (w.day !== today) { n = { ...w, day: today, sec: 0, msg: false, mc: msgCount }; step = 'temps'; }
+            else if (w.done !== today) {
+                if (w.sec >= WS_NEED && w.msg) {   // temps et message déjà enregistrés : on valide la journée
+                    const gap = today - w.done;
+                    let f = w.fz, cur = 1;
+                    if (w.done > 0 && gap === 1) cur = w.cur + 1;
+                    else if (w.done > 0 && gap === 2 && f > 0) { cur = w.cur + 1; f--; }
                     if (cur % 30 === 0) f = Math.min(WS_MAX_FREEZE, f + 1);
-                    n = { ...n, cur, best: Math.max(n.best, cur), done: today, fz: f };
-                    validated = true; dirty = true;
+                    n = { ...w, cur, best: Math.max(w.best, cur), done: today, fz: f }; step = 'validation';
+                } else {
+                    const m = { ...w }; let ch = false;
+                    if (!afterMsg && wsActive() && w.sec < WS_NEED && Date.now() - wsLastWriteAt >= 27000) { m.sec = Math.min(WS_NEED, w.sec + WS_TICK); ch = true; }
+                    if (!w.msg && msgCount > w.mc) { m.msg = true; ch = true; }
+                    if (ch) { n = m; step = 'temps'; }
                 }
             }
-            const owned = ownedOf(me), claims = {};
-            WS_TIERS.forEach(t => (t.ids || []).forEach(id => { if (n.best >= t.d && !owned[id]) claims['owned.' + id] = serverTimestamp(); }));
-            if (!dirty && !Object.keys(claims).length) return;
+            const ref = doc(db, 'users', currentUser.uid);
+            let payload = null;
+            if (n) payload = { winstreak: { ...n, tickAt: serverTimestamp() } };
+            else {
+                const owned = ownedOf(me), claims = {};
+                WS_TIERS.forEach(t => (t.ids || []).forEach(id => { if (w.best >= t.d && !owned[id]) claims['owned.' + id] = serverTimestamp(); }));
+                if (Object.keys(claims).length) { payload = claims; step = 'récompense'; }
+            }
+            if (!payload) return;
             wsBusy = true;
             try {
-                await updateDoc(doc(db, 'users', currentUser.uid), { winstreak: { ...n, tickAt: serverTimestamp() }, ...claims });
+                await updateDoc(ref, payload);
                 wsLastWriteAt = Date.now(); wsErrN = 0; wsErr = '';
-                if (validated) {
+                if (step === 'validation') {
                     const tier = WS_TIERS.find(t => t.d === n.cur);
                     if (tier) wsCelebrate(tier); else showToast(`✅ Journée validée ! 🔥 Série portée à ${n.cur} jour${n.cur > 1 ? 's' : ''}`);
-                }
+                    setTimeout(() => wsTick(true), 900);          // étape suivante : récompenses éventuelles
+                } else if (step === 'temps' && n.sec >= WS_NEED && n.msg) setTimeout(() => wsTick(true), 900);   // étape suivante : validation
             } catch (e) {   // refusé/hors ligne : on réessaie au prochain passage, rien n'est perdu
-                wsErrN++; wsErr = e.code || e.message || 'erreur'; console.warn('WinStreak : écriture refusée', e);
+                wsErrN++; wsErr = step + ' · ' + (e.code || e.message || 'erreur'); console.warn('WinStreak : écriture refusée (' + step + ')', e);
                 wsLastWriteAt = Date.now() - 20000;   // réessaie dans ~7 s
                 if (wsOpen) wsRender();
             }
