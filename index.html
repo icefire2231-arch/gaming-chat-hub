@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#1e1f22">
-    <meta name="nx-version" content="2026-10-03-i">
+    <meta name="nx-version" content="2026-10-03-j">
     <title>NexusChat - Ultimate Gaming Hub</title>
 
     <!-- Logo intégré directement dans la page : plus besoin du fichier logo5.png, il s'affiche toujours -->
@@ -309,7 +309,7 @@
 /* Cadre Légende (45 jours) : lueur bleue PERMANENTE (fixe, aucun clignotement) */
 .cos-av-frame-png[src*="winstreak-60-legende"]{filter:drop-shadow(0 0 3px rgba(56,189,248,.95)) drop-shadow(0 0 9px rgba(34,211,238,.6))}
 /* Cadre 20 jours : halo blanc-bleuté fixe pour bien le voir sur le fond sombre */
-.cos-av-frame-png[src*="winstreak-20-flamme"]{filter:drop-shadow(0 0 2px rgba(255,255,255,.9)) drop-shadow(0 0 6px rgba(186,230,253,.55))}
+.cos-av-frame-png[src*="winstreak-20-nb"]{filter:drop-shadow(0 0 2px rgba(255,255,255,.9)) drop-shadow(0 0 6px rgba(186,230,253,.55))}
 /* Pseudo blanc WinStreak : blanc glacé + halo bleu, plus gras, reflet très lent (se distingue du pseudo par défaut) */
 [data-nfx="nfx_ws_white"]{font-weight:800;letter-spacing:.015em;-webkit-text-stroke:.5px rgba(125,211,252,.6);animation-duration:8s!important}
 .cos-av-frame-png[style*="--fk"]{width:calc(var(--fscale) * var(--fk));height:calc(var(--fscale) * var(--fk));left:calc(50% - (var(--hx,.5) * var(--fscale) * var(--fk)));top:calc(50% - (var(--hy,.5) * var(--fscale) * var(--fk)))}
@@ -4364,7 +4364,7 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
             'frames/clashofclan-princess.png': { hx: 0.4961, hy: 0.5557 },
             'frames/clashofclans-dragon.png':  { hx: 0.4863, hy: 0.5713 },
             'limited/frame-duel-galactique-s1.png': { hx: 0.4941, hy: 0.5010, k: 1.127, sq: 1 },   // sq = cadre carré : avatar en carré arrondi
-            'frames/winstreak-20-flamme.png':  { hx: 0.5000, hy: 0.5000, k: 1.185, sq: 1 },
+            'frames/winstreak-20-nb.png':  { hx: 0.5000, hy: 0.5000, k: 1.185, sq: 1 },
             'frames/winstreak-60-legende.png': { hx: 0.5020, hy: 0.4670, k: 1.127, sq: 1 },   // k = agrandissement pour que le trou colle à l'avatar
         };
         function frameHoleStyle(img) {
@@ -4425,7 +4425,7 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
             frame_limited_duel_s1: { type: 'frame', name: 'Duel Galactique', icon: '🌌', price: 1000, limited: 1, img: 'limited/frame-duel-galactique-s1.png' },
 
             nfx_ws_white:    { type: 'name',  ws: true, name: 'Blanc WinStreak', icon: '🤍', bg: 'linear-gradient(90deg,#ffffff,#a5e8ff,#ffffff,#7dd3fc,#ffffff)', glow: '#38bdf8', anim: 'shift' },
-            frame_ws_flame:  { type: 'frame', ws: true, name: 'Nexus · Flamme', icon: '🔥', img: 'frames/winstreak-20-flamme.png' },
+            frame_ws_flame:  { type: 'frame', ws: true, name: 'Nexus · Flamme', icon: '🔥', img: 'frames/winstreak-20-nb.png' },
             nfx_ws_crystal:  { type: 'name',  ws: true, name: 'Cristal WinStreak', icon: '💎', bg: 'linear-gradient(90deg,#22d3ee,#e0f2fe,#3b82f6,#e0f2fe,#22d3ee)', glow: '#22d3ee', anim: 'shift' },
             frame_ws_legend: { type: 'frame', ws: true, name: 'Légende', icon: '⚡', img: 'frames/winstreak-60-legende.png' },
             role_ws_legend:  { type: 'role',  ws: true, name: 'Légende des WinStreak', icon: '⚡', color: '#22d3ee' }
@@ -4517,7 +4517,7 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
             return `data-frame="${escapeHtml(d.id)}" data-fr-anim="${d.anim || ''}" style="${frameStyleVars(d)}"`;
         }
         function frameImgTag(d) {
-            return (d && d.img) ? `<img src="${escapeHtml(d.img)}" class="cos-av-frame-png" alt="" aria-hidden="true" decoding="async" onerror="this.remove()" style="${frameHoleStyle(d.img)}">` : '';
+            return (d && d.img) ? `<img src="${escapeHtml(d.img)}" class="cos-av-frame-png" alt="" aria-hidden="true" decoding="async" onerror="if(!this.dataset.r){this.dataset.r=1;this.src=this.getAttribute('src').split('?')[0]+'?r='+Date.now()}else{this.remove()}" style="${frameHoleStyle(d.img)}">` : '';
         }
         // Entoure un avatar existant d'un cadre (si le joueur en porte un)
         function cosAv(uid, inner, small) {
