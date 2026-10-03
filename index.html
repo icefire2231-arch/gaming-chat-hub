@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#1e1f22">
-    <meta name="nx-version" content="2026-10-03-j">
+    <meta name="nx-version" content="2026-10-03-k">
     <title>NexusChat - Ultimate Gaming Hub</title>
 
     <!-- Logo intégré directement dans la page : plus besoin du fichier logo5.png, il s'affiche toujours -->
@@ -5053,12 +5053,13 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
         }
         function wsBodyHtml() {
             const me = wsMe() || userProfile, n = wsShown(me), w = wsNorm(me.winstreak), st = wsTodayState(me);
-            const min = Math.floor(Math.min(st.sec, WS_NEED) / 60), sc = String(Math.min(st.sec, WS_NEED) % 60).padStart(2, '0');
-            const secOk = st.sec >= WS_NEED, prot = w.done > 0 && wsDayNum() - w.done === 2 && w.fz > 0;
+            const live = wsLiveSec(st);   // secondes affichées en direct (l'enregistrement, lui, se fait toutes les 30 s)
+            const min = Math.floor(live / 60), sc = String(live % 60).padStart(2, '0');
+            const secOk = live >= WS_NEED, prot = w.done > 0 && wsDayNum() - w.done === 2 && w.fz > 0;
             const today = st.ok
                 ? `<div class="text-emerald-300 font-bold">✅ Journée validée !</div><div class="text-sm">🔥 Série portée à ${w.cur} jour${w.cur > 1 ? 's' : ''}</div>`
                 : `<div class="text-xs text-[#949ba4] mb-1">Aujourd'hui :</div>
-                   <div class="text-sm">${secOk ? '☑' : '☐'} 5 min d'activité <span class="text-[#80848e]">(${min}:${sc} / 5:00)</span></div>
+                   <div class="text-sm">${secOk ? '☑' : '☐'} 5 min d'activité <span id="ws-clock" class="text-[#80848e] tabular-nums">(${min}:${sc} / 5:00)</span> <span id="ws-clock-state" class="text-[11px]">${wsActive() ? '⏱' : '⏸ inactif'}</span></div>
                    <div class="text-sm">${st.msg ? '☑' : '☐'} 1 message</div>`;
             const pm = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date(serverNow()));
             const minsLeft = 1440 - (Number(pm.find(x => x.type === 'hour').value) % 24) * 60 - Number(pm.find(x => x.type === 'minute').value);
@@ -5080,8 +5081,26 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
             ['ws-count', 'ws-count-m'].forEach(id => { const e = $(id); if (e) { e.textContent = n; e.classList.toggle('ws-warn', warn); e.title = warn ? 'Journée pas encore validée' : ''; } });
             if (wsOpen) { const b = $('ws-body'); if (b) b.innerHTML = wsBodyHtml(); }
         }
-        window.openWinstreak = () => { if (!currentUser) return; wsOpen = true; $('ws-modal').classList.remove('hidden'); wsRender(); wsTick(false); };
-        window.closeWinstreak = () => { wsOpen = false; $('ws-modal').classList.add('hidden'); };
+
+        // Chrono en direct : le serveur n'enregistre le temps que toutes les 30 s ; ici on ajoute seconde par seconde (affichage seulement)
+        let wsExtra = 0, wsBaseSec = -1, wsUiTimer = null;
+        function wsLiveSec(st) {
+            if (st.sec !== wsBaseSec) { wsBaseSec = st.sec; wsExtra = 0; }
+            return st.ok ? Math.min(WS_NEED, st.sec) : Math.min(WS_NEED, st.sec + Math.min(WS_TICK, wsExtra));
+        }
+        function wsUiTick() {
+            if (!wsOpen) return;
+            const me = wsMe() || userProfile, st = wsTodayState(me);
+            if (st.ok) return;
+            const active = wsActive();
+            if (active) wsExtra++;
+            const live = wsLiveSec(st), el = $('ws-clock');
+            if (el) el.textContent = `(${Math.floor(live / 60)}:${String(live % 60).padStart(2, '0')} / 5:00)`;
+            const stEl = $('ws-clock-state'); if (stEl) stEl.textContent = live >= WS_NEED ? '✅' : (active ? '⏱' : '⏸ inactif');
+            if (live >= WS_NEED && !wsUiTick.done) { wsUiTick.done = true; wsRender(); } else if (live < WS_NEED) wsUiTick.done = false;
+        }
+        window.openWinstreak = () => { if (!currentUser) return; wsOpen = true; $('ws-modal').classList.remove('hidden'); wsRender(); wsTick(false); clearInterval(wsUiTimer); wsUiTimer = setInterval(wsUiTick, 1000); };
+        window.closeWinstreak = () => { wsOpen = false; clearInterval(wsUiTimer); $('ws-modal').classList.add('hidden'); };
 
 
         /* =========================================================
