@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#1e1f22">
-    <meta name="nx-version" content="2026-10-03-c">
+    <meta name="nx-version" content="2026-10-03-f">
     <title>NexusChat - Ultimate Gaming Hub</title>
 
     <!-- Logo intégré directement dans la page : plus besoin du fichier logo5.png, il s'affiche toujours -->
@@ -306,7 +306,7 @@
         }
     
 /* ===== WinStreak / Série Nexus ===== */
-/* Cadre Légende (60 jours) : lueur bleue PERMANENTE (fixe, aucun clignotement) */
+/* Cadre Légende (45 jours) : lueur bleue PERMANENTE (fixe, aucun clignotement) */
 .cos-av-frame-png[src*="winstreak-60-legende"]{filter:drop-shadow(0 0 3px rgba(56,189,248,.95)) drop-shadow(0 0 9px rgba(34,211,238,.6))}
 /* Cadre 20 jours : halo blanc-bleuté fixe pour bien le voir sur le fond sombre */
 .cos-av-frame-png[src*="winstreak-20-flamme"]{filter:drop-shadow(0 0 2px rgba(255,255,255,.9)) drop-shadow(0 0 6px rgba(186,230,253,.55))}
@@ -1276,6 +1276,7 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
         const DEFAULT_CHANNELS = [
             { id: "annonces", name: "Annonces", icon: "fa-solid fa-bullhorn text-rose-400", image: "", bg: "", announceOnly: true },
             { id: "général", name: "Général", icon: "fa-solid fa-fire text-amber-500", image: "", bg: "" },
+            { id: "suggestions", name: "Suggestions", icon: "fa-solid fa-lightbulb text-yellow-300", image: "", bg: "" },
             { id: "brawl-stars", name: "Brawl Stars", icon: "fa-solid fa-skull text-purple-400", image: "Brawl-star.png", bg: "Brawl-star.png" },
             { id: "clash-of-clans", name: "Clash of Clans", icon: "fa-solid fa-shield-halved text-amber-400", image: "Clash-of-clan.png", bg: "Clash-of-clan.png" },
             { id: "clash-royale", name: "Clash Royale", icon: "fa-solid fa-crown text-yellow-400", image: "Clash-Royal.png", bg: "Clash-Royal.png" },
@@ -4831,6 +4832,8 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
                     <div class="text-xs text-[#d1d5db] mt-1">Disponible uniquement cette saison, puis retiré <b>définitivement</b>. Fin dans : <b class="text-fuchsia-300 ws-limited-left" data-lim="${limitedNow[0].limited}">${left}</b></div>
                     ${hubType !== 'frame' ? `<button type="button" onclick="setHubType('frame')" class="mt-2 text-xs underline text-fuchsia-300">Voir dans Cadres →</button>` : ''}</div>`;
             }
+            const wsItems = Object.keys(COSMETICS).filter(id => COSMETICS[id].ws).map(cosmeticOf).filter(d => d && d.type === hubType).sort((a, b) => wsNeedOf(a.id) - wsNeedOf(b.id));
+            if (wsItems.length) html += `<div class="text-sm font-bold mt-5 mb-1">🔥 WinStreak <span class="text-[10px] font-normal text-[#80848e]">non achetables · à débloquer avec ta Série Nexus</span></div><div class="text-[11px] text-[#80848e] mb-2">Valide chaque jour (5 min d'activité + 1 message) pour monter dans la série.</div>` + grid(wsItems);
             const items = shopEntries().filter(d => d.type === hubType && (d.limited == null || limitedOpen(d))).sort((a, b) => ((b.limited != null) - (a.limited != null)) || (a.price - b.price));
             const grid = (list) => `<div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">${list.map(cosCard).join('')}</div>`;
             const general = items.filter(d => !d.game);
@@ -4839,8 +4842,6 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
                 const g = items.filter(d => d.game === k);
                 if (g.length) html += `<div class="text-sm font-bold mt-5 mb-2">${title}</div>` + grid(g);
             });
-            const wsItems = Object.keys(COSMETICS).filter(id => COSMETICS[id].ws).map(cosmeticOf).filter(d => d && d.type === hubType).sort((a, b) => wsNeedOf(a.id) - wsNeedOf(b.id));
-            if (wsItems.length) html += `<div class="text-sm font-bold mt-5 mb-1">🔥 WinStreak <span class="text-[10px] font-normal text-[#80848e]">non achetables · à débloquer avec ta Série Nexus</span></div><div class="text-[11px] text-[#80848e] mb-2">Valide chaque jour (5 min d'activité + 1 message) pour monter dans la série.</div>` + grid(wsItems);
             html += `<p class="text-[11px] text-[#80848e] mt-3">Les cosmétiques sont purement visuels : aucun avantage de jeu.</p>`;
             html += howToEarnCoinsHtml();
             return html;
@@ -4927,7 +4928,7 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
             { id: 'senior2', icon: '🎂', name: 'Vétéran', desc: 'Membre depuis 90 jours', test: u => u.joinedAt && (Date.now() - tsMillis(u.joinedAt)) >= 90 * 864e5 },
             { id: 'ws10', icon: '🔥', name: 'WinStreak avancé', desc: '10 jours de série Nexus', test: u => (Number(u.winstreak?.best) || 0) >= 10 },
             { id: 'ws30', icon: '👑', name: 'Roi des WinStreak', desc: '30 jours de série Nexus', test: u => (Number(u.winstreak?.best) || 0) >= 30 },
-            { id: 'ws60', icon: '⚡', name: 'Légende des WinStreak', desc: '60 jours de série Nexus', test: u => (Number(u.winstreak?.best) || 0) >= 60 },
+            { id: 'ws45', icon: '⚡', name: 'Légende des WinStreak', desc: '45 jours de série Nexus', test: u => (Number(u.winstreak?.best) || 0) >= 45 },
         ];
         const computeBadges = (u) => BADGE_DEFS.map(b => ({ ...b, earned: !!b.test(u) }));
 
@@ -4946,8 +4947,8 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
             { d: 10, icon: '🔥', name: 'Badge « WinStreak avancé »' },
             { d: 20, icon: '🖼️', name: 'Cadre Nexus · Flamme', ids: ['frame_ws_flame'] },
             { d: 30, icon: '👑', name: 'Badge « Roi des WinStreak »' },
-            { d: 45, icon: '💎', name: 'Effet de pseudo exclusif WinStreak', ids: ['nfx_ws_crystal'] },
-            { d: 60, icon: '⚡', name: 'Cadre « Légende » + titre « Légende des WinStreak »', ids: ['frame_ws_legend', 'role_ws_legend'], rare: true }
+            { d: 40, icon: '💎', name: 'Effet de pseudo exclusif WinStreak', ids: ['nfx_ws_crystal'] },
+            { d: 45, icon: '⚡', name: 'Cadre « Légende » + titre « Légende des WinStreak »', ids: ['frame_ws_legend', 'role_ws_legend'], rare: true }
         ];
         // Jour calendaire de Paris (heure serveur, DST géré) en nombre de jours depuis 1970 : c'est ce que vérifient les règles.
         const wsDayNum = () => {
@@ -5173,7 +5174,8 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
                 for (let n = 1; n <= Math.max(1, currentSeason()); n++) all.push(cosmeticOf(`season${n}_active_role`));
             } else all = Object.keys(ownedOf(me)).map(cosmeticOf).filter(Boolean);
             const rewards = all.filter(d => d.exclusive).sort((a, b) => (b.season - a.season) || String(a.tier).localeCompare(String(b.tier)));
-            const shop = all.filter(d => !d.exclusive);
+            const shop = all.filter(d => !d.exclusive && !d.ws);
+            const wsAll = Object.keys(COSMETICS).filter(id => COSMETICS[id].ws).map(cosmeticOf).sort((a, b) => wsNeedOf(a.id) - wsNeedOf(b.id));
             const equippedRow = Object.keys(SLOT).map(t => {
                 const d = equippedDef(uid, t);
                 return `<div class="bg-[#1e1f22] border border-[#3f4147] rounded-xl px-2.5 py-2 text-center"><div class="text-[10px] uppercase tracking-wider text-[#80848e]">${TYPE_LABEL[t]}</div>
@@ -5193,6 +5195,8 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
             html += shopF.length ? `<div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">${shopF.sort((a, b) => a.type.localeCompare(b.type) || a.price - b.price).map(cosCard).join('')}</div>`
                 : shopAll.length ? `<div class="text-xs text-[#80848e] italic">Aucun résultat avec ces filtres.</div>`
                 : `<div class="text-xs text-[#80848e] italic">Rien pour l’instant : va faire un tour à la boutique.</div>`;
+            const wsF = nxApplyCollFilter(wsAll, uid);
+            if (wsF.length) html += `<div class="text-sm font-bold mt-4 mb-1">🔥 WinStreak <span class="text-[10px] font-normal text-[#80848e]">récompenses de la Série Nexus · les verrouillés montrent le palier à atteindre</span></div><div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">${wsF.map(cosCard).join('')}</div>`;
             html += `<div class="mt-4">${purchaseHistoryHtml(me)}${badgesHtml(me)}</div>`;
             return html;
         }
@@ -6217,8 +6221,22 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
         /* ---------- Réactions : ajout / retrait de SA réaction uniquement ---------- */
         // On n'écrit que le champ reactions.<emoji> avec arrayUnion/arrayRemove : pas d'écrasement entre utilisateurs,
         // et les règles Firestore vérifient que seul TON uid est ajouté ou retiré.
+        // Fusionne les réactions standard (reactions.<emoji> = [uids]) et les emojis libres (custom.<uid> = emoji)
+        const reactionEntries = (msg) => {
+            const map = {};
+            if (msg.reactions && typeof msg.reactions === 'object') Object.entries(msg.reactions).forEach(([e, l]) => { if (Array.isArray(l) && l.length) map[e] = [...l]; });
+            if (msg.custom && typeof msg.custom === 'object') Object.entries(msg.custom).forEach(([u, e]) => { if (typeof e === 'string' && e) (map[e] = map[e] || []).push(u); });
+            return Object.entries(map);
+        };
         window.addReaction = async (id, emoji) => {
             if (!currentUser) return;
+            if (!EMOJIS.includes(emoji)) {   // emoji libre : stocké dans custom.<mon uid> (les règles n'autorisent que ma propre entrée)
+                const cur = msgData.get(id)?.custom?.[currentUser.uid];
+                try {
+                    await updateDoc(doc(db, messagesPath(), id), new FieldPath('custom', currentUser.uid), cur === emoji ? deleteField() : emoji);
+                } catch (e) { showToast("Erreur : " + e.message); }
+                return;
+            }
             const has = (msgData.get(id)?.reactions?.[emoji] || []).includes(currentUser.uid);
             try {
                 await updateDoc(doc(db, messagesPath(), id), new FieldPath('reactions', emoji),
@@ -6619,8 +6637,7 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
                 : highlightMentions(msg.text || '', msg.uid);
             const time = formatTime(msg.createdAt);
 
-            const reactions = (msg.reactions && typeof msg.reactions === 'object')
-                ? Object.entries(msg.reactions).filter(([, l]) => Array.isArray(l) && l.length) : [];
+            const reactions = reactionEntries(msg);
             const reactionsHtml = reactions.length
                 ? `<div class="flex flex-wrap gap-1 mt-1.5">` + reactions.map(([em, list]) => {
                     const mine = !!currentUser && list.includes(currentUser.uid);
@@ -6663,7 +6680,7 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
                 </div>`;
         }
 
-        const sigOf = (m) => JSON.stringify([m.text, m.mediaUrl, m.displayName, m.avatar, m.reactions || {}, m.replyTo || null, !!m.editedAt]);
+        const sigOf = (m) => JSON.stringify([m.text, m.mediaUrl, m.displayName, m.avatar, m.reactions || {}, m.custom || {}, m.replyTo || null, !!m.editedAt]);
 
         function buildRow(id, msg) {
             const t = document.createElement('template');
@@ -6679,6 +6696,7 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
         actionsBar.innerHTML =
             `<button data-act="reply" class="hover:bg-[#35373c] px-1.5 py-0.5 rounded text-xs text-[#dbdee1]" title="Répondre"><i class="fa-solid fa-reply"></i></button>`
             + EMOJIS.map(e => `<button data-act="react" data-emoji="${e}" class="hover:bg-[#35373c] px-1 py-0.5 rounded text-xs">${e}</button>`).join('')
+            + ['👎', '💡', '✅'].map(e => `<button data-act="react" data-emoji="${e}" class="sugg-react hidden hover:bg-[#35373c] px-1 py-0.5 rounded text-xs">${e}</button>`).join('')
             + `<button data-act="react-custom" class="hover:bg-[#35373c] px-1.5 py-0.5 rounded text-xs text-[#dbdee1]" title="Autre emoji"><i class="fa-solid fa-plus"></i></button>`
             + `<button data-act="more" class="hover:bg-[#35373c] px-2 py-0.5 rounded text-xs text-[#dbdee1]" title="Plus d'actions"><i class="fa-solid fa-ellipsis"></i></button>`;
         msgContainer.appendChild(actionsBar);
@@ -6687,6 +6705,8 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
         function showActions(row) {
             if (!row) return;
             actionsFor = row.dataset.id;
+            const isSugg = currentTargetType === 'channel' && currentTargetId === 'suggestions';
+            actionsBar.querySelectorAll('.sugg-react').forEach(b => b.classList.toggle('hidden', !isSugg));
             actionsBar.style.top = Math.max(0, row.offsetTop - 14) + 'px';
             actionsBar.classList.remove('hidden'); actionsBar.classList.add('flex');
         }
@@ -6764,6 +6784,13 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
         });
 
         const rowEl = (id) => msgList.querySelector(`.message-row[data-id="${CSS.escape(id)}"]`);
+        // Place la ligne juste après le message qui la précède dans l'ordre Firestore (ignore séparateurs et autres éléments)
+        function placeRow(el, docs, idx) {
+            const prevRow = idx > 0 ? rowEl(docs[idx - 1].id) : null;
+            if (prevRow) { prevRow.after(el); return; }
+            const nextRow = docs[idx + 1] ? rowEl(docs[idx + 1].id) : null;
+            if (nextRow) nextRow.before(el); else msgList.appendChild(el);
+        }
 
         /* ---------- "Vu" en MP / groupe ----------
            Chacun écrit son horodatage de lecture dans une sous-collection lisible par les autres membres
@@ -6921,7 +6948,7 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
                         }
                         const el = buildRow(id, data);
                         if (change.oldIndex === change.newIndex) old.replaceWith(el);
-                        else { old.remove(); msgList.insertBefore(el, msgList.children[change.newIndex] || null); }
+                        else { old.remove(); placeRow(el, snapshot.docs, change.newIndex); }
                         return;
                     }
 
@@ -6929,7 +6956,7 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
                     const el = buildRow(id, data);
                     el.classList.add('msg-row-enter');
                     el.addEventListener('animationend', () => el.classList.remove('msg-row-enter'), { once: true });
-                    msgList.insertBefore(el, msgList.children[change.newIndex] || null);
+                    placeRow(el, snapshot.docs, change.newIndex);
                 });
 
                 refreshListChrome(snapshot.size);
