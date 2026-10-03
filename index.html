@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#1e1f22">
-    <meta name="nx-version" content="2026-10-03-k">
+    <meta name="nx-version" content="2026-10-03-l">
     <title>NexusChat - Ultimate Gaming Hub</title>
 
     <!-- Logo intégré directement dans la page : plus besoin du fichier logo5.png, il s'affiche toujours -->
@@ -4968,15 +4968,16 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
         const wsTodayState = (u) => { const w = wsNorm(u?.winstreak), t = wsDayNum(); return w.day === t ? { sec: w.sec, msg: w.msg, ok: w.done === t } : { sec: 0, msg: false, ok: false }; };
         const wsNext = (n) => WS_TIERS.find(t => t.d > n) || null;
 
-        let wsLastAct = Date.now(), wsBusy = false, wsTimer = null, wsOpen = false;
+        let wsLastAct = Date.now(), wsBusy = false, wsTimer = null, wsOpen = false, wsLastWriteAt = 0, wsErr = '', wsErrN = 0;
         ['pointerdown', 'keydown', 'touchstart', 'scroll', 'mousemove'].forEach(ev => addEventListener(ev, () => { wsLastAct = Date.now(); }, { passive: true, capture: true }));
         // Actif = onglet visible + fenêtre au premier plan + interaction dans les 60 dernières secondes
-        const wsActive = () => document.visibilityState === 'visible' && document.hasFocus() && Date.now() - wsLastAct < 60000;
+        const wsActive = () => document.visibilityState === 'visible' && document.hasFocus() && Date.now() - wsLastAct < 180000;
         const wsMe = () => currentUser ? (usersByUid.get(currentUser.uid) || null) : null;
 
         function wsInit() {
             if (!wsTimer) {
                 wsTimer = setInterval(() => wsTick(false), WS_TICK * 1000);
+                setInterval(wsUiTick, 1000);
                 setInterval(wsReminder, 10 * 60 * 1000); setTimeout(wsReminder, 9000);
                 setInterval(nxAdminSeasonWatch, 10 * 60 * 1000); setTimeout(nxAdminSeasonWatch, 6000);
                 setInterval(nxCheckUpdate, 5 * 60 * 1000); setTimeout(nxCheckUpdate, 60000);
@@ -4996,7 +4997,7 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
             let n = { ...w }, dirty = false, validated = false;
             if (w.day !== today) { n = { ...w, day: today, sec: 0, msg: false, mc: msgCount }; dirty = true; }
             if (n.done !== today) {
-                if (!afterMsg && wsActive() && n.sec < WS_NEED) { n.sec = Math.min(WS_NEED, n.sec + WS_TICK); dirty = true; }
+                if (!afterMsg && wsActive() && n.sec < WS_NEED && Date.now() - wsLastWriteAt >= 27000) { n.sec = Math.min(WS_NEED, n.sec + WS_TICK); dirty = true; }
                 if (!n.msg && msgCount > n.mc) { n.msg = true; dirty = true; }
                 if (n.sec >= WS_NEED && n.msg && w.day === today) {   // validation : 2 conditions remplies, une seule fois par jour
                     const gap = today - n.done;
@@ -5014,11 +5015,16 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
             wsBusy = true;
             try {
                 await updateDoc(doc(db, 'users', currentUser.uid), { winstreak: { ...n, tickAt: serverTimestamp() }, ...claims });
+                wsLastWriteAt = Date.now(); wsErrN = 0; wsErr = '';
                 if (validated) {
                     const tier = WS_TIERS.find(t => t.d === n.cur);
                     if (tier) wsCelebrate(tier); else showToast(`✅ Journée validée ! 🔥 Série portée à ${n.cur} jour${n.cur > 1 ? 's' : ''}`);
                 }
-            } catch (e) { /* refusé/hors ligne : on réessaie au prochain passage, rien n'est perdu */ }
+            } catch (e) {   // refusé/hors ligne : on réessaie au prochain passage, rien n'est perdu
+                wsErrN++; wsErr = e.code || e.message || 'erreur'; console.warn('WinStreak : écriture refusée', e);
+                wsLastWriteAt = Date.now() - 20000;   // réessaie dans ~7 s
+                if (wsOpen) wsRender();
+            }
             wsBusy = false;
         }
 
@@ -5059,8 +5065,9 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
             const today = st.ok
                 ? `<div class="text-emerald-300 font-bold">✅ Journée validée !</div><div class="text-sm">🔥 Série portée à ${w.cur} jour${w.cur > 1 ? 's' : ''}</div>`
                 : `<div class="text-xs text-[#949ba4] mb-1">Aujourd'hui :</div>
-                   <div class="text-sm">${secOk ? '☑' : '☐'} 5 min d'activité <span id="ws-clock" class="text-[#80848e] tabular-nums">(${min}:${sc} / 5:00)</span> <span id="ws-clock-state" class="text-[11px]">${wsActive() ? '⏱' : '⏸ inactif'}</span></div>
-                   <div class="text-sm">${st.msg ? '☑' : '☐'} 1 message</div>`;
+                   <div class="text-sm">${secOk ? '☑' : '☐'} 5 min d'activité <span id="ws-clock" class="text-[#80848e] tabular-nums">(${min}:${sc} / 5:00)</span> <span id="ws-clock-state" class="text-[11px]">${wsActive() ? '⏱' : '⏸ inactif · bouge pour reprendre'}</span></div>
+                   <div class="text-sm">${st.msg ? '☑' : '☐'} 1 message</div>
+                   ${wsErrN >= 2 ? `<div class="text-[11px] text-red-300 mt-2">⚠️ Le temps n'a pas pu être enregistré (${escapeHtml(wsErr)}). Vérifie ta connexion ; si ça continue, préviens l'admin.</div>` : ''}`;
             const pm = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date(serverNow()));
             const minsLeft = 1440 - (Number(pm.find(x => x.type === 'hour').value) % 24) * 60 - Number(pm.find(x => x.type === 'minute').value);
             const leftTxt = (n > 0 && !st.ok) ? `<div class="text-xs text-orange-300 mt-1">⏰ Il te reste ${Math.floor(minsLeft / 60)} h ${String(minsLeft % 60).padStart(2, '0')} pour valider ta journée (minuit, heure de Paris)</div>` : '';
@@ -5089,18 +5096,20 @@ const WS_BONUS_XP = 10, WS_BONUS_FROM = 5;   // Série Nexus : +10 XP sur le bon
             return st.ok ? Math.min(WS_NEED, st.sec) : Math.min(WS_NEED, st.sec + Math.min(WS_TICK, wsExtra));
         }
         function wsUiTick() {
-            if (!wsOpen) return;
+            if (!currentUser) return;
             const me = wsMe() || userProfile, st = wsTodayState(me);
             if (st.ok) return;
             const active = wsActive();
-            if (active) wsExtra++;
+            wsLiveSec(st);                                   // resynchronise la base si le serveur a enregistré entre-temps
+            if (active && wsExtra < WS_TICK) wsExtra++;      // au plus 30 s d'avance sur le dernier enregistrement
+            if (!wsOpen) return;
             const live = wsLiveSec(st), el = $('ws-clock');
             if (el) el.textContent = `(${Math.floor(live / 60)}:${String(live % 60).padStart(2, '0')} / 5:00)`;
-            const stEl = $('ws-clock-state'); if (stEl) stEl.textContent = live >= WS_NEED ? '✅' : (active ? '⏱' : '⏸ inactif');
+            const stEl = $('ws-clock-state'); if (stEl) stEl.textContent = live >= WS_NEED ? '✅' : (active ? '⏱' : '⏸ inactif · bouge pour reprendre');
             if (live >= WS_NEED && !wsUiTick.done) { wsUiTick.done = true; wsRender(); } else if (live < WS_NEED) wsUiTick.done = false;
         }
-        window.openWinstreak = () => { if (!currentUser) return; wsOpen = true; $('ws-modal').classList.remove('hidden'); wsRender(); wsTick(false); clearInterval(wsUiTimer); wsUiTimer = setInterval(wsUiTick, 1000); };
-        window.closeWinstreak = () => { wsOpen = false; clearInterval(wsUiTimer); $('ws-modal').classList.add('hidden'); };
+        window.openWinstreak = () => { if (!currentUser) return; wsOpen = true; $('ws-modal').classList.remove('hidden'); wsRender(); wsTick(false); };
+        window.closeWinstreak = () => { wsOpen = false; $('ws-modal').classList.add('hidden'); };
 
 
         /* =========================================================
